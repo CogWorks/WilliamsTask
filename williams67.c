@@ -43,6 +43,13 @@ int main(void) {
 
 	XChangeProperty(d,w,property,property,32,PropModeReplace,(unsigned char *)&hints,5);
 
+	//XF86VidModeSwitchToMode(d,DefaultScreen(d), 0);
+	XF86VidModeSetViewPort(d,DefaultScreen(d),0,0);
+	XMoveResizeWindow(d,w,0,0,XDisplayWidth(d,s),XDisplayHeight(d,s));
+	XMapRaised(d,w);
+	XGrabPointer(d,w,True,0,GrabModeAsync,GrabModeAsync,w,0L,CurrentTime);
+	XGrabKeyboard(d,w,False,GrabModeAsync,GrabModeAsync,CurrentTime);
+
 	/* select kind of events we are interested in */
 	XSelectInput(d, w, ExposureMask | KeyPressMask);
 
