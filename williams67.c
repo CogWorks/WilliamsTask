@@ -63,23 +63,19 @@ int main(void) {
 	/* create window */
 	w = XCreateSimpleWindow(d, RootWindow(d, s), 0, 0, XDisplayWidth(d, s), XDisplayHeight(d, s), 0,
 			BlackPixel(d, s), WhitePixel(d, s));
+	
+	XEvent xev;
+	memset(&xev, 0, sizeof(xev));
+	xev.type = ClientMessage;
+	xev.xclient.window = w;
+	xev.xclient.message_type = XInternAtom(d, "_NET_WM_STATE", False);
+	xev.xclient.format = 32;
+	xev.xclient.data.l[0] = 0;
+	xev.xclient.data.l[1] = XInternAtom(d, "_NET_WM_STATE_FULLSCREEN", False);
+	xev.xclient.data.l[2] = 0;
+	XSendEvent(d, DefaultRootWindow(d), False, SubstructureNotifyMask, &xev);
 
-	Hints hints;
-	Atom property;
-
-	hints.flags = 2;
-	hints.decorations = 0;
-
-	property = XInternAtom(d, "_MOTIF_WM_HINTS",True);
-
-	XChangeProperty(d,w,property,property,32,PropModeReplace,(unsigned char *)&hints,5);
-
-	//XF86VidModeSwitchToMode(d,DefaultScreen(d), 0);
-	XF86VidModeSetViewPort(d,DefaultScreen(d),0,0);
-	XMoveResizeWindow(d,w,0,0,XDisplayWidth(d,s),XDisplayHeight(d,s));
 	XMapRaised(d,w);
-	XGrabPointer(d,w,True,0,GrabModeAsync,GrabModeAsync,w,0L,CurrentTime);
-	XGrabKeyboard(d,w,False,GrabModeAsync,GrabModeAsync,CurrentTime);
 
 	/* select kind of events we are interested in */
 	XSelectInput(d, w, ExposureMask | KeyPressMask);
