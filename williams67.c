@@ -79,9 +79,13 @@ int main(void) {
 	xev.xclient.data.l[1] = XInternAtom(d, "_NET_WM_STATE_FULLSCREEN", False);
 	xev.xclient.data.l[2] = 0;
 	XSendEvent(d, DefaultRootWindow(d), False, SubstructureNotifyMask, &xev);
+	XMoveResizeWindow(d,w,0,0,XDisplayWidth(d,s),XDisplayHeight(d,s));
 
 	/* map (show) the window */
 	XMapWindow(d, w);
+
+	XGrabPointer(d,w,True,0,GrabModeAsync,GrabModeAsync,w,0L,CurrentTime);
+	XGrabKeyboard(d,w,False,GrabModeAsync,GrabModeAsync,CurrentTime);
 
 	XPoint **points = get_cell_origins(XDisplayWidth(d, s), XDisplayHeight(d, s), 13);
 	int i, j;
