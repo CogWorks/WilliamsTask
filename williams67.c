@@ -62,6 +62,19 @@ int main(void) {
 		/* draw or redraw the window */
 		if (e.type == Expose) {
 			XFillRectangle(d, w, DefaultGC(d, s), 20, 20, 10, 10);
+			XFillRectangle(d, w, DefaultGC(d, s), 550, 50, 10, 10);
+			XFillRectangle(d, w, DefaultGC(d, s), 1000, 400, 10, 10);
+			XFillRectangle(d, w, DefaultGC(d, s), 40, 500, 10, 10);
+			XPoint points[3];
+			points[0].x = 13;
+			points[0].y = 53;
+			points[1].x = 133;
+			points[1].y = 63;
+			points[2].x = 83;
+			points[2].y = 83;
+			points[3].x = 13;
+			points[3].y = 53;
+			XFillPolygon(d, w, DefaultGC(d, s), points, 4, Nonconvex, CoordModeOrigin);
 			XDrawString(d, w, DefaultGC(d, s), 50, 50, msg, strlen(msg));
 		}
 		/* exit on key press */
