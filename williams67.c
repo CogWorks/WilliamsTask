@@ -49,6 +49,11 @@ int main(void) {
 	char *msg = "Hello, World!";
 	int s;
 
+	Colormap screen_colormap;
+	XColor blue, green, yellow, orange, pink;
+	Status rc;
+	GC gc;
+
 	char *display_name = getenv("DISPLAY");
 
 	/* open connection with the server */
@@ -87,6 +92,36 @@ int main(void) {
 	XGrabPointer(d,w,True,0,GrabModeAsync,GrabModeAsync,w,0L,CurrentTime);
 	XGrabKeyboard(d,w,False,GrabModeAsync,GrabModeAsync,CurrentTime);
 
+	gc = DefaultGC(d, s);
+
+	screen_colormap = DefaultColormap(d, s);
+
+	rc = XAllocNamedColor(d, screen_colormap, "pink", &pink, &pink);
+	if (rc == 0) {
+		fprintf(stderr, "XAllocNamedColor - failed to allocated 'pink' color.\n");
+		exit(1);
+	}
+	rc = XAllocNamedColor(d, screen_colormap, "orange", &orange, &orange);
+	if (rc == 0) {
+		fprintf(stderr, "XAllocNamedColor - failed to allocated 'orange' color.\n");
+		exit(1);
+	}
+	rc = XAllocNamedColor(d, screen_colormap, "blue", &blue, &blue);
+	if (rc == 0) {
+		fprintf(stderr, "XAllocNamedColor - failed to allocated 'blue' color.\n");
+		exit(1);
+	}
+	rc = XAllocNamedColor(d, screen_colormap, "yellow", &yellow, &yellow);
+	if (rc == 0) {
+		fprintf(stderr, "XAllocNamedColor - failed to allocated 'yellow' color.\n");
+		exit(1);
+	}
+	rc = XAllocNamedColor(d, screen_colormap, "green", &green, &green);
+	if (rc == 0) {
+		fprintf(stderr, "XAllocNamedColor - failed to allocated 'green' color.\n");
+		exit(1);
+	}
+
 	XPoint **points = get_cell_origins(XDisplayWidth(d, s), XDisplayHeight(d, s), 13);
 	int i, j;
 
@@ -97,13 +132,19 @@ int main(void) {
 		if (e.type == Expose) {
 			for (i=0;i<13;i++) {
 				for (j=0;j<13;j++) {
-					XDrawPoint(d, w, DefaultGC(d, s), points[i][j].x, points[i][j].y);
+					XDrawPoint(d, w, gc, points[i][j].x, points[i][j].y);
 				}
 			}
-			XFillRectangle(d, w, DefaultGC(d, s), 20, 20, 10, 10);
-			XFillRectangle(d, w, DefaultGC(d, s), 550, 50, 10, 10);
-			XFillRectangle(d, w, DefaultGC(d, s), 1000, 400, 10, 10);
-			XFillRectangle(d, w, DefaultGC(d, s), 40, 500, 10, 10);
+
+			XSetForeground(d, gc, green.pixel);
+			XFillRectangle(d, w, gc, 20, 20, 10, 10);
+			XSetForeground(d, gc, pink.pixel);
+			XFillRectangle(d, w, gc, 550, 50, 10, 10);
+			XSetForeground(d, gc, yellow.pixel);
+			XFillRectangle(d, w, gc, 1000, 400, 10, 10);
+			XSetForeground(d, gc, blue.pixel);
+			XFillRectangle(d, w, gc, 40, 500, 10, 10);
+			XSetForeground(d, gc, orange.pixel);
 			XPoint points[13];
 			points[0].x = 100;
 			points[0].y = 100;
@@ -131,9 +172,21 @@ int main(void) {
 			points[11].y = 90;
 			points[12].x = 100;
 			points[12].y = 90;
-			XFillPolygon(d, w, DefaultGC(d, s), points, 13, Nonconvex, CoordModeOrigin);
-			XDrawString(d, w, DefaultGC(d, s), 50, 50, msg, strlen(msg));
-			XFillArc(d, w, DefaultGC(d, s), 500, 300, 40, 40, 0, 23040);
+			XFillPolygon(d, w, gc, points, 13, Nonconvex, CoordModeOrigin);
+			points[0].x = 400;
+			points[0].y = 500;
+			points[1].x = 420;
+			points[1].y = 480;
+			points[2].x = 440;
+			points[2].y = 500;
+			points[3].x = 420;
+			points[3].y = 520;
+			XSetForeground(d, gc, green.pixel);
+			XFillPolygon(d, w, gc, points, 4, Convex, CoordModeOrigin);
+			XSetForeground(d, gc, BlackPixel(d, s));
+			XDrawString(d, w, gc, 50, 50, msg, strlen(msg));
+			XSetForeground(d, gc, pink.pixel);
+			XFillArc(d, w, gc, 500, 300, 40, 40, 0, 23040);
 		}
 		/* exit on key press */
 		if (e.type == KeyPress)
