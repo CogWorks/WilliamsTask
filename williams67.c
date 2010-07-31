@@ -212,7 +212,7 @@ void generate_w67_objects(int xres, int yres, int nrc, w67Object_t *objects, int
 					unique = True;
 				}
 			}
-			ci++;
+			objects[ci].id = ci++;
 			if (ci==no) return;
 		}
 	}
