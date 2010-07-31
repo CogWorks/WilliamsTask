@@ -78,7 +78,7 @@ void rotate(XPoint *points, int npoints, int rx, int ry, float angle) {
 	}
 }
 
-void w67DrawTriangle(Display *d, Window w, GC gc, int x, int y, int width, int angle) {
+void w67DrawTriangle(Display *d, Window w, GC gc, int x, int y, int width) {
 	XPoint points[4];
 	int radius = width/2;
 	int adj = radius - 3 * radius / sqrt(3) / 2;
@@ -93,7 +93,7 @@ void w67DrawTriangle(Display *d, Window w, GC gc, int x, int y, int width, int a
 	XFillPolygon(d, w, gc, points, 4, Convex, CoordModeOrigin);
 }
 
-void w67DrawStar(Display *d, Window w, GC gc, int x, int y, int arms, int rOuter, int rInner, int angle) {
+void w67DrawStar(Display *d, Window w, GC gc, int x, int y, int arms, int rOuter, int rInner) {
 	XPoint points[2*arms+1];
 	double a = 3.141592653589793238462643 / arms;
 	int i = 0;
@@ -107,7 +107,7 @@ void w67DrawStar(Display *d, Window w, GC gc, int x, int y, int arms, int rOuter
 	XFillPolygon(d, w, gc, points, 2*arms+1, Nonconvex, CoordModeOrigin);
 }
 
-void w67DrawCross(Display *d, Window w, GC gc, int x, int y, int width, int angle) {
+void w67DrawCross(Display *d, Window w, GC gc, int x, int y, int width) {
 	XPoint points[13];
 	int side = width / 3;
 	points[0].x = x - 1.5 * side;
@@ -139,7 +139,7 @@ void w67DrawCross(Display *d, Window w, GC gc, int x, int y, int width, int angl
 	XFillPolygon(d, w, gc, points, 13, Nonconvex, CoordModeOrigin);
 }
 
-void w67DrawObject(w67Object_t object, int angle) {
+void w67DrawObject(w67Object_t object) {
 
 	XSetForeground(d, gc, w67Colors[object.color].pixel);
 
@@ -147,7 +147,7 @@ void w67DrawObject(w67Object_t object, int angle) {
 
 	switch (object.shape) {
 	case CROSS:
-		w67DrawCross(d,w,gc,object.origin.x,object.origin.y,cw,angle);
+		w67DrawCross(d,w,gc,object.origin.x,object.origin.y,cw);
 		break;
 	case SQUARE:
 		XFillRectangle(d, w, gc, object.origin.x-.5*cw, object.origin.y-.5*cw, cw, cw);
@@ -156,13 +156,13 @@ void w67DrawObject(w67Object_t object, int angle) {
 		XFillArc(d, w, gc, object.origin.x-.5*cw, object.origin.y-.5*cw, cw, cw, 0, 23040);
 		break;
 	case TRIANGLE:
-		w67DrawTriangle(d, w, gc, object.origin.x, object.origin.y, cw, 0);
+		w67DrawTriangle(d, w, gc, object.origin.x, object.origin.y, cw);
 		break;
 	case SEMICIRCLE:
 		XFillArc(d, w, gc, object.origin.x-.5*cw, object.origin.y-.5*cw, cw, cw, 33, 11520);
 		break;
 	case STAR:
-		w67DrawStar(d,w,gc,object.origin.x,object.origin.y,5, cw/2, cw/3.5, angle);
+		w67DrawStar(d,w,gc,object.origin.x,object.origin.y,5, cw/2, cw/3.5);
 		break;
 	}
 
@@ -327,13 +327,15 @@ int main(int argc, char* argv[] ) {
 	font = XLoadFont(d, "-adobe-courier-medium-r-normal--8-80-75-75-m-50-iso8859-1");
 	XSetFont(d, gc, font);
 
+	int angle;
 	/* event loop */
 	while (1) {
 		XNextEvent(d, &e);
 		/* draw or redraw the window */
 		if (e.type == Expose) {
 			for (i=0;i<100;i++) {
-				w67DrawObject(objects[i], 0);
+				angle = random_int(360);
+				w67DrawObject(objects[i]);
 				asprintf(&id, "%.2d", objects[i].id);
 				XDrawString(d, w, gc, objects[i].origin.x, objects[i].origin.y, id, 2);
 				free(id);
