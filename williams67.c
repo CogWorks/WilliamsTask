@@ -9,7 +9,7 @@ Window w;
 GC gc;
 
 XColor w67Colors[7];
-float w67Sizes[] = {0.3, 0.5, 0.7};
+float w67Sizes[] = {0.3, 0.4625, 0.625, 0.95};
 
 int screen_width;
 int screen_height;
@@ -37,24 +37,45 @@ typedef enum {
 } w67Color_t;
 
 typedef enum {
+	TINY,
 	SMALL,
 	MEDIUM,
 	LARGE,
 } w67Size_t;
 
+typedef struct {
+	int			id;
+	w67Color_t	color;
+	w67Shape_t	shape;
+	w67Size_t	size;
+	XPoint		origin;
+} w67Object_t;
+
 int random_int(int upper_bound) {
 	return (int) ( (float)upper_bound * rand() / (RAND_MAX + 1.0) );
 }
 
+void shuffle(int *array, size_t n) {
+	if (n > 1) {
+		size_t i;
+		for (i = 0; i < n - 1; i++) {
+			size_t j = i + rand() / (RAND_MAX / (n - i) + 1);
+			int t = array[j];
+			array[j] = array[i];
+			array[i] = t;
+		}
+	}
+}
+
 void rotate(XPoint *points, int npoints, int rx, int ry, float angle) {
-    int i;
-    for (i=0; i<npoints; i++) {
-	float x, y;
-	x = points[i].x - rx;
-	y = points[i].y - ry;
-	points[i].x =  rx + x * cosf(angle) - y * sinf(angle);
-	points[i].y =  ry + x * sinf(angle) + y * cosf(angle);
-    }
+	int i;
+	for (i=0; i<npoints; i++) {
+		float x, y;
+		x = points[i].x - rx;
+		y = points[i].y - ry;
+		points[i].x =  rx + x * cosf(angle) - y * sinf(angle);
+		points[i].y =  ry + x * sinf(angle) + y * cosf(angle);
+	}
 }
 
 void w67DrawTriangle(Display *d, Window w, GC gc, int x, int y, int width, int angle) {
@@ -74,16 +95,16 @@ void w67DrawTriangle(Display *d, Window w, GC gc, int x, int y, int width, int a
 
 void w67DrawStar(Display *d, Window w, GC gc, int x, int y, int arms, int rOuter, int rInner, int angle) {
 	XPoint points[2*arms+1];
-    double a = 3.141592653589793238462643 / arms;
-    int i = 0;
-    for (; i < 2 * arms; i++) {
-        double r = (i & 1) == 0 ? rOuter : rInner;
-        points[i].x = x + cos(i * a) * r;
-        points[i].y = y + sin(i * a) * r;
-    }
-    points[i].x = points[0].x;
-    points[i].y = points[0].y;
-    XFillPolygon(d, w, gc, points, 2*arms+1, Nonconvex, CoordModeOrigin);
+	double a = 3.141592653589793238462643 / arms;
+	int i = 0;
+	for (; i < 2 * arms; i++) {
+		double r = (i & 1) == 0 ? rOuter : rInner;
+		points[i].x = x + cos(i * a) * r;
+		points[i].y = y + sin(i * a) * r;
+	}
+	points[i].x = points[0].x;
+	points[i].y = points[0].y;
+	XFillPolygon(d, w, gc, points, 2*arms+1, Nonconvex, CoordModeOrigin);
 }
 
 void w67DrawCross(Display *d, Window w, GC gc, int x, int y, int width, int angle) {
@@ -118,30 +139,30 @@ void w67DrawCross(Display *d, Window w, GC gc, int x, int y, int width, int angl
 	XFillPolygon(d, w, gc, points, 13, Nonconvex, CoordModeOrigin);
 }
 
-void w67DrawObject(w67Shape_t shape, w67Color_t color, w67Size_t size, int x, int y, int angle) {
+void w67DrawObject(w67Object_t object, int angle) {
 
-	XSetForeground(d, gc, w67Colors[color].pixel);
+	XSetForeground(d, gc, w67Colors[object.color].pixel);
 
-	int cw = cell_width*w67Sizes[size];
+	int cw = (int)cell_width*w67Sizes[object.size];
 
-	switch (shape) {
+	switch (object.shape) {
 	case CROSS:
-		w67DrawCross(d,w,gc,x,y,cw,angle);
+		w67DrawCross(d,w,gc,object.origin.x,object.origin.y,cw,angle);
 		break;
 	case SQUARE:
-		XFillRectangle(d, w, gc, x-.5*cw, y-.5*cw, cw, cw);
+		XFillRectangle(d, w, gc, object.origin.x-.5*cw, object.origin.y-.5*cw, cw, cw);
 		break;
 	case CIRCLE:
-		XFillArc(d, w, gc, x-.5*cw, y-.5*cw, cw, cw, 0, 23040);
+		XFillArc(d, w, gc, object.origin.x-.5*cw, object.origin.y-.5*cw, cw, cw, 0, 23040);
 		break;
 	case TRIANGLE:
-		w67DrawTriangle(d, w, gc, x, y, cw, 0);
+		w67DrawTriangle(d, w, gc, object.origin.x, object.origin.y, cw, 0);
 		break;
 	case SEMICIRCLE:
-		XFillArc(d, w, gc, x-.5*cw, y-.5*cw, cw, cw, 33, 11520);
+		XFillArc(d, w, gc, object.origin.x-.5*cw, object.origin.y-.5*cw, cw, cw, 33, 11520);
 		break;
 	case STAR:
-		w67DrawStar(d,w,gc,x,y,5, cw/2, cw/3.5, angle);
+		w67DrawStar(d,w,gc,object.origin.x,object.origin.y,5, cw/2, cw/3.5, angle);
 		break;
 	}
 
@@ -149,34 +170,52 @@ void w67DrawObject(w67Shape_t shape, w67Color_t color, w67Size_t size, int x, in
 
 }
 
-XPoint ** get_cell_origins(int xres, int yres, int n, int *len) {
-	XPoint **points = malloc(n*sizeof(XPoint*));
+void generate_w67_objects(int xres, int yres, int nrc, w67Object_t *objects, int no, int *len) {
+	if (nrc % 2 != 1) {
+		fprintf(stderr, "Number of rows and columns must be odd.");
+		exit(1);
+	}
+	int max_cells = nrc * nrc;
+	int center = (nrc-1)/2;
 	int res_diff = -1;
-	int i, j;
-	if (yres<xres) {
-		*len = yres / n;
-		res_diff = ( xres - yres ) / 2;
-		for (i=0;i<n;i++) {
-			points[i] = malloc(n*sizeof(XPoint*));
-			for (j=0;j<n;j++) {
-				points[i][j].y = i * *len + (*len / 2);
-				points[i][j].x = j * *len + res_diff + (*len / 2);
-				//printf("x: %d, y: %d\n", points[i][j].x, points[i][j].y);
+	int excluded = 0;
+	int i, j, k;
+	int ci = 0;
+
+	*len = yres / nrc;
+	res_diff = ( xres - yres ) / 2;
+	for (i=0;i<nrc;i++) {
+		for (j=0;j<nrc;j++) {
+			if (i == center && j == center) continue;
+			if (excluded >=0 && random_int(max_cells)<(max_cells-no)) {
+				excluded++;
+				continue;
 			}
-		}
-	} else {
-		*len = xres / n;
-		res_diff = ( yres - xres ) / 2;
-		for (i=0;i<n;i++) {
-			points[i] = malloc(n*sizeof(XPoint*));
-			for (j=0;j<n;j++) {
-				points[i][j].y = i * *len + res_diff + (*len / 2);
-				points[i][j].x = j * *len + (*len / 2);
-				//printf("x: %d, y: %d\n", points[i][j].x, points[i][j].y);
+			objects[ci].origin.y = i * *len + (*len / 2);
+			objects[ci].origin.x = j * *len + res_diff + (*len / 2);
+			int unique = True;
+			while (True) {
+				objects[ci].color = random_int(5);
+				objects[ci].shape = random_int(5);
+				objects[ci].size = random_int(4);
+				for (k=0;k<ci;k++) {
+					if (objects[ci].color == objects[k].color &&
+							objects[ci].size == objects[k].size &&
+							objects[ci].shape == objects[k].shape) {
+						unique = False;
+						break;
+					}
+				}
+				if (unique) {
+					break;
+				} else {
+					unique = True;
+				}
 			}
+			ci++;
+			if (ci==no) return;
 		}
 	}
-	return points;
 }
 
 void w67init() {
@@ -273,11 +312,11 @@ int main(int argc, char* argv[] ) {
 
 	w67init();
 
-	char *msg = "Hello, World!";
+	w67Object_t objects[100];
+	memset(&objects, 0, sizeof(objects));
+	generate_w67_objects(screen_width, screen_height, 13, objects, 100, &cell_width);
 
-	XPoint **points = get_cell_origins(screen_width, screen_height, 13, &cell_width);
-	//printf("Cell side length: %d\n", len);
-	int i, j;
+	int i;
 
 	int excluded = 0;
 	XEvent e;
@@ -286,20 +325,9 @@ int main(int argc, char* argv[] ) {
 		XNextEvent(d, &e);
 		/* draw or redraw the window */
 		if (e.type == Expose) {
-			for (i=0;i<13;i++) {
-				for (j=0;j<13;j++) {
-					if (i == 6 && j == 6) continue;
-					if (excluded >=0 && random_int(169)<69) {
-						excluded++;
-						continue;
-					}
-					int color = random_int(5);
-					int size = random_int(3);
-					int shape = random_int(5);
-					printf("Color: %d, Size: %d\n", color, size);
-					w67DrawObject(shape, color, size, points[i][j].x, points[i][j].y, 0);
-					XDrawPoint(d, w, gc, points[i][j].x, points[i][j].y);
-				}
+			for (i=0;i<100;i++) {
+				w67DrawObject(objects[i], 0);
+				XDrawPoint(d, w, gc, objects[i].origin.x, objects[i].origin.y);
 			}
 		}
 		/* exit on key press */
