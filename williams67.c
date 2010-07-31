@@ -212,7 +212,8 @@ void generate_w67_objects(int xres, int yres, int nrc, w67Object_t *objects, int
 					unique = True;
 				}
 			}
-			objects[ci].id = ci++;
+			objects[ci].id = ci;
+			ci++;
 			if (ci==no) return;
 		}
 	}
@@ -320,6 +321,12 @@ int main(int argc, char* argv[] ) {
 
 	int excluded = 0;
 	XEvent e;
+	char *id;
+
+	Font font;
+	font = XLoadFont(d, "-adobe-courier-medium-r-normal--8-80-75-75-m-50-iso8859-1");
+	XSetFont(d, gc, font);
+
 	/* event loop */
 	while (1) {
 		XNextEvent(d, &e);
@@ -327,7 +334,10 @@ int main(int argc, char* argv[] ) {
 		if (e.type == Expose) {
 			for (i=0;i<100;i++) {
 				w67DrawObject(objects[i], 0);
-				XDrawPoint(d, w, gc, objects[i].origin.x, objects[i].origin.y);
+				asprintf(&id, "%.2d", objects[i].id);
+				XDrawString(d, w, gc, objects[i].origin.x, objects[i].origin.y, id, 2);
+				free(id);
+				//XDrawPoint(d, w, gc, objects[i].origin.x, objects[i].origin.y);
 			}
 		}
 		/* exit on key press */
