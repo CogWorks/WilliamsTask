@@ -16,6 +16,15 @@
  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  =============================================================================*/
 
+/**
+ * TODO: Ensure there are objects in all rows
+ * TODO: Convert pixel calculations from int to float+round()
+ * TODO: Randomize ids
+ * TODO: Implement a diamond shape
+ * TODO: Display probe
+ * TODO: Collect mouse events
+ */
+
 #include <X11/Xlib.h>
 #include <stdio.h>
 #include <stdlib.h>
