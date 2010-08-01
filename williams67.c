@@ -18,10 +18,9 @@
 
 /**
  * TODO: Convert pixel calculations from int to float+round()
- * TODO: Randomize ids
  * TODO: Implement a diamond shape
  * TODO: Display probe
- * TODO: Collect mouse events
+ * TODO: Click on probe to end trial
  * TODO: Reset mouse to center of screen
  */
 
@@ -347,7 +346,6 @@ int main(int argc, char* argv[] ) {
 	w67init();
 
 	w67Object_t objects[100];
-	//memset(&objects, 0, sizeof(objects));
 	generate_w67_objects(screen_width, screen_height, 13, objects, 100, &cell_width);
 
 	int i;
