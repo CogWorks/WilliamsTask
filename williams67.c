@@ -52,6 +52,16 @@ typedef enum {
 	DIAMOND
 } w67Shape_t;
 
+char *w67ShapeNames[] = {
+		"Cross",
+		"Square",
+		"Circle",
+		"Triangle",
+		"Star",
+		"Semicircle",
+		"Diamond"
+};
+
 typedef enum {
 	BLUE,
 	GREEN,
@@ -62,12 +72,29 @@ typedef enum {
 	WHITE
 } w67Color_t;
 
+char *w67ColorNames[] = {
+		"Blue",
+		"Green",
+		"Orange",
+		"Pink",
+		"Yellow",
+		"Black",
+		"White"
+};
+
 typedef enum {
 	TINY,
 	SMALL,
 	MEDIUM,
 	LARGE,
 } w67Size_t;
+
+char *w67SizeNames[] = {
+		"Tiny",
+		"Small",
+		"Medium",
+		"Large",
+};
 
 typedef struct {
 	int			id;
@@ -345,8 +372,12 @@ int main(int argc, char* argv[] ) {
 
 	w67init();
 
-	w67Object_t objects[100];
+	int no = 100;
+
+	w67Object_t objects[no];
 	generate_w67_objects(screen_width, screen_height, 13, objects, 100, &cell_width);
+
+	int probe_index = random_int(no);
 
 	int i;
 
@@ -371,6 +402,12 @@ int main(int argc, char* argv[] ) {
 				w67DrawObject(objects[i]);
 				asprintf(&id, "%.2d", objects[i].id);
 				XDrawString(d, w, gc, objects[i].origin.x, objects[i].origin.y, id, 2);
+				free(id);
+				asprintf(&id, "%.2d", probe_index);
+				XDrawString(d, w, gc, .1*cell_width + screen_width/2-cell_width/2, .2*cell_width + screen_height/2-cell_width/2, id, 2);
+				XDrawString(d, w, gc, .1*cell_width + screen_width/2-cell_width/2, .2*cell_width + screen_height/2-cell_width/2+9, w67ShapeNames[objects[probe_index].shape], strlen(w67ShapeNames[objects[probe_index].shape]));
+				XDrawString(d, w, gc, .1*cell_width + screen_width/2-cell_width/2, .2*cell_width + screen_height/2-cell_width/2+18, w67ColorNames[objects[probe_index].color], strlen(w67ColorNames[objects[probe_index].color]));
+				XDrawString(d, w, gc, .1*cell_width + screen_width/2-cell_width/2, .2*cell_width + screen_height/2-cell_width/2+27, w67SizeNames[objects[probe_index].size], strlen(w67SizeNames[objects[probe_index].size]));
 				free(id);
 			}
 		} else if (e.type == ButtonPress) {
