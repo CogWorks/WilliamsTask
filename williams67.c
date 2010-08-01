@@ -17,7 +17,6 @@
  =============================================================================*/
 
 /**
- * TODO: Ensure there are objects in all rows
  * TODO: Convert pixel calculations from int to float+round()
  * TODO: Randomize ids
  * TODO: Implement a diamond shape
@@ -207,10 +206,12 @@ void generate_w67_objects(int xres, int yres, int nrc, w67Object_t *objects, int
 	int res_diff = -1;
 	int excluded = 0;
 	int i, j, k;
-	int ci = 0;
+	int ci;
 
 	*len = yres / nrc;
 	res_diff = ( xres - yres ) / 2;
+generate:
+	ci = 0;
 	for (i=0;i<nrc;i++) {
 		for (j=0;j<nrc;j++) {
 			if (i == center && j == center) continue;
@@ -241,9 +242,12 @@ void generate_w67_objects(int xres, int yres, int nrc, w67Object_t *objects, int
 			}
 			objects[ci].id = ci;
 			ci++;
-			if (ci==no) return;
+			if (ci==no) goto verify;
 		}
 	}
+verify:
+	if (i!=(nrc-1)) goto generate;
+	else if (j<center) goto generate;
 }
 
 void w67init() {
