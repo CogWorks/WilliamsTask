@@ -76,6 +76,7 @@ typedef struct {
 	w67Shape_t	shape;
 	w67Size_t	size;
 	XPoint		origin;
+	XPoint		cell;
 } w67Object_t;
 
 int random_int(int upper_bound) {
@@ -205,50 +206,49 @@ void generate_w67_objects(int xres, int yres, int nrc, w67Object_t *objects, int
 	int max_cells = nrc * nrc;
 	int center = (nrc-1)/2;
 	int res_diff = -1;
-	int excluded = 0;
-	int i, j, k;
-	int ci;
+	int i, j;
 
 	*len = yres / nrc;
 	res_diff = ( xres - yres ) / 2;
-generate:
-	ci = 0;
-	for (i=0;i<nrc;i++) {
-		for (j=0;j<nrc;j++) {
-			if (i == center && j == center) continue;
-			if (excluded >=0 && random_int(max_cells)<(max_cells-no)) {
-				excluded++;
-				continue;
+
+	i = 0;
+	while (i<no) {
+		pick_cell:
+		objects[i].cell.x = random_int(nrc);
+		objects[i].cell.y = random_int(nrc);
+		if (objects[i].cell.x == center && objects[i].cell.y == center)
+			goto pick_cell;
+		for (j=0;j<i;j++) {
+			if (objects[j].cell.x == objects[i].cell.x &&
+					objects[j].cell.y == objects[i].cell.y) {
+				goto pick_cell;
 			}
-			objects[ci].origin.y = i * *len + (*len / 2);
-			objects[ci].origin.x = j * *len + res_diff + (*len / 2);
-			int unique = True;
-			while (True) {
-				objects[ci].color = random_int(5);
-				objects[ci].shape = random_int(5);
-				objects[ci].size = random_int(4);
-				for (k=0;k<ci;k++) {
-					if (objects[ci].color == objects[k].color &&
-							objects[ci].size == objects[k].size &&
-							objects[ci].shape == objects[k].shape) {
-						unique = False;
-						break;
-					}
-				}
-				if (unique) {
-					break;
-				} else {
-					unique = True;
-				}
-			}
-			objects[ci].id = ci;
-			ci++;
-			if (ci==no) goto verify;
 		}
+		pick_id:
+		objects[i].id = random_int(no);
+		for (j=0;j<i;j++) {
+			if (objects[j].id == objects[i].id)
+				goto pick_id;
+		}
+
+		pick_obj:
+		objects[i].color = random_int(5);
+		objects[i].shape = random_int(5);
+		objects[i].size = random_int(4);
+		for (j=0;j<i;j++) {
+			if (objects[i].color == objects[j].color &&
+					objects[i].size == objects[j].size &&
+					objects[i].shape == objects[j].shape) {
+				goto pick_obj;
+			}
+		}
+
+		objects[i].origin.y = objects[i].cell.y * *len + (*len / 2);
+		objects[i].origin.x = objects[i].cell.x * *len + res_diff + (*len / 2);
+		i++;
+
 	}
-verify:
-	if (i!=(nrc-1)) goto generate;
-	else if (j<center) goto generate;
+
 }
 
 void w67init() {
@@ -347,7 +347,7 @@ int main(int argc, char* argv[] ) {
 	w67init();
 
 	w67Object_t objects[100];
-	memset(&objects, 0, sizeof(objects));
+	//memset(&objects, 0, sizeof(objects));
 	generate_w67_objects(screen_width, screen_height, 13, objects, 100, &cell_width);
 
 	int i;
