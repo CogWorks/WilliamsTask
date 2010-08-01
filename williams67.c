@@ -32,7 +32,7 @@
 #include <math.h>
 
 Display *d;
-Window w;
+Window w, r;
 GC gc;
 
 XColor w67Colors[7];
@@ -266,15 +266,16 @@ void w67init() {
 	}
 
 	s = DefaultScreen(d);
+	r = RootWindow(d, s);
 
 	/* create window */
-	w = XCreateSimpleWindow(d, RootWindow(d, s), 0, 0, XDisplayWidth(d, s), XDisplayHeight(d, s), 0,
+	w = XCreateSimpleWindow(d, r, 0, 0, XDisplayWidth(d, s), XDisplayHeight(d, s), 0,
 			BlackPixel(d, s), WhitePixel(d, s));
 
 	XMapRaised(d,w);
 
 	/* select kind of events we are interested in */
-	XSelectInput(d, w, ExposureMask | KeyPressMask);
+	XSelectInput(d, w, ExposureMask | KeyPressMask | ButtonPressMask | ButtonReleaseMask);
 
 	XEvent xev;
 	memset(&xev, 0, sizeof(xev));
@@ -285,7 +286,7 @@ void w67init() {
 	xev.xclient.data.l[0] = 1;
 	xev.xclient.data.l[1] = XInternAtom(d, "_NET_WM_STATE_FULLSCREEN", False);
 	xev.xclient.data.l[2] = 0;
-	XSendEvent(d, DefaultRootWindow(d), False, SubstructureNotifyMask, &xev);
+	XSendEvent(d, r, False, SubstructureNotifyMask, &xev);
 	XMoveResizeWindow(d,w,0,0,XDisplayWidth(d,s),XDisplayHeight(d,s));
 
 	/* map (show) the window */
@@ -360,6 +361,8 @@ int main(int argc, char* argv[] ) {
 	XSetFont(d, gc, font);
 
 	int angle;
+	int wx, wy, rx, ry;
+	unsigned m;
 	/* event loop */
 	while (1) {
 		XNextEvent(d, &e);
@@ -371,12 +374,15 @@ int main(int argc, char* argv[] ) {
 				asprintf(&id, "%.2d", objects[i].id);
 				XDrawString(d, w, gc, objects[i].origin.x, objects[i].origin.y, id, 2);
 				free(id);
-				//XDrawPoint(d, w, gc, objects[i].origin.x, objects[i].origin.y);
 			}
-		}
-		/* exit on key press */
-		if (e.type == KeyPress)
+		} else if (e.type == ButtonPress) {
+			printf("Button Pressed\n");
+		} else if (e.type == ButtonRelease) {
+			XQueryPointer(d, r, &r, &w, &rx, &ry, &wx, &wy, &m);
+			printf("Button Released: %d %d %d %d\n", rx, ry, wx, wy);
+		} else if (e.type == KeyPress) {
 			break;
+		}
 	}
 
 	/* close connection to server */
