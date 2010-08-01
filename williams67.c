@@ -19,8 +19,6 @@
 /**
  * TODO: Convert pixel calculations from int to float+round()
  * TODO: Implement a diamond shape
- * TODO: Display probe
- * TODO: Click on probe to end trial
  * TODO: Reset mouse to center of screen
  */
 
@@ -29,6 +27,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <sys/time.h>
 
 Display *d;
 Window w, r;
@@ -41,6 +40,7 @@ int screen_width;
 int screen_height;
 
 int cell_width;
+int res_diff;
 
 typedef enum {
 	CROSS,
@@ -107,6 +107,10 @@ typedef struct {
 
 int random_int(int upper_bound) {
 	return (int) ( (float)upper_bound * rand() / (RAND_MAX + 1.0) );
+}
+
+double distance(int x1, int y1, int x2, int y2) {
+	return sqrt((x2-x1)*(x2-x1)+(y2-y1)*(y2-y1));
 }
 
 void shuffle(int *array, size_t n) {
@@ -224,17 +228,16 @@ void w67DrawObject(w67Object_t object) {
 
 }
 
-void generate_w67_objects(int xres, int yres, int nrc, w67Object_t *objects, int no, int *len) {
+void generate_w67_objects(int xres, int yres, int nrc, w67Object_t *objects, int no) {
 	if (nrc % 2 != 1) {
 		fprintf(stderr, "Number of rows and columns must be odd.");
 		exit(1);
 	}
 	int max_cells = nrc * nrc;
 	int center = (nrc-1)/2;
-	int res_diff = -1;
 	int i, j;
 
-	*len = yres / nrc;
+	cell_width = yres / nrc;
 	res_diff = ( xres - yres ) / 2;
 
 	i = 0;
@@ -269,8 +272,8 @@ void generate_w67_objects(int xres, int yres, int nrc, w67Object_t *objects, int
 			}
 		}
 
-		objects[i].origin.y = objects[i].cell.y * *len + (*len / 2);
-		objects[i].origin.x = objects[i].cell.x * *len + res_diff + (*len / 2);
+		objects[i].origin.y = objects[i].cell.y * cell_width + (cell_width / 2);
+		objects[i].origin.x = objects[i].cell.x * cell_width + res_diff + (cell_width / 2);
 		i++;
 
 	}
@@ -375,11 +378,14 @@ int main(int argc, char* argv[] ) {
 	int no = 100;
 
 	w67Object_t objects[no];
-	generate_w67_objects(screen_width, screen_height, 13, objects, 100, &cell_width);
+	generate_w67_objects(screen_width, screen_height, 13, objects, 100);
 
 	int probe_index = random_int(no);
 
 	int i;
+
+	int started = False;
+	struct timeval start_time;
 
 	int excluded = 0;
 	XEvent e;
@@ -389,7 +395,9 @@ int main(int argc, char* argv[] ) {
 	font = XLoadFont(d, "-adobe-courier-medium-r-normal--8-80-75-75-m-50-iso8859-1");
 	XSetFont(d, gc, font);
 
+	int hcw = cell_width / 2;
 	int angle;
+	double dist = screen_width+1, tmp_dist;
 	int wx, wy, rx, ry;
 	unsigned m;
 	/* event loop */
@@ -397,7 +405,7 @@ int main(int argc, char* argv[] ) {
 		XNextEvent(d, &e);
 		/* draw or redraw the window */
 		if (e.type == Expose) {
-			for (i=0;i<100;i++) {
+			for (i=0;i<no;i++) {
 				angle = random_int(360);
 				w67DrawObject(objects[i]);
 				asprintf(&id, "%.2d", objects[i].id);
@@ -409,16 +417,28 @@ int main(int argc, char* argv[] ) {
 				XDrawString(d, w, gc, .1*cell_width + screen_width/2-cell_width/2, .2*cell_width + screen_height/2-cell_width/2+18, w67ColorNames[objects[probe_index].color], strlen(w67ColorNames[objects[probe_index].color]));
 				XDrawString(d, w, gc, .1*cell_width + screen_width/2-cell_width/2, .2*cell_width + screen_height/2-cell_width/2+27, w67SizeNames[objects[probe_index].size], strlen(w67SizeNames[objects[probe_index].size]));
 				free(id);
+				if (!started) gettimeofday(&start_time, NULL);
 			}
 		} else if (e.type == ButtonPress) {
-			printf("Button Pressed\n");
-		} else if (e.type == ButtonRelease) {
 			XQueryPointer(d, r, &r, &w, &rx, &ry, &wx, &wy, &m);
-			printf("Button Released: %d %d %d %d\n", rx, ry, wx, wy);
+			for (i=0;i<no;i++) {
+				if (abs(wx-objects[i].origin.x)<hcw && abs(wy-objects[i].origin.y)<hcw) {
+					if (i==probe_index) {
+						struct timeval end_time;
+						gettimeofday(&end_time, NULL);
+						double t1 = start_time.tv_sec+(start_time.tv_usec/1000000.0);
+						double t2 = end_time.tv_sec+(end_time.tv_usec/1000000.0);
+						printf("It took %.2f seconds to find the probe!\n", t2-t1);
+						goto done;
+					}
+				}
+			}
 		} else if (e.type == KeyPress) {
-			break;
+			goto done;
 		}
 	}
+
+	done:
 
 	/* close connection to server */
 	XCloseDisplay(d);
