@@ -22,6 +22,7 @@
  * TODO: Implement a diamond shape
  * TODO: Display probe
  * TODO: Collect mouse events
+ * TODO: Reset mouse to center of screen
  */
 
 #include <X11/Xlib.h>
