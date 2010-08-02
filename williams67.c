@@ -20,6 +20,10 @@
  * TODO: Convert pixel calculations from int to float+round()
  * TODO: Implement a diamond shape
  * TODO: Reset mouse to center of screen
+ * TODO: Adjust font based on screen resolution
+ * TODO: Add option to set custom number of rows and columns
+ * TODO: ACT-R interface
+ * TODO: Log to file
  */
 
 #include <X11/Xlib.h>
