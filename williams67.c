@@ -411,7 +411,7 @@ int main(int argc, char* argv[] ) {
 				asprintf(&id, "%.2d", objects[i].id);
 				XDrawString(d, w, gc, objects[i].origin.x, objects[i].origin.y, id, 2);
 				free(id);
-				asprintf(&id, "%.2d", probe_index);
+				asprintf(&id, "%.2d", objects[probe_index].id);
 				XDrawString(d, w, gc, .1*cell_width + screen_width/2-cell_width/2, .2*cell_width + screen_height/2-cell_width/2, id, 2);
 				XDrawString(d, w, gc, .1*cell_width + screen_width/2-cell_width/2, .2*cell_width + screen_height/2-cell_width/2+9, w67ShapeNames[objects[probe_index].shape], strlen(w67ShapeNames[objects[probe_index].shape]));
 				XDrawString(d, w, gc, .1*cell_width + screen_width/2-cell_width/2, .2*cell_width + screen_height/2-cell_width/2+18, w67ColorNames[objects[probe_index].color], strlen(w67ColorNames[objects[probe_index].color]));
