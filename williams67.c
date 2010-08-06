@@ -37,6 +37,11 @@ Display *d;
 Window w, r;
 GC gc;
 
+Pixmap blank;
+XColor dummy;
+char data[1] = {0};
+Cursor cursor;
+
 XColor w67Colors[7];
 float w67Sizes[] = {0.3, 0.4625, 0.625, 0.95};
 
@@ -371,6 +376,71 @@ void w67init() {
 	screen_width = XDisplayWidth(d, s);
 	screen_height = XDisplayHeight(d, s);
 
+	blank = XCreateBitmapFromData (d, w, data, 1, 1);
+	if(blank == None) fprintf(stderr, "error: out of memory.\n");
+	cursor = XCreatePixmapCursor(d, blank, blank, &dummy, &dummy, 0, 0);
+	XFreePixmap(d, blank);
+
+}
+
+void hideMouse() {
+	XDefineCursor(d, w, cursor);
+}
+
+void unhideMouse() {
+	XUndefineCursor(d, w);
+}
+
+void moveMouse(int x, int y) {
+	XWarpPointer(d, None, w, 0,0,0,0, screen_width/2, screen_height/2);
+}
+
+void clickMouse(int button) {
+
+	XEvent event;
+	memset(&event, 0x00, sizeof(event));
+	event.type = ButtonPress;
+	event.xbutton.button = button;
+	event.xbutton.same_screen = True;
+
+	XQueryPointer(d, r,
+			&event.xbutton.root,
+			&event.xbutton.window,
+			&event.xbutton.x_root,
+			&event.xbutton.y_root,
+			&event.xbutton.x,
+			&event.xbutton.y,
+			&event.xbutton.state);
+
+	event.xbutton.subwindow = event.xbutton.window;
+
+	while(event.xbutton.subwindow)
+	{
+		event.xbutton.window = event.xbutton.subwindow;
+
+		XQueryPointer(d, event.xbutton.window,
+				&event.xbutton.root,
+				&event.xbutton.subwindow,
+				&event.xbutton.x_root,
+				&event.xbutton.y_root,
+				&event.xbutton.x,
+				&event.xbutton.y,
+				&event.xbutton.state);
+	}
+
+	if(XSendEvent(d, PointerWindow, True, 0xfff, &event) == 0)
+		fprintf(stderr, "Error event !!!\n");
+
+	XFlush(d);
+
+	event.type = ButtonRelease;
+	event.xbutton.state = 0x100;
+
+	if(XSendEvent(d, PointerWindow, True, 0xfff, &event) == 0)
+		fprintf(stderr, "Error event !!!\n");
+
+	XFlush(d);
+
 }
 
 int main(int argc, char* argv[] ) {
@@ -404,6 +474,11 @@ int main(int argc, char* argv[] ) {
 	double dist = screen_width+1, tmp_dist;
 	int wx, wy, rx, ry;
 	unsigned m;
+
+	hideMouse();
+	moveMouse(screen_width/2, screen_height/2);
+	unhideMouse();
+
 	/* event loop */
 	while (1) {
 		XNextEvent(d, &e);
