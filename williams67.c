@@ -17,6 +17,38 @@
  =============================================================================*/
 
 /**
+ * Original experiment details
+ *
+ *
+ * Visual field is 39 X 39 degrees, divided up into a 13 X 13 grid of 3 degree
+ * square. Objects occupy 100 of the squares, chosen at random, except the
+ * center is reserved for the target description.
+ *
+ * stimuli are in four sizes:
+ * 2.8, 1.9, 1.3, 0.8 degrees, called very large, large, medium, and small
+ *
+ * 5 colors:
+ * blue, green, yellow, orange, pink
+ *
+ * 5 shapes:
+ * circle, semicircle, triangle, square, cross
+ *
+ * each stimulus has a two digit number 0-99
+ *
+ * probe is number, optionally with color, size, shape, verbally presented on
+ * first slide, repeated on second.
+ *
+ * trial start
+ * slide 1 probe
+ * {button press}
+ * slide 2 probe + description
+ * {button press - when found}
+ *
+ * 30 subjects, two sessons, 200 trials per S.
+ *
+ */
+
+/**
  * TODO: Convert pixel calculations from int to float+round()
  * TODO: Implement a diamond shape
  * TODO: Reset mouse to center of screen
