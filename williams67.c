@@ -63,6 +63,7 @@
 #include <string.h>
 #include <math.h>
 #include <sys/time.h>
+#include <unistd.h>
 
 Display *d;
 Window w, r;
@@ -481,11 +482,11 @@ int main(int argc, char* argv[] ) {
 	w67init();
 
 	int no = 100;
-
+	int probe_index;
 	w67Object_t objects[no];
-	generate_w67_objects(screen_width, screen_height, 13, objects, 100);
 
-	int probe_index = random_int(no);
+	generate_w67_objects(screen_width, screen_height, 13, objects, 100);
+	probe_index = random_int(no);
 
 	int i;
 
@@ -506,45 +507,67 @@ int main(int argc, char* argv[] ) {
 	int wx, wy, rx, ry;
 	unsigned m;
 
+	Window root, child;
+
 	hideMouse();
-	moveMouse(screen_width/2, screen_height/2);
-	unhideMouse();
+
+	int trials = 2;
+	int trial = 0;
 
 	/* event loop */
-	while (1) {
+	while (trial<trials) {
 		XNextEvent(d, &e);
 		/* draw or redraw the window */
 		if (e.type == Expose) {
+			//angle = random_int(360);
+			asprintf(&id, "%.2d", objects[probe_index].id);
+			XDrawString(d, w, gc, .1*cell_width + screen_width/2-cell_width/2, .2*cell_width + screen_height/2-cell_width/2, id, 2);
+			XDrawString(d, w, gc, .1*cell_width + screen_width/2-cell_width/2, .2*cell_width + screen_height/2-cell_width/2+9, w67ShapeNames[objects[probe_index].shape], strlen(w67ShapeNames[objects[probe_index].shape]));
+			XDrawString(d, w, gc, .1*cell_width + screen_width/2-cell_width/2, .2*cell_width + screen_height/2-cell_width/2+18, w67ColorNames[objects[probe_index].color], strlen(w67ColorNames[objects[probe_index].color]));
+			XDrawString(d, w, gc, .1*cell_width + screen_width/2-cell_width/2, .2*cell_width + screen_height/2-cell_width/2+27, w67SizeNames[objects[probe_index].size], strlen(w67SizeNames[objects[probe_index].size]));
+			free(id);
+		} else if (e.type == ButtonPress && started) {
+			XQueryPointer(d, r, &root, &child, &rx, &ry, &wx, &wy, &m);
+			int found = 0;
 			for (i=0;i<no;i++) {
-				angle = random_int(360);
+				if (abs(wx-objects[i].origin.x)<hcw && abs(wy-objects[i].origin.y)<hcw && i==probe_index) {
+					found = 1;
+					break;
+				}
+			}
+			if (found) {
+				struct timeval end_time;
+				gettimeofday(&end_time, NULL);
+				double t1 = start_time.tv_sec+(start_time.tv_usec/1000000.0);
+				double t2 = end_time.tv_sec+(end_time.tv_usec/1000000.0);
+				trial++;
+				printf("Trial %d: %.2f seconds\n", trial, t2-t1);
+				if (trial<trials) {
+					XClearWindow(d, w);
+					hideMouse();
+					generate_w67_objects(screen_width, screen_height, 13, objects, 100);
+					probe_index = random_int(no);
+					asprintf(&id, "%.2d", objects[probe_index].id);
+					XDrawString(d, w, gc, .1*cell_width + screen_width/2-cell_width/2, .2*cell_width + screen_height/2-cell_width/2, id, 2);
+					XDrawString(d, w, gc, .1*cell_width + screen_width/2-cell_width/2, .2*cell_width + screen_height/2-cell_width/2+9, w67ShapeNames[objects[probe_index].shape], strlen(w67ShapeNames[objects[probe_index].shape]));
+					XDrawString(d, w, gc, .1*cell_width + screen_width/2-cell_width/2, .2*cell_width + screen_height/2-cell_width/2+18, w67ColorNames[objects[probe_index].color], strlen(w67ColorNames[objects[probe_index].color]));
+					XDrawString(d, w, gc, .1*cell_width + screen_width/2-cell_width/2, .2*cell_width + screen_height/2-cell_width/2+27, w67SizeNames[objects[probe_index].size], strlen(w67SizeNames[objects[probe_index].size]));
+					free(id);
+					started = 0;
+				}
+			}
+		} else if (e.type == KeyPress && !started) {
+			for (i=0;i<no;i++) {
 				w67DrawObject(objects[i]);
 				asprintf(&id, "%.2d", objects[i].id);
 				XDrawString(d, w, gc, objects[i].origin.x, objects[i].origin.y, id, 2);
 				free(id);
-				asprintf(&id, "%.2d", objects[probe_index].id);
-				XDrawString(d, w, gc, .1*cell_width + screen_width/2-cell_width/2, .2*cell_width + screen_height/2-cell_width/2, id, 2);
-				XDrawString(d, w, gc, .1*cell_width + screen_width/2-cell_width/2, .2*cell_width + screen_height/2-cell_width/2+9, w67ShapeNames[objects[probe_index].shape], strlen(w67ShapeNames[objects[probe_index].shape]));
-				XDrawString(d, w, gc, .1*cell_width + screen_width/2-cell_width/2, .2*cell_width + screen_height/2-cell_width/2+18, w67ColorNames[objects[probe_index].color], strlen(w67ColorNames[objects[probe_index].color]));
-				XDrawString(d, w, gc, .1*cell_width + screen_width/2-cell_width/2, .2*cell_width + screen_height/2-cell_width/2+27, w67SizeNames[objects[probe_index].size], strlen(w67SizeNames[objects[probe_index].size]));
-				free(id);
-				if (!started) gettimeofday(&start_time, NULL);
 			}
-		} else if (e.type == ButtonPress) {
-			XQueryPointer(d, r, &r, &w, &rx, &ry, &wx, &wy, &m);
-			for (i=0;i<no;i++) {
-				if (abs(wx-objects[i].origin.x)<hcw && abs(wy-objects[i].origin.y)<hcw) {
-					if (i==probe_index) {
-						struct timeval end_time;
-						gettimeofday(&end_time, NULL);
-						double t1 = start_time.tv_sec+(start_time.tv_usec/1000000.0);
-						double t2 = end_time.tv_sec+(end_time.tv_usec/1000000.0);
-						printf("It took %.2f seconds to find the probe!\n", t2-t1);
-						goto done;
-					}
-				}
-			}
-		} else if (e.type == KeyPress) {
-			goto done;
+			moveMouse(screen_width/2, screen_height/2);
+			unhideMouse();
+			gettimeofday(&start_time, NULL);
+			started = 1;
+			//goto done;
 		}
 	}
 
