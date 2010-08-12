@@ -57,12 +57,15 @@
  * TODO: Log to file
  */
 
+#define _GNU_SOURCE
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
 #include <time.h>
 #include <sys/time.h>
+#include <getopt.h>
 
 #include "williams67.h"
 
@@ -203,8 +206,7 @@ void w67init(w67Experiment_t *e) {
 
 }
 
-int main(int argc, char* argv[] ) {
-
+void doTrials(int trials) {
 	w67Experiment_t e;
 	w67init(&e);
 
@@ -230,7 +232,6 @@ int main(int argc, char* argv[] ) {
 
 	hideMouse(&e);
 
-	int trials = 1;
 	int trial = 0;
 
 	while (trial<trials) {
@@ -276,5 +277,70 @@ int main(int argc, char* argv[] ) {
 
 	XCloseDisplay(e.d);
 
-	return 0;
+}
+
+void showUsage() {
+	printf("Usage: williams67 [OPTION]\n");
+	printf("\nOptions:\n");
+	printf("  -h, --help\t\t\tShow usage\n");
+	printf("  -t trials, --trials=trials\tNumber of trials\n");
+	printf("  -R port, --act-r=port\t\tAccept ACT-R connection on port\n");
+}
+
+int main(int argc, char* argv[] ) {
+
+	struct option long_options[] = {
+			{"help", 	no_argument,       0, 'h'},
+			{"trials",  required_argument, 0, 't'},
+			{"act-r", 	required_argument, 0, 'R'},
+			{0, 0, 0, 0}
+	};
+
+	int c;
+	int option_index = 0;
+	int trials = 1;
+	unsigned short port = 0;
+
+	while (1) {
+
+		c = getopt_long (argc, argv, "ht:R:",
+				long_options, &option_index);
+
+		if (c == -1)
+			break;
+
+		switch (c) {
+		case 0:
+			if (long_options[option_index].flag != 0)
+				break;
+			showUsage();
+			exit(1);
+
+		case 'h':
+			showUsage();
+			exit(0);
+
+		case 'R':
+			port = atoi(optarg);
+			break;
+
+		case 't':
+			trials = atoi(optarg);
+			break;
+
+		case '?':
+			exit(1);
+
+		default:
+			abort();
+		}
+
+	}
+
+	if (port>0) {
+		wait_for_actr_connections(port);
+	} else {
+		doTrials(trials);
+	}
+
 }

@@ -75,6 +75,11 @@ typedef struct {
 	Font font;
 } w67Experiment_t;
 
+typedef struct {
+	int port;
+	char *address;
+} addy_t;
+
 extern const char *w67ShapeNames[W67_MAX_SHAPES];
 extern const char *w67ColorNames[W67_MAX_COLORS];
 extern const char *w67SizeNames[W67_MAX_SIZES];
@@ -85,7 +90,11 @@ void hideMouse(w67Experiment_t *e);
 void unhideMouse(w67Experiment_t *e);
 void moveMouse(w67Experiment_t *e, int x, int y);
 
+void doTrials(int trials);
+
 void w67DrawProbe(w67Experiment_t *e, w67Object_t *object);
 void w67DrawObject(w67Experiment_t *e, w67Object_t *object);
+
+void wait_for_actr_connections(unsigned short port);
 
 #endif /* W67TYPES_H_ */
