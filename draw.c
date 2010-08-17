@@ -87,7 +87,7 @@ void w67DrawCross(w67Experiment_t *e, int x, int y, int width) {
 	XFillPolygon(e->d, e->w, e->gc, points, 13, Nonconvex, CoordModeOrigin);
 }
 
-void w67DrawObject(w67Experiment_t *e, w67Object_t *object) {
+void w67DrawObject(w67Object_t *object) {
 
 	XSetForeground(e->d, e->gc, e->w67Colors[object->color].pixel);
 
@@ -121,7 +121,7 @@ void w67DrawObject(w67Experiment_t *e, w67Object_t *object) {
 	XDrawString(e->d, e->w, e->gc, object->origin.x, object->origin.y, id, 2);
 }
 
-void w67DrawProbe(w67Experiment_t *e, w67Object_t *object) {
+void w67DrawProbe(w67Object_t *object) {
 	char id[2];
 	sprintf(id, "%.2d", object->id);
 	int x = 0.1 * e->cell_width + e->screen_width / 2 - e->cell_width / 2;

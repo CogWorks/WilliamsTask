@@ -62,11 +62,11 @@ void unhideMouse(w67Experiment_t *e) {
 	XUndefineCursor(e->d, e->w);
 }
 
-void moveMouse(w67Experiment_t *e, int x, int y) {
+void moveMouse(int x, int y) {
 	XWarpPointer(e->d, None, e->w, 0,0,0,0, e->screen_width/2, e->screen_height/2);
 }
 
-void clickMouse(w67Experiment_t *e, int button) {
+void clickMouse(int button) {
 
 	XEvent event;
 	memset(&event, 0x00, sizeof(event));
@@ -111,5 +111,45 @@ void clickMouse(w67Experiment_t *e, int button) {
 		fprintf(stderr, "Error event !!!\n");
 
 	XFlush(e->d);
+
+}
+
+void pressKey(int keycode, int modifiers) {
+
+	printf("Executing keypress 1\n");
+
+	XKeyEvent event;
+	event.display = e->d;
+	event.window = e->w;
+	event.root = e->r;
+	event.subwindow = None;
+	event.time = CurrentTime;
+	event.x = 1;
+	event.y = 1;
+	event.x_root = 1;
+	event.y_root = 1;
+	event.same_screen = True;
+	event.keycode = keycode;
+	event.state = modifiers;
+
+	printf("Executing keypress 2\n");
+
+	event.type = KeyPress;
+
+	printf("Executing keypress 3\n");
+
+	if(XSendEvent(event.display, event.window, True, KeyPressMask, (XEvent *)&event) == 0)
+		fprintf(stderr, "Error event !!!\n");
+	XFlush(e->d);
+
+	event.type = KeyRelease;
+
+	printf("Executing keypress 4\n");
+
+	if(XSendEvent(event.display, event.window, True, KeyReleaseMask, (XEvent *)&event) == 0)
+		fprintf(stderr, "Error event !!!\n");
+	XFlush(e->d);
+
+	printf("Executing keypress 5\n");
 
 }

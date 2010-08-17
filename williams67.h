@@ -59,6 +59,8 @@ typedef struct {
 	w67Size_t	size;
 	XPoint		origin;
 	XPoint		cell;
+	int			width;
+	int			height;
 } w67Object_t;
 
 typedef struct {
@@ -66,6 +68,7 @@ typedef struct {
 	Window w;
 	Window r;
 	GC gc;
+	int s;
 	Cursor cursor;
 	int screen_width;
 	int screen_height;
@@ -86,15 +89,31 @@ extern const char *w67SizeNames[W67_MAX_SIZES];
 extern const float w67Sizes[W67_MAX_SIZES];
 
 int random_int(int upper_bound);
-void hideMouse(w67Experiment_t *e);
-void unhideMouse(w67Experiment_t *e);
-void moveMouse(w67Experiment_t *e, int x, int y);
+void hideMouse();
+void unhideMouse();
+void moveMouse(int x, int y);
+void pressKey(int keycode, int modifiers);
 
+void connection_send(char *message);
+
+void w67init();
 void doTrials(int trials);
 
-void w67DrawProbe(w67Experiment_t *e, w67Object_t *object);
-void w67DrawObject(w67Experiment_t *e, w67Object_t *object);
+void w67DrawProbe(w67Object_t *object);
+void w67DrawObject(w67Object_t *object);
 
 void wait_for_actr_connections(unsigned short port);
+
+#define ROWS_AND_COLS	13
+#define MAX_OBJECTS		100
+
+w67Experiment_t *e;
+int port;
+int state;
+
+w67Object_t objects[MAX_OBJECTS];
+int probe_index;
+int center_x;
+int center_y;
 
 #endif /* W67TYPES_H_ */

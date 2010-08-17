@@ -69,12 +69,7 @@
 
 #include "williams67.h"
 
-#define ROWS_AND_COLS	13
-#define MAX_OBJECTS		100
-
-w67Object_t objects[MAX_OBJECTS];
-
-void generate_w67_objects(w67Experiment_t e, int nrc, w67Object_t *objects, int no) {
+void generate_w67_objects(int nrc, w67Object_t *objects, int no) {
 	if (nrc % 2 != 1) {
 		fprintf(stderr, "Number of rows and columns must be odd.");
 		exit(1);
@@ -115,22 +110,24 @@ void generate_w67_objects(w67Experiment_t e, int nrc, w67Object_t *objects, int 
 			}
 		}
 
-		objects[i].origin.y = objects[i].cell.y * e.cell_width + (e.cell_width / 2);
-		objects[i].origin.x = objects[i].cell.x * e.cell_width + e.res_diff + (e.cell_width / 2);
+		objects[i].origin.y = objects[i].cell.y * e->cell_width + (e->cell_width / 2);
+		objects[i].origin.x = objects[i].cell.x * e->cell_width + e->res_diff + (e->cell_width / 2);
+		objects[i].width = objects[i].height = (int)e->cell_width * w67Sizes[objects[i].size];
+
 		i++;
 
 	}
 
 }
 
-void w67init(w67Experiment_t *e) {
+void w67init() {
 
 	//printf("Initializing Williams '67 Visual Search Task\n");
 	//printf("============================================\n");
 
 	Pixmap blank;
 	XColor dummy;
-	int i, s;
+	int i;
 	Status rc;
 	Colormap screen_colormap;
 	XEvent xev;
@@ -141,30 +138,36 @@ void w67init(w67Experiment_t *e) {
 
 	srand(time(NULL));
 
+	if (e) (free(e));
+	e = malloc(sizeof(w67Experiment_t));
+
 	e->d = XOpenDisplay(display_name);
 	if (e->d == NULL) {
 		printf("-> Cannot open display\n");
 		exit(1);
 	}
 
-	s = DefaultScreen(e->d);
-	e->r = RootWindow(e->d, s);
+	e->s = DefaultScreen(e->d);
+	e->r = RootWindow(e->d, e->s);
 
-	e->w = XCreateSimpleWindow(e->d, e->r, 0, 0, XDisplayWidth(e->d, s),
-			XDisplayHeight(e->d, s), 0, BlackPixel(e->d, s), WhitePixel(e->d, s));
+	e->w = XCreateSimpleWindow(e->d, e->r, 0, 0, XDisplayWidth(e->d, e->s),
+			XDisplayHeight(e->d, e->s), 0, BlackPixel(e->d, e->s), WhitePixel(e->d, e->s));
 
 	XMapRaised(e->d, e->w);
 
 	XSelectInput(e->d, e->w, ExposureMask | KeyPressMask | ButtonPressMask);
 
-	e->screen_width = XDisplayWidth(e->d, s);
+	e->screen_width = XDisplayWidth(e->d, e->s);
 	//printf("-> Screen width: %d\n", e->screen_width);
-	e->screen_height = XDisplayHeight(e->d, s);
+	e->screen_height = XDisplayHeight(e->d, e->s);
 	//printf("-> Screen height: %d\n", e->screen_height);
 	e->cell_width = e->screen_height / ROWS_AND_COLS;
 	//printf("-> Cell width: %d\n", e->cell_width);
 	e->res_diff = ( e->screen_width - e->screen_height ) / 2;
 	//printf("-> Half resolution difference: %d\n", e->res_diff);
+
+	center_x = e->screen_width / 2;
+	center_y = e->screen_height / 2;
 
 	memset(&xev, 0, sizeof(xev));
 	xev.type = ClientMessage;
@@ -182,9 +185,9 @@ void w67init(w67Experiment_t *e) {
 	XGrabPointer(e->d, e->w, True, 0, GrabModeAsync, GrabModeAsync, e->w, 0L, CurrentTime);
 	XGrabKeyboard(e->d, e->w, False, GrabModeAsync, GrabModeAsync, CurrentTime);
 
-	e->gc = DefaultGC(e->d, s);
+	e->gc = DefaultGC(e->d, e->s);
 
-	screen_colormap = DefaultColormap(e->d, s);
+	screen_colormap = DefaultColormap(e->d, e->s);
 
 	for (i=0;i<W67_MAX_COLORS;i++) {
 		rc = XAllocNamedColor(e->d, screen_colormap, w67ColorNames[i], &e->w67Colors[i], &e->w67Colors[i]);
@@ -203,43 +206,55 @@ void w67init(w67Experiment_t *e) {
 	if (blank == None) fprintf(stderr, "error: out of memory.\n");
 	e->cursor = XCreatePixmapCursor(e->d, blank, blank, &dummy, &dummy, 0, 0);
 	XFreePixmap(e->d, blank);
+	//XDestroyWindow(e->d, e->w);
+}
 
+void do_proc_display() {
+	connection_send("{\"error\":0,\"method\":\"actr.proc-display\"}\n");
+}
+
+void do_run_indefinite() {
+	connection_send("{\"error\":0,\"method\":\"actr.run-indefinite\"}\n");
 }
 
 void doTrials(int trials) {
-	w67Experiment_t e;
-	w67init(&e);
-
-	int probe_index;
-
-	probe_index = random_int(MAX_OBJECTS);
-	generate_w67_objects(e, ROWS_AND_COLS, objects, MAX_OBJECTS);
 
 	int i;
 
-	int started = False;
+	state = 0;
 	struct timeval start_time;
 
 	int excluded = 0;
 	XEvent xev;
 	char *id;
 
-	int hcw = e.cell_width / 2;
+	int hcw = e->cell_width / 2;
 	int wx, wy, rx, ry;
 	unsigned m;
 
 	Window root, child;
 
-	hideMouse(&e);
+	hideMouse(e);
 
 	int trial = 0;
 
+	printf("Got here 1\n");
+
 	while (trial<trials) {
-		XNextEvent(e.d, &xev);
+		XNextEvent(e->d, &xev);
 		if (xev.type == Expose) {
-			w67DrawProbe(&e, &objects[probe_index]);
-		} else if (xev.type == ButtonPress && started) {
-			XQueryPointer(e.d, e.r, &root, &child, &rx, &ry, &wx, &wy, &m);
+			printf("Got here 2\n");
+			probe_index = random_int(MAX_OBJECTS);
+			generate_w67_objects(ROWS_AND_COLS, objects, MAX_OBJECTS);
+			w67DrawProbe(&objects[probe_index]);
+			if (port>0) {
+				printf("Got here 3\n");
+				do_proc_display();
+				//do_run_indefinite();
+				printf("Got here 4\n");
+			}
+		} else if (xev.type == ButtonPress && state==1) {
+			XQueryPointer(e->d, e->r, &root, &child, &rx, &ry, &wx, &wy, &m);
 			int found = 0;
 			for (i=0;i<MAX_OBJECTS;i++) {
 				if (abs(wx-objects[i].origin.x)<hcw && abs(wy-objects[i].origin.y)<hcw && i==probe_index) {
@@ -255,27 +270,29 @@ void doTrials(int trials) {
 				trial++;
 				printf("Trial %d: %.2f seconds\n", trial, t2-t1);
 				if (trial<trials) {
-					XClearWindow(e.d, e.w);
-					hideMouse(&e);
-					generate_w67_objects(e, 13, objects, 100);
+					XClearWindow(e->d, e->w);
+					hideMouse();
 					probe_index = random_int(MAX_OBJECTS);
-					w67DrawProbe(&e, &objects[probe_index]);
-					started = 0;
+					generate_w67_objects(ROWS_AND_COLS, objects, MAX_OBJECTS);
+					w67DrawProbe(&objects[probe_index]);
+					state = 0;
+					if (port>0) do_proc_display();
 				}
 			}
-		} else if (xev.type == KeyPress && !started) {
+		} else if (xev.type == KeyPress && state==0) {
 			for (i=0;i<MAX_OBJECTS;i++)
-				w67DrawObject(&e, &objects[i]);
-			moveMouse(&e, e.screen_width/2, e.screen_height/2);
-			unhideMouse(&e);
+				w67DrawObject(&objects[i]);
+			moveMouse(e->screen_width/2, e->screen_height/2);
+			unhideMouse(e);
 			gettimeofday(&start_time, NULL);
-			started = 1;
+			state = 1;
+			if (port>0) do_proc_display();
 		}
 	}
 
 	done:
 
-	XCloseDisplay(e.d);
+	XCloseDisplay(e->d);
 
 }
 
@@ -296,10 +313,13 @@ int main(int argc, char* argv[] ) {
 			{0, 0, 0, 0}
 	};
 
+	e = 0;
+	state = -1;
+
 	int c;
 	int option_index = 0;
 	int trials = 1;
-	unsigned short port = 0;
+	port = 0;
 
 	while (1) {
 
@@ -337,9 +357,12 @@ int main(int argc, char* argv[] ) {
 
 	}
 
+	w67Experiment_t e;
+
 	if (port>0) {
 		wait_for_actr_connections(port);
 	} else {
+		w67init(&e);
 		doTrials(trials);
 	}
 
