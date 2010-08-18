@@ -66,6 +66,29 @@ void moveMouse(int x, int y) {
 	XWarpPointer(e->d, None, e->w, 0,0,0,0, e->screen_width/2, e->screen_height/2);
 }
 
+void getMouse(XPoint *mouse) {
+	if (e && e->d && e->r) {
+		XEvent event;
+		memset(&event, 0x00, sizeof(event));
+		Window inwin;
+		Window inchildwin;
+		XQueryPointer(e->d, e->r,
+				&event.xbutton.root,
+				&event.xbutton.window,
+				&event.xbutton.x_root,
+				&event.xbutton.y_root,
+				&event.xbutton.x,
+				&event.xbutton.y,
+				&event.xbutton.state);
+		mouse->x = event.xbutton.x;
+		mouse->y = event.xbutton.y;
+		XSync(e->d, False);
+	} else {
+		mouse->x = 0;
+		mouse->y = 0;
+	}
+}
+
 void clickMouse(int button) {
 
 	XEvent event;

@@ -155,7 +155,7 @@ void w67init() {
 
 	XMapRaised(e->d, e->w);
 
-	XSelectInput(e->d, e->w, ExposureMask | KeyPressMask | ButtonPressMask);
+	XSelectInput(e->d, e->w, ExposureMask | KeyPressMask | ButtonPressMask | ButtonReleaseMask);
 
 	e->screen_width = XDisplayWidth(e->d, e->s);
 	//printf("-> Screen width: %d\n", e->screen_width);
@@ -305,6 +305,8 @@ void showUsage() {
 }
 
 int main(int argc, char* argv[] ) {
+
+	XInitThreads();
 
 	struct option long_options[] = {
 			{"help", 	no_argument,       0, 'h'},

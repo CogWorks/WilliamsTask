@@ -96,6 +96,18 @@ void actr_cursor_to_vis_loc(struct json_object *request, struct json_object *res
 	json_object_object_add(response, "result", NULL);
 }
 
+void actr_get_mouse_coordinates(struct json_object *request, struct json_object *response) {
+	XPoint mouse;
+	getMouse(&mouse);
+	printf("x:%d,y:%d\n", mouse.x, mouse.y);
+	struct json_object *array = json_object_new_array();
+	json_object_array_add(array, json_object_new_int(mouse.x));
+	json_object_array_add(array, json_object_new_int(mouse.y));
+	json_object_object_add(response, "error", json_object_new_int(0));
+	json_object_object_add(response, "result", array);
+	json_object_object_add(response, "prototype", json_object_new_string("json-rpc-response"));
+}
+
 void actr_build_vis_locs_for(struct json_object *request, struct json_object *response) {
 	struct json_object *result = json_object_new_array();
 	int i;
@@ -304,6 +316,7 @@ void wait_for_actr_connections(unsigned short port) {
 	jsonrpc_add_method("actr.build-vis-locs-for", actr_build_vis_locs_for);
 	jsonrpc_add_method("actr.vis-loc-to-obj", actr_vis_loc_to_obj);
 	jsonrpc_add_method("actr.device-handle-keypress", actr_device_handle_keypress);
+	jsonrpc_add_method("actr.get-mouse-coordinates", actr_get_mouse_coordinates);
 	jsonrpc_add_method("ipc.connect", ipc_connect);
 	jsonrpc_add_method("start", start);
 
