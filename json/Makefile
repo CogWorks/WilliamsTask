@@ -21,6 +21,7 @@ TESTS		= src/test1 src/test2
 
 all: ${ARCH}
 $(ARCH): $(LIB_OBJS) ${LIB_HDRS} src/json.h
+	mkdir -p lib
 	$(AR) $(ARFLAGS) $(ARCH) $?
 	cp src/*.h include/
 tests: $(TESTS)

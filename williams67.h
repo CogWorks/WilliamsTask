@@ -93,6 +93,7 @@ void hideMouse();
 void unhideMouse();
 void moveMouse(int x, int y);
 void pressKey(int keycode, int modifiers);
+void getMouse(XPoint *mouse);
 
 void connection_send(char *message);
 

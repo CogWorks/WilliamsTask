@@ -17,6 +17,7 @@ all: ${ARCH}
 	cc -c -o $@ $(DEBUG) $(CFLAGS) $(IFLAGS) $<
 
 $(ARCH): $(LIB_OBJS) ${LIB_HDRS} 
+	mkdir -p lib
 	$(AR) $(ARFLAGS) $(ARCH) $?
 	cp src/*.h include/
 

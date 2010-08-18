@@ -23,9 +23,17 @@
 #include "json_object.h"
 #include "json_object_private.h"
 
-#if !HAVE_STRNDUP
-  char* strndup(const char* str, size_t n);
-#endif /* !HAVE_STRNDUP */
+#ifdef __APPLE__
+char *strndup(const char *s, size_t n) {
+	size_t len = strlen(s);
+	char *ret;
+	if (len <= n) return strdup(s);
+	ret = malloc(n + 1);
+	strncpy(ret, s, n);
+	ret[n] = '\0';
+	return ret;
+}
+#endif
 
 /* #define REFCOUNT_DEBUG 1 */
 
