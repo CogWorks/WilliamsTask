@@ -116,7 +116,7 @@ void w67DrawObject(w67Object_t *object) {
 
 	XSetForeground(e->d, e->gc, e->w67Colors[BLACK].pixel);
 
-	char id[2];
+	char id[8];
 	sprintf(id, "%.2d", object->id);
 	XDrawString(e->d, e->w, e->gc, object->origin.x, object->origin.y, id, 2);
 }
