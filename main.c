@@ -222,7 +222,7 @@ void doTrials(int trials) {
 
 	int i;
 
-	state = 0;
+	state = -1;
 	struct timeval start_time;
 
 	int excluded = 0;
@@ -244,9 +244,12 @@ void doTrials(int trials) {
 	while (trial<trials) {
 		XNextEvent(e->d, &xev);
 		if (xev.type == Expose) {
-			printf("Got here 2\n");
-			probe_index = random_int(MAX_OBJECTS);
-			generate_w67_objects(ROWS_AND_COLS, objects, MAX_OBJECTS);
+			if (state==-1) {
+				state = 0;
+				printf("Got here 2\n");
+				probe_index = random_int(MAX_OBJECTS);
+				generate_w67_objects(ROWS_AND_COLS, objects, MAX_OBJECTS);
+			}
 			w67DrawProbe(&objects[probe_index]);
 			if (port>0) {
 				printf("Got here 3\n");
@@ -276,7 +279,7 @@ void doTrials(int trials) {
 					probe_index = random_int(MAX_OBJECTS);
 					generate_w67_objects(ROWS_AND_COLS, objects, MAX_OBJECTS);
 					w67DrawProbe(&objects[probe_index]);
-					state = 0;
+					state = -1;
 					if (port>0) do_proc_display();
 				}
 			}
