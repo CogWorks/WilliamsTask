@@ -122,7 +122,7 @@ void w67DrawObject(w67Object_t *object) {
 }
 
 void w67DrawProbe(w67Object_t *object) {
-	char id[2];
+	char id[8];
 	sprintf(id, "%.2d", object->id);
 	int x = 0.1 * e->cell_width + e->screen_width / 2 - e->cell_width / 2;
 	int y = 0.2 * e->cell_width + e->screen_height / 2 - e->cell_width / 2;
