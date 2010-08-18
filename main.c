@@ -66,6 +66,7 @@
 #include <time.h>
 #include <sys/time.h>
 #include <getopt.h>
+#include <X11/keysym.h>
 
 #include "williams67.h"
 
@@ -279,7 +280,7 @@ void doTrials(int trials) {
 					if (port>0) do_proc_display();
 				}
 			}
-		} else if (xev.type == KeyPress && state==0) {
+		} else if (xev.type == KeyPress && state==0 && xev.xkey.keycode == XKeysymToKeycode(e->d, XK_f)) {
 			for (i=0;i<MAX_OBJECTS;i++)
 				w67DrawObject(&objects[i]);
 			moveMouse(e->screen_width/2, e->screen_height/2);
