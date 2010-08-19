@@ -83,7 +83,7 @@ void generate_w67_objects(int nrc, w67Object_t *objects, int no) {
 	int start_x = e->center_x - offset;
 	int start_y = e->center_y - offset;
 
-	printf("Offset: %d, StartX: %d, StartY: %d\n", offset, start_x, start_y);
+	//printf("Offset: %d, StartX: %d, StartY: %d\n", offset, start_x, start_y);
 
 	i = 0;
 	while (i<no) {
@@ -167,7 +167,7 @@ void w67init() {
 	Window r;
 	unsigned int d, b;
 	XGetGeometry(e->d, e->w, &r, &e->x, &e->y, &e->screen_width, &e->screen_height, &b, &d);
-	printf("-> Screen Resolution (%d,%d) %d %d\n", e->screen_width, e->screen_height, e->x, e->y);
+	//printf("-> Screen Resolution (%d,%d) %d %d\n", e->screen_width, e->screen_height, e->x, e->y);
 
 	memset(&xev, 0, sizeof(xev));
 	xev.type = ClientMessage;
@@ -244,19 +244,19 @@ void doTrials(int trials) {
 				Window r;
 				unsigned int d, b;
 				XGetGeometry(e->d, e->w, &r, &e->x, &e->y, &e->screen_width, &e->screen_height, &b, &d);
-				printf("-> Screen Resolution (%d,%d) %d %d\n", e->screen_width, e->screen_height, e->x, e->y);
+				//printf("-> Screen Resolution (%d,%d) %d %d\n", e->screen_width, e->screen_height, e->x, e->y);
 
 				e->center_x = e->screen_width / 2;
 				e->center_y = (e->screen_height - e->y) / 2;
-				printf("-> Center: (%d,%d)\n", e->center_x, e->center_y);
+				//printf("-> Center: (%d,%d)\n", e->center_x, e->center_y);
 
 				e->cell_width = (e->screen_height - e->y) / (ROWS_AND_COLS+ROWS_AND_COLS*GAP+GAP);
 				e->cell_gap = e->cell_width * GAP;
-				printf("-> Cell width: %d Cell gap: %d\n", e->cell_width, e->cell_gap);
+				//printf("-> Cell width: %d Cell gap: %d\n", e->cell_width, e->cell_gap);
 				e->hcw = e->cell_width / 2;
 
 				e->res_diff = ( e->screen_width - (e->screen_height - e->y)) / 2;
-				printf("-> Half resolution difference: %d\n", e->res_diff);
+				//printf("-> Half resolution difference: %d\n", e->res_diff);
 
 				state = 0;
 				probe_index = random_int(MAX_OBJECTS);
