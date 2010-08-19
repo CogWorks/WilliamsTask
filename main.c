@@ -292,7 +292,7 @@ void doTrials(int trials) {
 		} else if (xev.type == KeyPress && state==0 && xev.xkey.keycode == XKeysymToKeycode(e->d, XK_f)) {
 			for (i=0;i<MAX_OBJECTS;i++)
 				w67DrawObject(&objects[i]);
-			moveMouse(e->screen_width/2, e->screen_height/2);
+			moveMouse(e->center_x, e->center_y);
 			unhideMouse(e);
 			gettimeofday(&start_time, NULL);
 			state = 1;
