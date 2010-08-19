@@ -111,7 +111,7 @@ void wait_for_actr_connections(unsigned short port);
 
 #define ROWS_AND_COLS	13
 #define MAX_OBJECTS		100
-#define GAP 0.1
+#define GAP 0.02
 
 w67Experiment_t *e;
 int port;
