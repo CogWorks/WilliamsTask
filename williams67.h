@@ -72,6 +72,9 @@ typedef struct {
 	Cursor cursor;
 	int screen_width;
 	int screen_height;
+	int center_x;
+	int center_y;
+	int hcw;
 	int cell_width;
 	int res_diff;
 	XColor w67Colors[7];

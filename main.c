@@ -115,6 +115,7 @@ void generate_w67_objects(int nrc, w67Object_t *objects, int no) {
 		objects[i].origin.x = objects[i].cell.x * e->cell_width + e->res_diff + (e->cell_width / 2);
 		objects[i].width = objects[i].height = (int)e->cell_width * w67Sizes[objects[i].size];
 
+		printf("Loc-%d: (%d,%d)\n", i, objects[i].origin.x, objects[i].origin.y);
 		i++;
 
 	}
@@ -123,8 +124,7 @@ void generate_w67_objects(int nrc, w67Object_t *objects, int no) {
 
 void w67init() {
 
-	//printf("Initializing Williams '67 Visual Search Task\n");
-	//printf("============================================\n");
+	XInitThreads();
 
 	Pixmap blank;
 	XColor dummy;
@@ -159,16 +159,17 @@ void w67init() {
 	XSelectInput(e->d, e->w, ExposureMask | KeyPressMask | ButtonPressMask | ButtonReleaseMask);
 
 	e->screen_width = XDisplayWidth(e->d, e->s);
-	//printf("-> Screen width: %d\n", e->screen_width);
 	e->screen_height = XDisplayHeight(e->d, e->s);
-	//printf("-> Screen height: %d\n", e->screen_height);
-	e->cell_width = e->screen_height / ROWS_AND_COLS;
-	//printf("-> Cell width: %d\n", e->cell_width);
-	e->res_diff = ( e->screen_width - e->screen_height ) / 2;
-	//printf("-> Half resolution difference: %d\n", e->res_diff);
+	printf("-> Screen Resolution (%d,%d)\n", e->screen_width, e->screen_height);
 
-	center_x = e->screen_width / 2;
-	center_y = e->screen_height / 2;
+	e->center_x = e->screen_width / 2;
+	e->center_y = e->screen_height / 2;
+	printf("-> Center: (%d,%d)\n", e->center_x, e->center_y);
+
+	e->cell_width = e->screen_height / ROWS_AND_COLS;
+	printf("-> Cell width: %d\n", e->cell_width);
+	e->res_diff = ( e->screen_width - e->screen_height ) / 2;
+	printf("-> Half resolution difference: %d\n", e->res_diff);
 
 	memset(&xev, 0, sizeof(xev));
 	xev.type = ClientMessage;
@@ -229,7 +230,7 @@ void doTrials(int trials) {
 	XEvent xev;
 	char *id;
 
-	int hcw = e->cell_width / 2;
+	e->hcw = e->cell_width / 2;
 	int wx, wy, rx, ry;
 	unsigned m;
 
@@ -239,29 +240,26 @@ void doTrials(int trials) {
 
 	int trial = 0;
 
-	printf("Got here 1\n");
-
 	while (trial<trials) {
 		XNextEvent(e->d, &xev);
 		if (xev.type == Expose) {
 			if (state==-1) {
 				state = 0;
-				printf("Got here 2\n");
 				probe_index = random_int(MAX_OBJECTS);
 				generate_w67_objects(ROWS_AND_COLS, objects, MAX_OBJECTS);
+			} else if (state==1) {
+				for (i=0;i<MAX_OBJECTS;i++)
+					w67DrawObject(&objects[i]);
 			}
 			w67DrawProbe(&objects[probe_index]);
 			if (port>0) {
-				printf("Got here 3\n");
 				do_proc_display();
-				//do_run_indefinite();
-				printf("Got here 4\n");
 			}
 		} else if (xev.type == ButtonPress && state==1) {
 			XQueryPointer(e->d, e->r, &root, &child, &rx, &ry, &wx, &wy, &m);
 			int found = 0;
 			for (i=0;i<MAX_OBJECTS;i++) {
-				if (abs(wx-objects[i].origin.x)<hcw && abs(wy-objects[i].origin.y)<hcw && i==probe_index) {
+				if (abs(wx-objects[i].origin.x)<e->hcw && abs(wy-objects[i].origin.y)<e->hcw && i==probe_index) {
 					found = 1;
 					break;
 				}
@@ -309,8 +307,6 @@ void showUsage() {
 }
 
 int main(int argc, char* argv[] ) {
-
-	XInitThreads();
 
 	struct option long_options[] = {
 			{"help", 	no_argument,       0, 'h'},
