@@ -247,10 +247,16 @@ void doTrials(int trials) {
 	hideMouse();
 
 	int trial = 0;
+	int count = 0;
 
 	while (trial<trials) {
 		XNextEvent(e->d, &xev);
 		if (xev.type == Expose) {
+			Window r;
+			unsigned int d, b;
+			XGetGeometry(e->d, e->w, &r, &e->x, &e->y, &e->screen_width, &e->screen_height, &b, &d);
+			printf("-> Screen Resolution-%d (%d,%d) %d %d\n", count, e->screen_width, e->screen_height, e->x, e->y);
+			count++;
 			if (state==-1) {
 				state = 0;
 				probe_index = random_int(MAX_OBJECTS);
