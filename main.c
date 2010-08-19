@@ -79,6 +79,12 @@ void generate_w67_objects(int nrc, w67Object_t *objects, int no) {
 	int center = (nrc-1)/2;
 	int i, j;
 
+	int offset = center * e->cell_width + center * e->cell_gap;
+	int start_x = e->center_x - offset;
+	int start_y = e->center_y - offset;
+
+	printf("Offset: %d, StartX: %d, StartY: %d\n", offset, start_x, start_y);
+
 	i = 0;
 	while (i<no) {
 		pick_cell:
@@ -111,11 +117,11 @@ void generate_w67_objects(int nrc, w67Object_t *objects, int no) {
 			}
 		}
 
-		objects[i].origin.y = objects[i].cell.y * e->cell_width + (e->cell_width / 2);
-		objects[i].origin.x = objects[i].cell.x * e->cell_width + e->res_diff + (e->cell_width / 2);
+		objects[i].origin.y = start_y + objects[i].cell.y * e->cell_width + objects[i].cell.y * e->cell_gap;
+		objects[i].origin.x = start_x + objects[i].cell.x * e->cell_width + objects[i].cell.x * e->cell_gap;
 		objects[i].width = objects[i].height = (int)e->cell_width * w67Sizes[objects[i].size];
 
-		printf("Loc-%d: (%d,%d)\n", i, objects[i].origin.x, objects[i].origin.y);
+		//printf("Loc-%d: (%d,%d)\n", i, objects[i].origin.x, objects[i].origin.y);
 		i++;
 
 	}
@@ -166,8 +172,10 @@ void w67init() {
 	e->center_y = e->screen_height / 2;
 	printf("-> Center: (%d,%d)\n", e->center_x, e->center_y);
 
-	e->cell_width = e->screen_height / ROWS_AND_COLS;
-	printf("-> Cell width: %d\n", e->cell_width);
+	e->cell_width = e->screen_height / (ROWS_AND_COLS+ROWS_AND_COLS*GAP+GAP);
+	e->cell_gap = e->cell_width * GAP;
+	printf("-> Cell width: %d Cell gap: %d\n", e->cell_width, e->cell_gap);
+
 	e->res_diff = ( e->screen_width - e->screen_height ) / 2;
 	printf("-> Half resolution difference: %d\n", e->res_diff);
 
