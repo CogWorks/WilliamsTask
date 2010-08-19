@@ -244,7 +244,7 @@ void doTrials(int trials) {
 
 	Window root, child;
 
-	hideMouse(e);
+	hideMouse();
 
 	int trial = 0;
 
@@ -285,7 +285,7 @@ void doTrials(int trials) {
 					probe_index = random_int(MAX_OBJECTS);
 					generate_w67_objects(ROWS_AND_COLS, objects, MAX_OBJECTS);
 					w67DrawProbe(&objects[probe_index]);
-					state = -1;
+					state = 0;
 					if (port>0) do_proc_display();
 				}
 			}

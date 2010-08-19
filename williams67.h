@@ -70,8 +70,10 @@ typedef struct {
 	GC gc;
 	int s;
 	Cursor cursor;
-	int screen_width;
-	int screen_height;
+	unsigned int screen_width;
+	unsigned int screen_height;
+	int x;
+	int y;
 	int center_x;
 	int center_y;
 	int hcw;

@@ -54,11 +54,11 @@ void rotate(XPoint *points, int npoints, int rx, int ry, float angle) {
 	}
 }
 
-void hideMouse(w67Experiment_t *e) {
+void hideMouse() {
 	XDefineCursor(e->d, e->w, e->cursor);
 }
 
-void unhideMouse(w67Experiment_t *e) {
+void unhideMouse() {
 	XUndefineCursor(e->d, e->w);
 }
 
