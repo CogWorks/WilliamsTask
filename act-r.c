@@ -80,10 +80,8 @@ void actr_device_handle_keypress(struct json_object *request, struct json_object
 	struct json_object *params = json_object_object_get(request, "params");
 	if (json_object_array_length(params)>0) {
 		struct json_object *args = json_object_array_get_idx(params, 0);
-		const char *key = json_object_get_string(json_object_object_get(args, "key"));
-		printf("Key %s pressed!\n", key);
-		int keycode = XStringToKeysym(key);
-		printf("Key %s, keycode %d pressed!\n", key, keycode);
+		int keycode = json_object_get_int(json_object_object_get(args, "keycode"));
+		printf("Key %d pressed!\n", keycode);
 		pressKey(keycode,0);
 		json_object_object_add(response, "error", json_object_new_int(0));
 		json_object_object_add(response, "result", json_object_new_int(keycode));
