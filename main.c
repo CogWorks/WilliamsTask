@@ -239,6 +239,7 @@ void doTrials(int trials) {
 	int trial = 0;
 
 	while (trial<trials) {
+		//XFlush(e->d);
 		XNextEvent(e->d, &xev);
 		if (xev.type == Expose) {
 			if (state==-1) {
@@ -296,15 +297,18 @@ void doTrials(int trials) {
 					if (port>0) do_proc_display();
 				}
 			}
-		} else if (xev.type == KeyPress && state==0 && xev.xkey.keycode == XKeysymToKeycode(e->d, XK_f)) {
-			printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
-			for (i=0;i<MAX_OBJECTS;i++)
-				w67DrawObject(&objects[i]);
-			moveMouse(e->center_x, e->center_y);
-			unhideMouse(e);
-			gettimeofday(&start_time, NULL);
-			state = 1;
-			if (port>0) do_proc_display();
+		} else if (xev.type == KeyPress && state==0) {
+			if ((port>0 && xev.xkey.keycode == XK_f) ||
+					(port==0 && xev.xkey.keycode == XKeysymToKeycode(e->d, XK_f))) {
+				printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
+				for (i=0;i<MAX_OBJECTS;i++)
+					w67DrawObject(&objects[i]);
+				moveMouse(e->center_x, e->center_y);
+				unhideMouse(e);
+				gettimeofday(&start_time, NULL);
+				state = 1;
+				if (port>0) do_proc_display();
+			}
 		}
 	}
 

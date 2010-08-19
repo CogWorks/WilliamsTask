@@ -139,6 +139,7 @@ void clickMouse(int button) {
 
 void pressKey(int keycode, int modifiers) {
 
+	//XLockDisplay(e->d);
 	printf("Executing keypress 1\n");
 
 	XKeyEvent event;
@@ -164,6 +165,7 @@ void pressKey(int keycode, int modifiers) {
 	if(XSendEvent(event.display, event.window, True, KeyPressMask, (XEvent *)&event) == 0)
 		fprintf(stderr, "Error event !!!\n");
 	XFlush(e->d);
+	//XSync(e->d, True);
 
 	event.type = KeyRelease;
 
@@ -172,7 +174,9 @@ void pressKey(int keycode, int modifiers) {
 	if(XSendEvent(event.display, event.window, True, KeyReleaseMask, (XEvent *)&event) == 0)
 		fprintf(stderr, "Error event !!!\n");
 	XFlush(e->d);
+	//XSync(e->d, True);
 
 	printf("Executing keypress 5\n");
+	//XUnlockDisplay(e->d);
 
 }
