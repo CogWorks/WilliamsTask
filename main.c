@@ -164,20 +164,10 @@ void w67init() {
 
 	XSelectInput(e->d, e->w, ExposureMask | KeyPressMask | ButtonPressMask | ButtonReleaseMask);
 
-	e->screen_width = XDisplayWidth(e->d, e->s);
-	e->screen_height = XDisplayHeight(e->d, e->s);
-	printf("-> Screen Resolution (%d,%d)\n", e->screen_width, e->screen_height);
-
-	e->center_x = e->screen_width / 2;
-	e->center_y = e->screen_height / 2;
-	printf("-> Center: (%d,%d)\n", e->center_x, e->center_y);
-
-	e->cell_width = e->screen_height / (ROWS_AND_COLS+ROWS_AND_COLS*GAP+GAP);
-	e->cell_gap = e->cell_width * GAP;
-	printf("-> Cell width: %d Cell gap: %d\n", e->cell_width, e->cell_gap);
-
-	e->res_diff = ( e->screen_width - e->screen_height ) / 2;
-	printf("-> Half resolution difference: %d\n", e->res_diff);
+	Window r;
+	unsigned int d, b;
+	XGetGeometry(e->d, e->w, &r, &e->x, &e->y, &e->screen_width, &e->screen_height, &b, &d);
+	printf("-> Screen Resolution (%d,%d) %d %d\n", e->screen_width, e->screen_height, e->x, e->y);
 
 	memset(&xev, 0, sizeof(xev));
 	xev.type = ClientMessage;
@@ -238,7 +228,6 @@ void doTrials(int trials) {
 	XEvent xev;
 	char *id;
 
-	e->hcw = e->cell_width / 2;
 	int wx, wy, rx, ry;
 	unsigned m;
 
@@ -247,17 +236,28 @@ void doTrials(int trials) {
 	hideMouse();
 
 	int trial = 0;
-	int count = 0;
 
 	while (trial<trials) {
 		XNextEvent(e->d, &xev);
 		if (xev.type == Expose) {
-			Window r;
-			unsigned int d, b;
-			XGetGeometry(e->d, e->w, &r, &e->x, &e->y, &e->screen_width, &e->screen_height, &b, &d);
-			printf("-> Screen Resolution-%d (%d,%d) %d %d\n", count, e->screen_width, e->screen_height, e->x, e->y);
-			count++;
 			if (state==-1) {
+				Window r;
+				unsigned int d, b;
+				XGetGeometry(e->d, e->w, &r, &e->x, &e->y, &e->screen_width, &e->screen_height, &b, &d);
+				printf("-> Screen Resolution (%d,%d) %d %d\n", e->screen_width, e->screen_height, e->x, e->y);
+
+				e->center_x = e->screen_width / 2;
+				e->center_y = (e->screen_height - e->y) / 2;
+				printf("-> Center: (%d,%d)\n", e->center_x, e->center_y);
+
+				e->cell_width = (e->screen_height - e->y) / (ROWS_AND_COLS+ROWS_AND_COLS*GAP+GAP);
+				e->cell_gap = e->cell_width * GAP;
+				printf("-> Cell width: %d Cell gap: %d\n", e->cell_width, e->cell_gap);
+				e->hcw = e->cell_width / 2;
+
+				e->res_diff = ( e->screen_width - (e->screen_height - e->y)) / 2;
+				printf("-> Half resolution difference: %d\n", e->res_diff);
+
 				state = 0;
 				probe_index = random_int(MAX_OBJECTS);
 				generate_w67_objects(ROWS_AND_COLS, objects, MAX_OBJECTS);
