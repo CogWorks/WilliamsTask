@@ -300,7 +300,6 @@ void doTrials(int trials) {
 		} else if (xev.type == KeyPress && state==0) {
 			if ((port>0 && xev.xkey.keycode == XK_f) ||
 					(port==0 && xev.xkey.keycode == XKeysymToKeycode(e->d, XK_f))) {
-				printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
 				for (i=0;i<MAX_OBJECTS;i++)
 					w67DrawObject(&objects[i]);
 				moveMouse(e->center_x, e->center_y);
