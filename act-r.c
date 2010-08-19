@@ -175,8 +175,9 @@ void actr_vis_loc_to_obj(struct json_object *request, struct json_object *respon
 }
 
 void *runTrials(void *ptr) {
-	int *trials = (int *)ptr;
-	doTrials(*trials);
+	int trials = (int)ptr;
+	printf("Trials: %d\n", trials);
+	doTrials(trials);
 }
 
 void start(struct json_object *request, struct json_object *response) {
@@ -188,9 +189,8 @@ void start(struct json_object *request, struct json_object *response) {
 		struct json_object *args = json_object_array_get_idx(params, 0);
 		int trials = json_object_get_int(json_object_object_get(args, "trials"));
 		w67init();
-		printf("Trials: %d\n", trials);
 		if (trials<0) trials = 1;
-		int ret = pthread_create(&run_thread, NULL, runTrials, &trials);
+		int ret = pthread_create(&run_thread, NULL, runTrials, trials);
 		json_object_object_add(response, "result", json_object_new_int(ret));
 	}
 

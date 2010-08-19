@@ -55,6 +55,7 @@
  * TODO: Add option to set custom number of rows and columns
  * TODO: ACT-R interface
  * TODO: Log to file
+ * TODO: Keep track of probe study/rehersal time
  */
 
 #define _GNU_SOURCE
@@ -296,6 +297,7 @@ void doTrials(int trials) {
 				}
 			}
 		} else if (xev.type == KeyPress && state==0 && xev.xkey.keycode == XKeysymToKeycode(e->d, XK_f)) {
+			printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
 			for (i=0;i<MAX_OBJECTS;i++)
 				w67DrawObject(&objects[i]);
 			moveMouse(e->center_x, e->center_y);
