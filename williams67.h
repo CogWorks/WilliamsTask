@@ -84,6 +84,11 @@ typedef struct {
 	Font font;
 } w67Experiment_t;
 
+int cursor_x;
+int cursor_y;
+
+void do_set_cursor_loc();
+
 typedef struct {
 	int port;
 	char *address;

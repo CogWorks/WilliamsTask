@@ -163,7 +163,7 @@ void w67init() {
 
 	XMapRaised(e->d, e->w);
 
-	XSelectInput(e->d, e->w, ExposureMask | KeyPressMask | ButtonPressMask | ButtonReleaseMask);
+	XSelectInput(e->d, e->w, ExposureMask | KeyPressMask | ButtonPressMask | ButtonReleaseMask | PointerMotionMask);
 
 	Window r;
 	unsigned int d, b;
@@ -212,6 +212,13 @@ void w67init() {
 
 void do_proc_display() {
 	connection_send("{\"method\":\"doProcDisplay\",\"id\":666}\n");
+}
+
+void do_set_cursor_loc() {
+	char *s = 0;
+	asprintf(&s, "{\"method\":\"setCursorLoc\",\"params\":[%d,%d],\"id\":666}\n", cursor_x, cursor_y);
+	connection_send(s);
+	free(s);
 }
 
 void doTrials(int trials) {
@@ -267,6 +274,9 @@ void doTrials(int trials) {
 			if (port>0) {
 				do_proc_display();
 			}
+		} else if (xev.type == MotionNotify) {
+			cursor_x = xev.xmotion.x;
+			cursor_y = xev.xmotion.y;
 		} else if (xev.type == ButtonPress && state==1) {
 			XQueryPointer(e->d, e->r, &root, &child, &rx, &ry, &wx, &wy, &m);
 			int found = 0;
@@ -337,6 +347,8 @@ int main(int argc, char* argv[] ) {
 	int option_index = 0;
 	int trials = 1;
 	port = 0;
+	cursor_x = 0;
+	cursor_y = 0;
 
 	while (1) {
 

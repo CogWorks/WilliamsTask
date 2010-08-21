@@ -95,12 +95,10 @@ void actr_cursor_to_vis_loc(struct json_object *request, struct json_object *res
 }
 
 void actr_get_mouse_coordinates(struct json_object *request, struct json_object *response) {
-	XPoint mouse;
-	getMouse(&mouse);
-	printf("x:%d,y:%d\n", mouse.x, mouse.y);
+	printf("x:%d,y:%d\n", cursor_x, cursor_y);
 	struct json_object *array = json_object_new_array();
-	json_object_array_add(array, json_object_new_int(mouse.x));
-	json_object_array_add(array, json_object_new_int(mouse.y));
+	json_object_array_add(array, json_object_new_int(cursor_x));
+	json_object_array_add(array, json_object_new_int(cursor_y));
 	json_object_object_add(response, "error", json_object_new_int(0));
 	json_object_object_add(response, "result", array);
 	json_object_object_add(response, "prototype", json_object_new_string("json-rpc-response"));
@@ -187,6 +185,7 @@ void start(struct json_object *request, struct json_object *response) {
 		struct json_object *args = json_object_array_get_idx(params, 0);
 		int trials = json_object_get_int(json_object_object_get(args, "trials"));
 		w67init();
+		//do_set_cursor_loc();
 		if (trials<0) trials = 1;
 		int ret = pthread_create(&run_thread, NULL, runTrials, trials);
 		json_object_object_add(response, "result", json_object_new_int(ret));
