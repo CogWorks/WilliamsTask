@@ -62,7 +62,7 @@ void connection_send(char *out) {
 		if (recvMsgSize<BUFSIZE) {
 			if (echoBuffer[recvMsgSize-1]=='\n') {
 				strncat(message, echoBuffer, recvMsgSize-2);
-				printf("%s\n", message);
+				//printf("%s\n", message);
 				free(message);
 				return;
 			} else {

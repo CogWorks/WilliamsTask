@@ -211,11 +211,7 @@ void w67init() {
 }
 
 void do_proc_display() {
-	connection_send("{\"error\":0,\"method\":\"actr.proc-display\"}\n");
-}
-
-void do_run_indefinite() {
-	connection_send("{\"error\":0,\"method\":\"actr.run-indefinite\"}\n");
+	connection_send("{\"method\":\"doProcDisplay\",\"id\":666}\n");
 }
 
 void doTrials(int trials) {
