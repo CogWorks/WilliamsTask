@@ -84,14 +84,31 @@ void actr_device_handle_keypress(struct json_object *request, struct json_object
 		printf("Key %d pressed!\n", keycode);
 		pressKey(keycode,0);
 		json_object_object_add(response, "error", json_object_new_int(0));
-		json_object_object_add(response, "result", json_object_new_int(keycode));
+		json_object_object_add(response, "result", json_object_new_int(0));
 		json_object_object_add(response, "prototype", json_object_new_string("json-rpc-response"));
 	}
 }
 
-void actr_cursor_to_vis_loc(struct json_object *request, struct json_object *response) {
+void actr_device_handle_click(struct json_object *request, struct json_object *response) {
+	printf("Mouse clicked!\n");
+	struct json_object *params = json_object_object_get(request, "params");
+	clickMouse(0);
 	json_object_object_add(response, "error", json_object_new_int(0));
-	json_object_object_add(response, "result", NULL);
+	json_object_object_add(response, "result", json_object_new_int(0));
+	json_object_object_add(response, "prototype", json_object_new_string("json-rpc-response"));
+}
+
+void actr_device_move_cursor_to(struct json_object *request, struct json_object *response) {
+	struct json_object *params = json_object_object_get(request, "params");
+	if (json_object_array_length(params)>0) {
+		int x = json_object_get_int(json_object_array_get_idx(params, 0));
+		int y = json_object_get_int(json_object_array_get_idx(params, 1));
+		printf("Move mouse to x:%d,y:%d\n", x, y);
+		moveMouse(x, y);
+		json_object_object_add(response, "error", json_object_new_int(0));
+		json_object_object_add(response, "result", json_object_new_int(0));
+		json_object_object_add(response, "prototype", json_object_new_string("json-rpc-response"));
+	}
 }
 
 void actr_get_mouse_coordinates(struct json_object *request, struct json_object *response) {
@@ -102,6 +119,7 @@ void actr_get_mouse_coordinates(struct json_object *request, struct json_object 
 	json_object_object_add(response, "error", json_object_new_int(0));
 	json_object_object_add(response, "result", array);
 	json_object_object_add(response, "prototype", json_object_new_string("json-rpc-response"));
+	//do_proc_display();
 }
 
 void actr_build_vis_locs_for(struct json_object *request, struct json_object *response) {
@@ -309,10 +327,11 @@ void wait_for_actr_connections(unsigned short port) {
 	struct sockaddr_in echoClntAddr; /* Client address */
 	unsigned int clntLen;            /* Length of client address data structure */
 
-	jsonrpc_add_method("actr.cursor-to-vis-loc", actr_cursor_to_vis_loc);
+	jsonrpc_add_method("actr.device-move-cursor-to", actr_device_move_cursor_to);
 	jsonrpc_add_method("actr.build-vis-locs-for", actr_build_vis_locs_for);
 	jsonrpc_add_method("actr.vis-loc-to-obj", actr_vis_loc_to_obj);
 	jsonrpc_add_method("actr.device-handle-keypress", actr_device_handle_keypress);
+	jsonrpc_add_method("actr.device-handle-click", actr_device_handle_click);
 	jsonrpc_add_method("actr.get-mouse-coordinates", actr_get_mouse_coordinates);
 	jsonrpc_add_method("ipc.connect", ipc_connect);
 	jsonrpc_add_method("start", start);

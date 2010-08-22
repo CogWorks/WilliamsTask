@@ -88,6 +88,8 @@ int cursor_x;
 int cursor_y;
 
 void do_set_cursor_loc();
+void do_proc_display();
+void clickMouse(int button);
 
 typedef struct {
 	int port;
