@@ -87,8 +87,7 @@ typedef struct {
 int cursor_x;
 int cursor_y;
 
-void do_set_cursor_loc();
-void do_proc_display();
+void send_display_objects();
 void clickMouse(int button);
 
 typedef struct {
@@ -108,7 +107,7 @@ void moveMouse(int x, int y);
 void pressKey(int keycode, int modifiers);
 void getMouse(XPoint *mouse);
 
-void connection_send(char *message);
+void connection_send(const char *message);
 
 void w67init();
 void doTrials(int trials);

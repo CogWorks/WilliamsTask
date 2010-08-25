@@ -64,6 +64,9 @@ void unhideMouse() {
 
 void moveMouse(int x, int y) {
 	XWarpPointer(e->d, None, e->w, 0,0,0,0, x, y);
+	cursor_x = x;
+	cursor_y = y;
+	update_mouse();
 }
 
 void getMouse(XPoint *mouse) {

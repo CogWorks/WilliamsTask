@@ -71,6 +71,13 @@
 
 #include "williams67.h"
 
+void update_mouse() {
+	char *msg = 0;
+	asprintf(&msg, "{\"method\":\"set-mouse-pos\",\"params\":[%d,%d],\"prototype\":\"json-rpc-notification\"}",cursor_x,cursor_y);
+	printf("%s\n", msg);
+	connection_send(msg);
+}
+
 void generate_w67_objects(int nrc, w67Object_t *objects, int no) {
 	if (nrc % 2 != 1) {
 		fprintf(stderr, "Number of rows and columns must be odd.");
@@ -210,10 +217,6 @@ void w67init() {
 	//XDestroyWindow(e->d, e->w);
 }
 
-void do_proc_display() {
-	connection_send("{\"method\":\"doProcDisplay\",\"id\":666}\n");
-}
-
 void do_set_cursor_loc() {
 	char *s = 0;
 	asprintf(&s, "{\"method\":\"setCursorLoc\",\"params\":[%d,%d],\"id\":666}\n", cursor_x, cursor_y);
@@ -238,6 +241,7 @@ void doTrials(int trials) {
 	Window root, child;
 
 	hideMouse();
+	moveMouse(0,0);
 
 	int trial = 0;
 
@@ -272,11 +276,12 @@ void doTrials(int trials) {
 			}
 			w67DrawProbe(&objects[probe_index]);
 			if (port>0) {
-				do_proc_display();
+				send_display_objects();
 			}
 		} else if (xev.type == MotionNotify) {
 			cursor_x = xev.xmotion.x;
 			cursor_y = xev.xmotion.y;
+			update_mouse();
 		} else if (xev.type == ButtonPress && state==1) {
 			XQueryPointer(e->d, e->r, &root, &child, &rx, &ry, &wx, &wy, &m);
 			int found = 0;
@@ -300,7 +305,7 @@ void doTrials(int trials) {
 					generate_w67_objects(ROWS_AND_COLS, objects, MAX_OBJECTS);
 					w67DrawProbe(&objects[probe_index]);
 					state = 0;
-					if (port>0) do_proc_display();
+					if (port>0) send_display_objects();
 				}
 			}
 		} else if (xev.type == KeyPress && state==0) {
@@ -312,7 +317,7 @@ void doTrials(int trials) {
 				unhideMouse(e);
 				gettimeofday(&start_time, NULL);
 				state = 1;
-				if (port>0) do_proc_display();
+				if (port>0) send_display_objects();
 			}
 		}
 	}
