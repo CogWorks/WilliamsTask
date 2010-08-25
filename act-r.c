@@ -44,14 +44,14 @@ void connection_send(const char *out) {
 }
 
 void actr_device_press_key(struct json_object *request, struct json_object *response) {
-	printf("Key pressed!\n");
+	//printf("Key pressed!\n");
 	int keycode = json_object_get_int(json_object_object_get(request, "params"));
-	printf("Key %d pressed!\n", keycode);
+	//printf("Key %d pressed!\n", keycode);
 	pressKey(keycode,0);
 }
 
 void actr_device_click_mouse(struct json_object *request, struct json_object *response) {
-	printf("Mouse clicked!\n");
+	//printf("Mouse clicked!\n");
 	struct json_object *params = json_object_object_get(request, "params");
 	clickMouse(0);
 }
@@ -61,14 +61,14 @@ void actr_device_move_cursor_to(struct json_object *request, struct json_object 
 	if (json_object_array_length(params)>0) {
 		int x = json_object_get_int(json_object_array_get_idx(params, 0));
 		int y = json_object_get_int(json_object_array_get_idx(params, 1));
-		printf("Move mouse to x:%d,y:%d\n", x, y);
+		//printf("Move mouse to x:%d,y:%d\n", x, y);
 		moveMouse(x, y);
 	}
 }
 
 void send_display_objects() {
 
-	printf("Send display objects!\n");
+	//printf("Send display objects!\n");
 
 	struct json_object *message = json_object_new_object();
 	struct json_object *params = json_object_new_object();
@@ -123,12 +123,12 @@ void send_display_objects() {
 	json_object_object_add(message, "params", params);
 	json_object_object_add(message, "prototype", json_object_new_string("json-rpc-notification"));
 	connection_send(json_object_to_json_string(message));
-	printf("Display objects sent!\n");
+	//printf("Display objects sent!\n");
 }
 
 void *runTrials(void *ptr) {
 	int trials = (int)ptr;
-	printf("Trials: %d\n", trials);
+	//printf("Trials: %d\n", trials);
 	doTrials(trials);
 }
 
@@ -154,7 +154,7 @@ void *update_mouse(void *ptr) {
 
 void actr_device_run(struct json_object *request, struct json_object *response) {
 
-	printf("Got start signal!\n");
+	//printf("Got start signal!\n");
 
 	struct json_object *params = json_object_object_get(request, "params");
 	int trials = json_object_get_int(params);

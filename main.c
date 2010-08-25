@@ -74,7 +74,7 @@
 void update_mouse() {
 	char *msg = 0;
 	asprintf(&msg, "{\"method\":\"set-mouse-pos\",\"params\":[%d,%d],\"prototype\":\"json-rpc-notification\"}",cursor_x,cursor_y);
-	printf("%s\n", msg);
+	//printf("%s\n", msg);
 	connection_send(msg);
 }
 
