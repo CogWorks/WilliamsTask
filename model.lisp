@@ -1,8 +1,8 @@
 (clear-all)
 
 (define-model json-rpc-device-test
-    
-  (sgp :v t)
+  
+  (sgp :v t :incremental-mouse-moves nil :cursor-noise nil)
   
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
   ;;;
@@ -16,7 +16,7 @@
   ;;; 
   ;;; *** DON'T CHANGE THE VALUES BELOW ***
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;  
-  (sgp :needs-mouse nil :process-cursor t ::incremental-mouse-moves nil :cursor-noise nil)
+  (sgp :needs-mouse nil :process-cursor t)
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;  
   ;;;
   ;;; ??? Why would anyone want act-r to move the mouse besides when the model
