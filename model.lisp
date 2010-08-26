@@ -1,3 +1,5 @@
+(asdf:load-system 'actr6.extras.emma)
+
 (clear-all)
 
 (define-model json-rpc-device-test
@@ -241,7 +243,14 @@
 ;; -----------------------------------------------------------------------------
 
 (defun test-device (host port)
-  (install-device (make-instance 'json-rpc-device :host host :port port))
-  (run-device (current-device) 1)
-  (proc-display)
-  (run 20 :real-time t))
+  #+emma
+  (let ((device (make-instance 'json-rpc-device :host host :port port)))
+    (install-device device)
+    (run-device device 1)
+    (set-eye-loc (get-module :vision) (vector
+                                       (/ (aref (screen-res device) 0) 2)
+                                       (/ (aref (screen-res device) 1) 2)))
+    (proc-display)
+    (run 20 :real-time t))
+  #-emma
+  (warn "EMMA module not loaded"))

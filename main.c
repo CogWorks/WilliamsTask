@@ -337,13 +337,6 @@ void showUsage() {
 	printf("  -R port, --act-r=port\t\tAccept ACT-R connection on port\n");
 }
 
-void GetScreenSize(int *width, int *height) {
-	Display *dpy = XOpenDisplay(NULL);
-	*width = XDisplayWidth(dpy, 0);
-	*height = XDisplayHeight(dpy, 0);
-	XCloseDisplay(dpy);
-}
-
 int main(int argc, char* argv[] ) {
 
 	struct option long_options[] = {

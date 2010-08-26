@@ -128,11 +128,9 @@ void send_display_objects() {
 	//printf("Display objects sent!\n");
 }
 
-void set_screen_resolution() {
-	int x, y;
+void send_screen_resolution() {
 	char *msg = 0;
-	GetScreenSize(&x,&y);
-	asprintf(&msg, "{\"method\":\"set-screen-resolution\",\"params\":[%d,%d],\"prototype\":\"json-rpc-notification\"}",x,y);
+	asprintf(&msg, "{\"method\":\"set-screen-res\",\"params\":[%d,%d],\"prototype\":\"json-rpc-notification\"}",e->screen_width,e->screen_height);
 	connection_send(msg);
 	free(msg);
 }
@@ -170,6 +168,7 @@ void actr_device_run(struct json_object *request, struct json_object *response) 
 	struct json_object *params = json_object_object_get(request, "params");
 	int trials = json_object_get_int(params);
 	w67init();
+	send_screen_resolution();
 	//pthread_create(&mouse_thread, NULL, update_mouse, (void*)10);
 	if (trials<0) trials = 1;
 	int ret = pthread_create(&run_thread, NULL, runTrials, (void*)trials);
