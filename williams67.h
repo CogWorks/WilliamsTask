@@ -130,4 +130,6 @@ int probe_index;
 int center_x;
 int center_y;
 
+void GetScreenSize(int *x, int *y);
+
 #endif /* W67TYPES_H_ */

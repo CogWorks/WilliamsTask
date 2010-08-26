@@ -68,6 +68,7 @@
 #include <sys/time.h>
 #include <getopt.h>
 #include <X11/keysym.h>
+#include <X11/extensions/Xrandr.h>
 
 #include "williams67.h"
 
@@ -334,6 +335,26 @@ void showUsage() {
 	printf("  -h, --help\t\t\tShow usage\n");
 	printf("  -t trials, --trials=trials\tNumber of trials\n");
 	printf("  -R port, --act-r=port\t\tAccept ACT-R connection on port\n");
+}
+
+void GetScreenSize(int *width, int *height) {
+
+	int num_sizes;
+	Rotation original_rotation;
+
+	Display *dpy = XOpenDisplay(NULL);
+	Window root = RootWindow(dpy, 0);
+	XRRScreenSize *xrrs = XRRSizes(dpy, 0, &num_sizes);
+
+	XRRScreenConfiguration *conf = XRRGetScreenInfo(dpy, root);
+	short original_rate = XRRConfigCurrentRate(conf);
+	SizeID original_size_id = XRRConfigCurrentConfiguration(conf, &original_rotation);
+
+	*width=xrrs[original_size_id].width;
+	*height=xrrs[original_size_id].height;
+
+	XCloseDisplay(dpy);
+
 }
 
 int main(int argc, char* argv[] ) {

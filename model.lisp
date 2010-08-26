@@ -2,27 +2,22 @@
 
 (define-model json-rpc-device-test
   
-  (sgp :v t :incremental-mouse-moves nil :cursor-noise nil)
+  (sgp
+   :v t
+   :needs-mouse nil
+   :process-cursor t
+   :incremental-mouse-moves nil 
+   :cursor-noise nil
+   :esc t
+   :bll .5 
+   :ol t 
+   :er t 
+   :ncnar nil 
+   :lf 0 
+   :rt -60
+   :ans .2
+   :mp 10.0)
   
-  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-  ;;;
-  ;;; :needs-mouse must be nil or 'synch-mouse is called which actually moves
-  ;;; the mouse. This which conflicts with any remote device that controls cursor
-  ;;; position
-  ;;;
-  ;;; By setting :process-cursor t the cursor location is polled every production
-  ;;; and we get a visual-location chunk for the cursor with out the mouse
-  ;;; moving, yay!
-  ;;; 
-  ;;; *** DON'T CHANGE THE VALUES BELOW ***
-  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;  
-  (sgp :needs-mouse nil :process-cursor t)
-  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;  
-  ;;;
-  ;;; ??? Why would anyone want act-r to move the mouse besides when the model
-  ;;; says to ???
-  ;;;
-  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;  
   (chunk-type (probe (:include visual-object)) status id color size shape)
   (chunk-type (shape (:include visual-object)) id color size shape)
   
@@ -246,7 +241,6 @@
 ;; -----------------------------------------------------------------------------
 
 (defun test-device (host port)
-  (setf *mouse* nil)
   (install-device (make-instance 'json-rpc-device :host host :port port))
   (run-device (current-device) 1)
   (proc-display)

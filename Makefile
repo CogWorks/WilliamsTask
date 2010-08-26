@@ -1,5 +1,5 @@
 CFLAGS		:=	-g -pedantic -std=c99
-LDFLAGS		:=	-L/usr/X11/lib -lX11 -lXxf86vm -lm -lpthread
+LDFLAGS		:=	-L/usr/X11/lib -lX11 -lXxf86vm -lXrandr -lm -lpthread
 SOURCES		:=	act-r.c experiment.c utils.c draw.c main.c 
 ARCHIVES	:=	jsonrpc/lib/libjsonrpc.a json/lib/libjson.a
 OBJECTS		:=	$(SOURCES:.c=.o)

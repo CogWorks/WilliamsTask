@@ -98,10 +98,12 @@ void send_display_objects() {
 	if (state>0) {
 			for (i=0;i<MAX_OBJECTS;i++) {
 				asprintf(&chunk,
-						"(isa visual-location screen-x %d screen-y %d color %s kind shape)",
+						"(isa visual-location screen-x %d screen-y %d color %s kind shape width %d height %d)",
 						objects[i].origin.y,
 						objects[i].origin.x,
-						w67ColorNames[objects[i].color]);
+						w67ColorNames[objects[i].color],
+						objects[i].width,
+						objects[i].height);
 				json_object_array_add(vis_locs, json_object_new_string(chunk));
 				free(chunk);
 				asprintf(&chunk,
@@ -124,6 +126,15 @@ void send_display_objects() {
 	json_object_object_add(message, "prototype", json_object_new_string("json-rpc-notification"));
 	connection_send(json_object_to_json_string(message));
 	//printf("Display objects sent!\n");
+}
+
+void set_screen_resolution() {
+	int x, y;
+	char *msg = 0;
+	GetScreenSize(&x,&y);
+	asprintf(&msg, "{\"method\":\"set-screen-resolution\",\"params\":[%d,%d],\"prototype\":\"json-rpc-notification\"}",x,y);
+	connection_send(msg);
+	free(msg);
 }
 
 void *runTrials(void *ptr) {
