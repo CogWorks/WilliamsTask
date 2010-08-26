@@ -338,23 +338,10 @@ void showUsage() {
 }
 
 void GetScreenSize(int *width, int *height) {
-
-	int num_sizes;
-	Rotation original_rotation;
-
 	Display *dpy = XOpenDisplay(NULL);
-	Window root = RootWindow(dpy, 0);
-	XRRScreenSize *xrrs = XRRSizes(dpy, 0, &num_sizes);
-
-	XRRScreenConfiguration *conf = XRRGetScreenInfo(dpy, root);
-	short original_rate = XRRConfigCurrentRate(conf);
-	SizeID original_size_id = XRRConfigCurrentConfiguration(conf, &original_rotation);
-
-	*width=xrrs[original_size_id].width;
-	*height=xrrs[original_size_id].height;
-
+	*width = XDisplayWidth(dpy, 0);
+	*height = XDisplayHeight(dpy, 0);
 	XCloseDisplay(dpy);
-
 }
 
 int main(int argc, char* argv[] ) {
