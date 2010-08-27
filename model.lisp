@@ -11,14 +11,11 @@
    :incremental-mouse-moves nil 
    :cursor-noise nil
    :esc t
-   :bll .5 
-   :ol t 
-   :er t 
-   :ncnar nil 
-   :lf 0 
-   :rt -60
-   :ans .2
-   :mp 10.0)
+   :er t)
+  
+  (setf (gethash 'color (avail-ht (get-module :vision))) 'color-availability!)
+  (setf (gethash 'shape (avail-ht (get-module :vision))) 'shape-availability!)
+  (setf (gethash 'value (avail-ht (get-module :vision))) 'size-availability!)
   
   (chunk-type (probe (:include visual-object)) status id color size shape)
   (chunk-type (shape (:include visual-object)) id color size shape)
