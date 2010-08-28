@@ -13,12 +13,13 @@
    :esc t
    :er t)
   
-  (setf (gethash 'color (avail-ht (get-module :vision))) 'color-availability!)
-  (setf (gethash 'shape (avail-ht (get-module :vision))) 'shape-availability!)
-  (setf (gethash 'value (avail-ht (get-module :vision))) 'size-availability!)
-  
+  (register-slot-availability-function 'color 'color-availability!)
+  (register-slot-availability-function 'shape-t 'shape-availability!)
+  (register-slot-availability-function 'size-t 'size-availability!)
+   
   (chunk-type (probe (:include visual-object)) status id color size shape)
-  (chunk-type (shape (:include visual-object)) id color size shape)
+  (chunk-type (shape-loc (:include visual-location)) shape-t size-t)
+  (chunk-type (shape (:include visual-object)) id)
   
   (start-hand-at-mouse)
   
@@ -84,7 +85,7 @@
      key "f"
      )
   
-  (p search-for-object
+  (p search-for-shape
      =goal>
      isa probe
      id =id
@@ -94,8 +95,7 @@
      buffer empty
      ==>
      +visual-location>
-     isa visual-location
-     kind SHAPE
+     isa shape-loc
      color =color
      :attended nil
      )
@@ -106,8 +106,7 @@
      color =color
      status 0
      =visual-location>
-     isa visual-location
-     kind SHAPE
+     isa shape-loc
      color =color
      ?visual>
      state free
@@ -157,8 +156,7 @@
      =goal>
      status 0
      +visual-location>
-     isa visual-location
-     kind SHAPE
+     isa shape-loc
      color =color
      :attended nil
      )
@@ -238,6 +236,28 @@
 ;; -----------------------------------------------------------------------------
 ;; Some helper methods that will be removed once testing is done
 ;; -----------------------------------------------------------------------------
+
+(defun print-visicon2 ()
+  "Print the Vision Module's visicon. For debugging."
+  (awhen (get-module :vision)  ;; Test that there is a vision module
+    (update-new it)
+    (check-finsts it) 
+    (command-output "Loc        Att   Kind           Size              Shape             Color           ID")
+    (command-output "---------  ---   -------------  ----------------  ----------------  --------------  -------------")
+    
+    (mapcar 'print-icon-feature2 (visicon-chunks it t))
+    nil))
+
+(defun print-icon-feature2 (chunk)
+  (command-output "(~3D ~3D)~11T~A~17T~A~32T~S~50T~A~66T~A~82T~A"
+                  (chunk-slot-value-fct  chunk 'screen-x) 
+                  (chunk-slot-value-fct  chunk 'screen-y) 
+                  (feat-attended chunk (get-module :vision))
+                  (chunk-slot-value-fct  chunk 'kind)
+                  (chunk-slot-value-fct chunk 'size-t)
+                  (chunk-slot-value-fct chunk 'shape-t)
+                  (chunk-slot-value-fct  chunk 'color) 
+                  (chunk-visicon-entry chunk)))
 
 (defun test-device (host port)
   #+emma

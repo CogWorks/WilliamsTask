@@ -80,9 +80,11 @@ void send_display_objects() {
 
 	if (state>=0) {
 		asprintf(&chunk,
-				"(isa visual-location screen-x %d screen-y %d kind probe)",
+				"(isa visual-location screen-x %d screen-y %d kind probe color black width %d height %d)",
 				objects[probe_index].origin.x,
-				objects[probe_index].origin.y);
+				objects[probe_index].origin.y,
+				objects[probe_index].width,
+				objects[probe_index].height);
 		json_object_array_add(vis_locs, json_object_new_string(chunk));
 		free(chunk);
 		asprintf(&chunk,
@@ -98,22 +100,19 @@ void send_display_objects() {
 	if (state>0) {
 			for (i=0;i<MAX_OBJECTS;i++) {
 				asprintf(&chunk,
-						"(isa visual-location screen-x %d screen-y %d color %s kind shape width %d height %d)",
+						"(isa shape-loc screen-x %d screen-y %d color %s kind shape width %d height %d shape-t %s size-t %s)",
 						objects[i].origin.y,
 						objects[i].origin.x,
 						w67ColorNames[objects[i].color],
 						objects[i].width,
-						objects[i].height);
+						objects[i].height,
+						w67ShapeNames[objects[i].shape],
+						w67SizeNames[objects[i].size]);
 				json_object_array_add(vis_locs, json_object_new_string(chunk));
 				free(chunk);
 				asprintf(&chunk,
-						"(isa shape color %s shape %s size %s id %d width %d height %d)",
-						w67ColorNames[objects[i].color],
-						w67ShapeNames[objects[i].shape],
-						w67SizeNames[objects[i].size],
-						objects[i].id,
-						objects[i].width,
-						objects[i].height);
+						"(isa shape id %d)",
+						objects[i].id);
 				json_object_array_add(vis_objs, json_object_new_string(chunk));
 				free(chunk);
 			}
