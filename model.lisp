@@ -16,7 +16,7 @@
   (register-slot-availability-function 'color 'color-availability!)
   (register-slot-availability-function 'shape-t 'shape-availability!)
   (register-slot-availability-function 'size-t 'size-availability!)
-   
+  
   (chunk-type (probe (:include visual-object)) status id color size shape)
   (chunk-type (shape-loc (:include visual-location)) shape-t size-t)
   (chunk-type (shape (:include visual-object)) id)
@@ -54,6 +54,8 @@
      kind PROBE
      ?visual>
      state free
+     ?visual>
+     preparation free
      ==>
      +visual>
      isa move-attention
@@ -85,12 +87,30 @@
      key "f"
      )
   
-  (p search-for-shape
+  (p search-for-exact-probe
      =goal>
      isa probe
      id =id
      color =color
+     size =size
+     shape =shape
      status 0
+     ?visual-location>
+     buffer empty
+     ==>
+     +visual-location>
+     isa shape-loc
+     color =color
+     size-t =size
+     shape-t =shape
+     :attended nil
+     )
+  
+  (p search-for-probe-color
+     =goal>
+     isa probe
+     status 0
+     color =color
      ?visual-location>
      buffer empty
      ==>
@@ -103,14 +123,14 @@
   (p found-shape
      =goal>
      isa probe
-     color =color
      status 0
      =visual-location>
      isa shape-loc
-     color =color
      ?visual>
      state free
+     preparation free
      ==>
+     !eval! (incf *fixations*)
      =goal>
      status 1
      =visual-location>
@@ -169,6 +189,8 @@
      =visual-location>
      isa visual-location
      kind CURSOR
+     ?visual>
+     preparation free
      ==>
      !output! (Cursor-loc found)
      =goal>
@@ -188,6 +210,8 @@
      isa CURSOR
      ?manual>
      state free
+     ?visual>
+     preparation free
      ==>
      !output! (Attending cursor)
      !output! (Move attention and cursor to target)
@@ -260,6 +284,7 @@
                   (chunk-visicon-entry chunk)))
 
 (defun test-device (host port)
+  (setf *fixations* 0)
   #+emma
   (let ((device (make-instance 'json-rpc-device :host host :port port)))
     (install-device device)
