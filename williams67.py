@@ -102,9 +102,9 @@ class World(object):
         
         pygame.mouse.set_visible(False)
         self.screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
-        current_x, current_y = self.screen.get_size()
-        self.xoffset = current_x / 2 - current_y / 2
-        self.jitter = current_y * 0.0125
+        self.current_x, self.current_y = self.screen.get_size()
+        self.xoffset = self.current_x / 2 - self.current_y / 2
+        self.jitter = self.current_y * 0.0125
         self.nrows = 13
         self.ncols = 13
         self.ncolors = 5
@@ -113,11 +113,10 @@ class World(object):
         self.nobjects = self.ncolors * self.nshapes * self.nsizes
         self.ncells = self.nrows * self.ncols
         self.query_cell = math.ceil(self.ncols * self.nrows / 2)
-        self.cell_side = current_y / self.nrows
-        self.worldsurf = pygame.Surface((current_y, current_y))
-        self.worldsurf.fill((127, 127, 127))
+        self.cell_side = self.current_y / self.nrows
+        self.worldsurf = pygame.Surface((self.current_y, self.current_y))
         self.worldsurf_rect = self.worldsurf.get_rect()
-        self.worldsurf_rect.centerx = current_x / 2
+        self.worldsurf_rect.centerx = self.current_x / 2
         
         self.fonts = {
                       "large": pygame.font.Font("cutouts.ttf", self.cell_side),
@@ -148,6 +147,10 @@ class World(object):
         self.exp_colors = ["pink", "blue", "yellow", "green", "orange"]
         self.exp_sizes = ["large", "medium", "small", "tiny"]
 
+    def setup(self):
+        
+        self.worldsurf.fill((127, 127, 127))
+        
         self.cells = list()
         self.objects = list()
         used = list()
@@ -173,8 +176,10 @@ class World(object):
                     self.cells.append(i)
                     used.append(o)
                     self.objects.append(s)
-                    
         self.probe = Probe(self, self.objects[random.randint(0, 99)])
+        
+    def showProbe(self):
+             
         self.worldsurf.blit(self.probe.id_t, self.probe.id_rect)
         for pelm in self.probe.elements:
             self.worldsurf.blit(pelm[0], pelm[1])
@@ -193,7 +198,9 @@ class World(object):
                     else:
                         cont = False
                         break
-        
+
+    def showShapes(self):
+
         for object in self.objects:
             self.worldsurf.blit(object.surface, object.rect)
             self.worldsurf.blit(object.id_t, object.id_rect)
@@ -201,46 +208,67 @@ class World(object):
         pygame.display.flip()
         
         self.end_time = 0
-        pygame.mouse.set_pos(current_x / 2, current_y / 2)
+        pygame.mouse.set_pos(self.current_x / 2, self.current_y / 2)
         pygame.mouse.set_visible(True)
         self.start_time = datetime.datetime.now()
         
-        while True:
+        cont = True
+        while cont:
             for event in pygame.event.get():
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     if event.button == 1:
                         self.end_time = datetime.datetime.now() - self.start_time
+                        self.search_time = self.end_time.seconds * 1000 + self.end_time.microseconds * 0.001
                         for object in self.objects:
                             mousex, mousey = event.pos
                             mousex = mousex - self.xoffset
                             if object.clickCheck((mousex, mousey)):
                                 if object.id == self.probe.id:
-                                    time_t = str(self.end_time.seconds * 1000 + self.end_time.microseconds * 0.001)
-                                    pygame.mouse.set_visible(False)
-                                    print self.probe.id,
-                                    if self.probe.show_size: print self.probe.size,
-                                    if self.probe.show_color: print self.probe.color,
-                                    if self.probe.show_shape: print self.probe.shape,
-                                    print time_t
-                                    score_font = pygame.font.Font("freesans.ttf", self.cell_side / 3)
-                                    msg = "Found target in " + time_t + " miliseconds."
-                                    time = score_font.render(msg, True, (255, 255, 255))
-                                    time_rect = time.get_rect()
-                                    time_rect.centerx = current_x / 2
-                                    time_rect.centery = current_y / 2
-                                    self.screen.fill((0, 0, 0))
-                                    self.screen.blit(time, time_rect)
-                                    pygame.display.flip()
-                                    cont = True
-                                    while cont:
-                                        for event in pygame.event.get():
-                                            if event.type == pygame.KEYDOWN or event.type == pygame.MOUSEBUTTONDOWN:
-                                                cont = False
-                                                break
-                                    sys.exit()
+                                    cont = False
+                                    break
+                        if not cont: break
                 elif event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_ESCAPE:
                         sys.exit()
+                        
+    def showSearchTime(self):
+        time_t = str(self.search_time)
+        pygame.mouse.set_visible(False)
+        print self.probe.id,
+        if self.probe.show_size: print self.probe.size,
+        if self.probe.show_color: print self.probe.color,
+        if self.probe.show_shape: print self.probe.shape,
+        print time_t
+        score_font = pygame.font.Font("freesans.ttf", self.cell_side / 3)
+        msg = "Found target in " + time_t + " miliseconds."
+        time = score_font.render(msg, True, (255, 255, 255))
+        time_rect = time.get_rect()
+        time_rect.centerx = self.current_x / 2
+        time_rect.centery = self.current_y / 2
+        self.screen.fill((0, 0, 0))
+        self.screen.blit(time, time_rect)
+        pygame.display.flip()
 
+        cont = True
+        while cont:
+            for event in pygame.event.get():
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    cont = False
+                    break
+                elif event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_ESCAPE:
+                        sys.exit()
+                    else:
+                        cont = False
+                        break
+
+    def run(self):
+        self.setup()
+        self.showProbe()
+        self.showShapes()
+        self.showSearchTime()
+                
 if __name__ == '__main__':
     w = World()
+    while True:
+        w.run()
