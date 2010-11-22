@@ -8,7 +8,8 @@ import math
 import datetime
 import pygame
 
-pygame.init()
+pygame.display.init()
+pygame.font.init()
 
 class Shape(object):
     """Shape object"""
