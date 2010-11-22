@@ -1,6 +1,0 @@
-XQuartz Fullscreen Mode
-======================
-
-In preferences, choose full screen mode - quit X11 - start an X11 app, it 
-should appear on the apple desktop - command-tab to X11, full screen mode 
-should activate. Apple+Option+A to escape to finder.
