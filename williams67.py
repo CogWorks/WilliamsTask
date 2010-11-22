@@ -10,30 +10,6 @@ import pygame
 
 pygame.init()
 
-shapes = {
-          "circle":"E",
-          "square":"K",
-          "oval":"F",
-          "diamond":"T",
-          "crescent":"Q",
-          "cross":"R",
-          "star":"C",
-          "triangle":"A"
-          }
-
-colors = {
-          "pink": (255,192,203),
-          "blue": (0,0,255),
-          "yellow": (255,255,0),
-          "orange": (255,165,0),
-          "green": (0,255,0)
-          }
-
-
-exp_shapes = ["star","cross","crescent","diamond","oval"]
-exp_colors = ["pink","blue","yellow","green","orange"]
-exp_sizes = ["large","medium","small","tiny"]
-
 class Shape(object):
     """Shape object"""
     
@@ -43,13 +19,13 @@ class Shape(object):
         self.color = color
         self.size = size
         self.id = id
-        self.surface = world.fonts[size].render(shapes[name],True,colors[color])
+        self.surface = world.fonts[size].render(world.shapes[name],True,world.colors[color])
         self.surface = pygame.transform.rotate(self.surface, random.randint(1,360))
         self.rect = self.surface.get_rect()
         self.rect.centerx = location[0]
         self.rect.centery = location[1]
         self.bounding_rect = self.surface.get_bounding_rect()
-        self.id_t = world.id_font.render(str(id), True, (0,0,0))
+        self.id_t = world.fonts["id"].render(str(id), True, (0,0,0))
         self.id_rect = self.id_t.get_rect()
         self.id_rect.centerx = location[0] + random.uniform(-world.jitter/2,world.jitter/2)
         self.id_rect.centery = location[1] + random.uniform(-world.jitter/2,world.jitter/2)
@@ -73,13 +49,13 @@ class Probe(object):
         self.color = shape.color
         self.elements = list()
         
-        self.id_t = world.probe_font.render(str(self.id), True, (0,0,0))
+        self.id_t = world.fonts["probe"].render(str(self.id), True, (0,0,0))
         self.id_rect = self.id_t.get_rect()
-        self.shape_t = world.probe_font.render(self.shape, True, (0,0,0))
+        self.shape_t = world.fonts["probe"].render(self.shape, True, (0,0,0))
         self.shape_rect = self.shape_t.get_rect()
-        self.size_t = world.probe_font.render(self.size, True, (0,0,0))
+        self.size_t = world.fonts["probe"].render(self.size, True, (0,0,0))
         self.size_rect = self.size_t.get_rect()
-        self.color_t = world.probe_font.render(self.color, True, (0,0,0))
+        self.color_t = world.fonts["probe"].render(self.color, True, (0,0,0))
         self.color_rect = self.color_t.get_rect()
         
         self.show_shape = random.randint(0,1)
@@ -121,6 +97,7 @@ class World(object):
 
     def __init__(self):
         super(World, self).__init__()
+        
         pygame.mouse.set_visible(False)
         self.screen = pygame.display.set_mode((0,0),pygame.FULLSCREEN)
         current_x, current_y = self.screen.get_size()
@@ -139,17 +116,40 @@ class World(object):
         self.worldsurf.fill((127,127,127))
         self.worldsurf_rect = self.worldsurf.get_rect()
         self.worldsurf_rect.centerx = current_x / 2
+        
         self.fonts = {
                       "large": pygame.font.Font("cutouts.ttf", self.cell_side),
                       "medium": pygame.font.Font("cutouts.ttf", int(self.cell_side*(1-.5/3*1))),
                       "small": pygame.font.Font("cutouts.ttf", int(self.cell_side*(1-.5/3*2))),
-                      "tiny": pygame.font.Font("cutouts.ttf", int(self.cell_side*(1-.5/3*3)))
+                      "tiny": pygame.font.Font("cutouts.ttf", int(self.cell_side*(1-.5/3*3))),
+                      "id": pygame.font.Font("freesans.ttf", self.cell_side/7),
+                      "probe": pygame.font.Font("freesans.ttf", self.cell_side/6)
                       }
+        self.shapes = {
+                       "circle":"E",
+                       "square":"K",
+                       "oval":"F",
+                       "diamond":"T",
+                       "crescent":"Q",
+                       "cross":"R",
+                       "star":"C",
+                       "triangle":"A"
+                       }
+        self.colors = {
+                       "pink": (255,192,203),
+                       "blue": (0,0,255),
+                       "yellow": (255,255,0),
+                       "orange": (255,165,0),
+                       "green": (0,255,0)
+                       }
+        self.exp_shapes = ["star","cross","crescent","diamond","oval"]
+        self.exp_colors = ["pink","blue","yellow","green","orange"]
+        self.exp_sizes = ["large","medium","small","tiny"]
+
         self.cells = list()
         self.objects = list()
         used = list()
-        ids = list()
-        self.id_font = pygame.font.Font("freesans.ttf", self.cell_side/7)
+        ids = list() 
         
         while len(self.cells) < self.nobjects:
             i = random.randint(1,self.ncells)
@@ -157,8 +157,8 @@ class World(object):
             if self.cells.count(i) == 0:
                 r = math.floor(i / self.ncols)
                 c = i - r * self.ncols
-                o = (exp_shapes[random.randint(0,4)],exp_colors[random.randint(0,4)], \
-                     exp_sizes[random.randint(0,3)])
+                o = (self.exp_shapes[random.randint(0,4)],self.exp_colors[random.randint(0,4)], \
+                     self.exp_sizes[random.randint(0,3)])
                 if used.count(o) == 0:
                     id = 0
                     while True:
@@ -172,7 +172,6 @@ class World(object):
                     used.append(o)
                     self.objects.append(s)
                     
-        self.probe_font = pygame.font.Font("freesans.ttf", self.cell_side/6)
         self.probe = Probe(self, self.objects[random.randint(0,99)])
         self.worldsurf.blit(self.probe.id_t, self.probe.id_rect)
         for pelm in self.probe.elements:
