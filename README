@@ -3,3 +3,5 @@
  1.1 MacOSX
 
   python setup.py py2app -A
+  or
+  python setup.py py2app
