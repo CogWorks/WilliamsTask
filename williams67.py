@@ -8,6 +8,7 @@ import random
 import math
 import datetime
 import pygame
+import argparse
 
 pygame.display.init()
 pygame.font.init()
@@ -269,6 +270,13 @@ class World(object):
         self.showSearchTime()
                 
 if __name__ == '__main__':
+    
+    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    cwgroup = parser.add_argument_group('CogWorld arguments:')
+    cwgroup.add_argument('-a', action="store", dest="rpc_address", default='localhost', help='CogWorld RPC address')
+    cwgroup.add_argument('-p', action="store", dest="rpc_port", default=3000, help='CogWorld RPC port')
+    args = parser.parse_args()
+    
     w = World()
     while True:
         w.run()
