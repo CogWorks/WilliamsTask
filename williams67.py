@@ -273,6 +273,7 @@ if __name__ == '__main__':
     
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     cwgroup = parser.add_argument_group('CogWorld arguments:')
+    cwgroup.add_argument('-c', '--cogworld', action='store_true', help='Connect to CogWorld')
     cwgroup.add_argument('-a', action="store", dest="rpc_address", default='localhost', help='CogWorld RPC address')
     cwgroup.add_argument('-p', action="store", dest="rpc_port", default=3000, help='CogWorld RPC port')
     args = parser.parse_args()
