@@ -9,6 +9,7 @@ import math
 import datetime
 import pygame
 import argparse
+import thread
 
 pygame.display.init()
 pygame.font.init()
@@ -100,7 +101,9 @@ class World(object):
 
     def __init__(self):
         super(World, self).__init__()
+        self.cogworld = None
         
+        self.trial = 0
         pygame.mouse.set_visible(False)
         self.screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
         self.current_x, self.current_y = self.screen.get_size()
@@ -149,9 +152,7 @@ class World(object):
         self.exp_sizes = ["large", "medium", "small", "tiny"]
 
     def setup(self):
-        
-        self.worldsurf.fill((127, 127, 127))
-        
+                
         self.cells = list()
         self.objects = list()
         used = list()
@@ -180,7 +181,9 @@ class World(object):
         self.probe = Probe(self, self.objects[random.randint(0, 99)])
         
     def showProbe(self):
-             
+         
+        self.worldsurf.fill((127, 127, 127))
+     
         self.worldsurf.blit(self.probe.id_t, self.probe.id_rect)
         for pelm in self.probe.elements:
             self.worldsurf.blit(pelm[0], pelm[1])
@@ -233,6 +236,7 @@ class World(object):
                         sys.exit()
                         
     def showSearchTime(self):
+    
         time_t = str(self.search_time)
         pygame.mouse.set_visible(False)
         print self.probe.id,
@@ -242,7 +246,7 @@ class World(object):
         print time_t
         score_font = pygame.font.Font("freesans.ttf", self.cell_side / 3)
         msg = "Found target in " + time_t + " miliseconds."
-        time = score_font.render(msg, True, (255, 255, 255))
+        time = score_font.render(msg, True, (255, 255, 0))
         time_rect = time.get_rect()
         time_rect.centerx = self.current_x / 2
         time_rect.centery = self.current_y / 2
@@ -263,21 +267,86 @@ class World(object):
                         cont = False
                         break
 
+    def showHelp(self):
+    
+        help_font = pygame.font.Font("freesans.ttf", self.cell_side / 3)
+        msg1 = help_font.render("The task is to find the probe object", True, (255, 255, 0))
+        msg2 = help_font.render("as quickly as possible.", True, (255, 255, 0))
+        msg3 = help_font.render("Study each probe and the click the mouse", True, (255, 255, 0))
+        msg4 = help_font.render("when you are ready to being your search.", True, (255, 255, 0))
+        msg5 = help_font.render("Click on the probed object once you find it.", True, (255, 255, 0))
+        msg6 = help_font.render("Click to begin...", True, (255, 255, 0))
+        
+        msg1_rect = msg1.get_rect()
+        msg2_rect = msg2.get_rect()
+        msg3_rect = msg3.get_rect()
+        msg4_rect = msg4.get_rect()
+        msg5_rect = msg5.get_rect()
+        msg6_rect = msg6.get_rect()
+        
+        msg1_rect.centerx = self.current_x / 2
+        msg2_rect.centerx = self.current_x / 2
+        msg3_rect.centerx = self.current_x / 2
+        msg4_rect.centerx = self.current_x / 2
+        msg5_rect.centerx = self.current_x / 2
+        msg6_rect.centerx = self.current_x / 2
+        
+        msg1_rect.centery = self.current_y / 6 * 1.5   
+        msg2_rect.centery = self.current_y / 6 * 1.5 + self.cell_side / 3
+        msg3_rect.centery = self.current_y / 6 * 2.5
+        msg4_rect.centery = self.current_y / 6 * 2.5 + self.cell_side / 3
+        msg5_rect.centery = self.current_y / 6 * 2.5 + self.cell_side / 3 * 2
+        msg6_rect.centery = self.current_y / 6 * 3.5 + self.cell_side / 3
+        
+        self.screen.fill((0, 0, 0))
+        self.screen.blit(msg1, msg1_rect)
+        self.screen.blit(msg2, msg2_rect)
+        self.screen.blit(msg3, msg3_rect)
+        self.screen.blit(msg4, msg4_rect)
+        self.screen.blit(msg5, msg5_rect)
+        self.screen.blit(msg6, msg6_rect)
+        pygame.display.flip()
+
+        cont = True
+        while cont:
+            for event in pygame.event.get():
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    cont = False
+                    break
+                elif event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_ESCAPE:
+                        sys.exit()
+                    else:
+                        cont = False
+                        break
+
     def run(self):
         self.setup()
+        if self.trial == 0:
+            self.showHelp()
         self.showProbe()
         self.showShapes()
         self.showSearchTime()
+        self.trial = self.trial + 1
+
+
+def main(world):
+    while True:
+        world.run()
+
                 
 if __name__ == '__main__':
     
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     cwgroup = parser.add_argument_group('CogWorld arguments:')
-    cwgroup.add_argument('-c', '--cogworld', action='store_true', help='Connect to CogWorld')
-    cwgroup.add_argument('-a', action="store", dest="rpc_address", default='localhost', help='CogWorld RPC address')
-    cwgroup.add_argument('-p', action="store", dest="rpc_port", default=3000, help='CogWorld RPC port')
+    cwgroup.add_argument('-C', '--cogworld', action='store_true', help='Connect to CogWorld')
+    cwgroup.add_argument('-H', action="store", dest="rpc_host", default='localhost', help='CogWorld RPC host')
+    cwgroup.add_argument('-P', action="store", dest="rpc_port", default=3000, help='CogWorld RPC port')
     args = parser.parse_args()
     
     w = World()
-    while True:
-        w.run()
+    if args.cogworld:
+        w.cogworld = CogWorld(args.rpc_host, args.rpc_port)
+        #if w.cogworld.connect():   
+    else:
+        main(w)
