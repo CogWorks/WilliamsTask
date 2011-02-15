@@ -3,13 +3,8 @@
 This is a replicate of the classic Williams '67 visual search task with some
 minor alterations.
 """
-import sys
-import random
-import math
-import datetime
-import pygame
-import argparse
-import thread
+import sys, random, math, datetime, pygame, thread
+from cogworld import *
 
 pygame.display.init()
 pygame.font.init()
@@ -333,20 +328,14 @@ class World(object):
 def main(world):
     while True:
         world.run()
-
-                
+               
 if __name__ == '__main__':
     
-    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    cwgroup = parser.add_argument_group('CogWorld arguments:')
-    cwgroup.add_argument('-C', '--cogworld', action='store_true', help='Connect to CogWorld')
-    cwgroup.add_argument('-H', action="store", dest="rpc_host", default='localhost', help='CogWorld RPC host')
-    cwgroup.add_argument('-P', action="store", dest="rpc_port", default=3000, help='CogWorld RPC port')
-    args = parser.parse_args()
+    c = None
+    if len(sys.argv) > 1:
+        c = CogWorld('localhost', sys.argv[1], 'SpaceFortress')
+        c.connect()
     
     w = World()
-    if args.cogworld:
-        w.cogworld = CogWorld(args.rpc_host, args.rpc_port)
-        #if w.cogworld.connect():   
-    else:
-        main(w)
+    w.cogworld = c
+    main(w)
