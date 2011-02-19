@@ -4,7 +4,7 @@ This is a replicate of the classic Williams '67 visual search task with some
 minor alterations.
 """
 import sys, random, math, datetime, pygame, thread
-from cogworld import *
+from pycogworld import *
 
 pygame.display.init()
 pygame.font.init()
@@ -57,16 +57,19 @@ class Probe(object):
         self.color_t = world.fonts["probe"].render(self.color, True, (0, 0, 0))
         self.color_rect = self.color_t.get_rect()
         
-        self.show_shape = random.randint(0, 1)
-        self.show_size = random.randint(0, 1)
-        self.show_color = random.randint(0, 1)
-        
-        if self.show_shape:
+        self.show_shape = None
+        if random.randint(0, 1):
+            self.show_shape = self.shape
             self.elements.append((self.shape_t, self.shape_rect))
-        if self.show_size:
+        self.show_size = None
+        if random.randint(0, 1):
+            self.show_size = self.size
             self.elements.append((self.size_t, self.size_rect))
-        if self.show_color:
+        self.show_color = None
+        if random.randint(0, 1):
+            self.show_color = self.color
             self.elements.append((self.color_t, self.color_rect))
+            
         random.shuffle(self.elements)
         
         self.id_rect.centerx = world.worldsurf_rect.centerx - world.xoffset
@@ -185,6 +188,9 @@ class World(object):
         self.screen.blit(self.worldsurf, self.worldsurf_rect)
         pygame.display.flip()
         
+        if self.cogworld:
+            self.cogworld.cwLogInfo(['W67-DRAW-PROBE',self.probe.id,self.probe.show_size,self.probe.show_color,self.probe.show_shape])
+        
         cont = True
         while cont:
             for event in pygame.event.get():
@@ -200,9 +206,15 @@ class World(object):
 
     def showShapes(self):
 
+        if self.cogworld:
+            objects = ['W67-DRAW-SHAPES']
         for object in self.objects:
             self.worldsurf.blit(object.surface, object.rect)
             self.worldsurf.blit(object.id_t, object.id_rect)
+            if self.cogworld:
+                objects.append([object.id,object.size,object.color,object.shape])
+        if self.cogworld:
+            self.cogworld.cwLogInfo(objects)
         self.screen.blit(self.worldsurf, self.worldsurf_rect)
         pygame.display.flip()
         
@@ -234,11 +246,14 @@ class World(object):
     
         time_t = str(self.search_time)
         pygame.mouse.set_visible(False)
-        print self.probe.id,
-        if self.probe.show_size: print self.probe.size,
-        if self.probe.show_color: print self.probe.color,
-        if self.probe.show_shape: print self.probe.shape,
-        print time_t
+        if self.cogworld:
+            self.cogworld.cwLogInfo(['W67-PROBE-FOUND',time_t,self.probe.id,self.probe.show_size,self.probe.show_color,self.probe.show_shape])
+        else:
+            print self.probe.id,
+            if self.probe.show_size: print self.probe.size,
+            if self.probe.show_color: print self.probe.color,
+            if self.probe.show_shape: print self.probe.shape,
+            print time_t
         score_font = pygame.font.Font("freesans.ttf", self.cell_side / 3)
         msg = "Found target in " + time_t + " miliseconds."
         time = score_font.render(msg, True, (255, 255, 0))
@@ -334,8 +349,11 @@ if __name__ == '__main__':
     c = None
     if len(sys.argv) > 1:
         c = CogWorld('localhost', sys.argv[1], 'SpaceFortress')
-        c.connect()
-    
+        ret = c.connect()
+        if (ret!=None):
+            print 'CogWorld %s' % (ret)
+            sys.exit()
+            
     w = World()
     w.cogworld = c
     main(w)
