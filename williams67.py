@@ -1,4 +1,4 @@
-#/usr/bin/env python
+#!/usr/bin/env python
 """
 This is a replicate of the classic Williams '67 visual search task with some
 minor alterations.
