@@ -282,7 +282,7 @@ class World( object ):
         help_font = pygame.font.Font( "freesans.ttf", self.cell_side / 3 )
         msg1 = help_font.render( "The task is to find the probe object", True, ( 255, 255, 0 ) )
         msg2 = help_font.render( "as quickly as possible.", True, ( 255, 255, 0 ) )
-        msg3 = help_font.render( "Study each probe and the click the mouse", True, ( 255, 255, 0 ) )
+        msg3 = help_font.render( "Study each probe and then click the mouse", True, ( 255, 255, 0 ) )
         msg4 = help_font.render( "when you are ready to being your search.", True, ( 255, 255, 0 ) )
         msg5 = help_font.render( "Click on the probed object once you find it.", True, ( 255, 255, 0 ) )
         msg6 = help_font.render( "Click to begin...", True, ( 255, 255, 0 ) )
