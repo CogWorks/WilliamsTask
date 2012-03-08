@@ -23,24 +23,21 @@ def distance( p1, p2 ):
 class Shape( object ):
 	"""Shape object"""
 
-	def __init__( self, world, size, name, color, id, location, rect = None ):
+	def __init__( self, world, size, name, color, id, location ):
 		self.shape = name
 		self.color = color
 		self.size = size
 		self.id = id
-		self.r = rect
-		self.d = 9999
 		self.selected = False
 		self.surface = world.fonts[size].render( world.shapes[name], True, world.colors[color] )
-		self.surface = pygame.transform.rotate( self.surface, random.randint( 1, 360 ) )
+		self.surface = pygame.transform.rotate( self.surface, random.randint( 0, 360 ) )
 		self.rect = self.surface.get_rect()
 		self.rect.centerx = location[0]
 		self.rect.centery = location[1]
-		self.bounding_rect = self.surface.get_bounding_rect()
 		self.id_t = world.fonts["id"].render( "%02d" % id, True, ( 0, 0, 0 ) )
 		self.id_rect = self.id_t.get_rect()
-		self.id_rect.centerx = location[0] + random.uniform( -world.jitter / 2, world.jitter / 2 )
-		self.id_rect.centery = location[1] + random.uniform( -world.jitter / 2, world.jitter / 2 )
+		self.id_rect.centerx = location[0]
+		self.id_rect.centery = location[1]
 
 	def clickCheck( self, position ):
 		return self.rect.collidepoint( position )
@@ -155,16 +152,10 @@ class World( object ):
 		self.search_rect.width = self.search_rect.height
 		self.search_rect.centerx = self.worldsurf_rect.centerx
 		self.xoffset = ( self.worldsurf_rect.width - self.search_rect.width ) / 2
-		self.jitter = self.worldsurf_rect.height * 0.0125
-		self.nrows = 11
-		self.ncols = 11
-		self.ncolors = 5
-		self.nshapes = 5
-		self.nsizes = 3
-		self.nobjects = self.ncolors * self.nshapes * self.nsizes
-		self.ncells = self.nrows * self.ncols
-		self.query_cell = math.ceil( self.ncols * self.nrows / 2 )
-		self.cell_side = self.worldsurf_rect.height / self.nrows
+
+		self.side = 11
+		self.query_cell = math.ceil( self.side * self.side / 2 )
+		self.cell_side = self.worldsurf_rect.height / self.side
 
 		self.modifier = pygame.KMOD_CTRL
 		if platform.system() == 'Darwin':
@@ -203,6 +194,8 @@ class World( object ):
 		self.exp_colors = ["red", "yellow", "green", "blue", "purple"]
 		self.exp_sizes = ["large", "medium", "small"]
 
+		self.nobjects = len( self.exp_colors ) * len( self.exp_shapes ) * len( self.exp_sizes )
+
 		self.bgcolor = ( 0, 0, 0 )
 		self.searchBG = ( 168, 168, 168 )
 
@@ -221,36 +214,39 @@ class World( object ):
 
 	def setup( self ):
 
-		self.cells = list()
 		self.objects = list()
-		used = list()
-		ids = list()
+		ids = random.sample( range( 0, self.nobjects ), self.nobjects )
+		objs = list()
+		for i in range( 0, len( self.exp_sizes ) ):
+			for j in range( 0, len( self.exp_shapes ) ):
+				for k in range( 0, len( self.exp_colors ) ):
+					objs.append( ( self.exp_sizes[i], self.exp_shapes[j], self.exp_colors[k] ) )
 
-		while len( self.cells ) < self.nobjects:
-			i = random.randint( 1, self.ncells )
-			if i == self.query_cell: continue
-			if self.cells.count( i ) == 0:
-				r = math.floor( i / self.ncols )
-				c = i - r * self.ncols
-				o = ( self.exp_shapes[random.randint( 0, 4 )], self.exp_colors[random.randint( 0, 4 )], \
-					 self.exp_sizes[random.randint( 0, 2 )] )
-				if used.count( o ) == 0:
-					id = 0
-					while True:
-						id = random.randint( 0, self.ncolors * self.nshapes * self.nsizes - 1 )
-						if ids.count( id ) == 0: break
-					ids.append( id )
-					cx = ( c + .5 ) * self.cell_side
-					cy = ( r + .5 ) * self.cell_side
-					r = pygame.Rect( cx - self.cell_side / 2, cy - self.cell_side / 2, self.cell_side, self.cell_side )
-					x = cx + random.uniform( -self.jitter, self.jitter ) + self.xoffset
-					y = cy + random.uniform( -self.jitter, self.jitter )
-					s = Shape( self, o[2], o[0], o[1], id, ( x, y ), r )
-					self.cells.append( i )
-					used.append( o )
-					self.objects.append( s )
+		tries = 1
+		for obj in objs:
+			id = ids.pop()
+			s = Shape( self, obj[0], obj[1], obj[2], id, ( random.randrange( self.search_rect.left, self.search_rect.right, 1 ), random.randrange( self.search_rect.top, self.search_rect.bottom, 1 ) ) )
+			cont = True
+			while cont:
+				new = False
+				if not self.search_rect.contains( s.rect ):
+					new = True
+				else:
+					for o in self.objects:
+						if s.rect.colliderect( o.rect ):
+							new = True
+							break
+				if new:
+					s = Shape( self, obj[0], obj[1], obj[2], id, ( random.randrange( self.search_rect.left, self.search_rect.right, 1 ), random.randrange( self.search_rect.top, self.search_rect.bottom, 1 ) ) )
+					tries += 1
+				else:
+					cont = False
+			self.objects.append( s )
+
+		print "~~ Generating trial took %d tries" % tries
+
 		if not self.regen:
-			self.probe = Probe( self, self.objects[random.randint( 0, self.ncolors * self.nshapes * self.nsizes - 1 )], self.probes.pop() )
+			self.probe = Probe( self, self.objects[random.randint( 0, self.nobjects - 1 )], self.probes.pop() )
 
 	def drawSearchBG( self ):
 		pygame.draw.rect( self.worldsurf, self.searchBG, self.search_rect )
@@ -269,7 +265,7 @@ class World( object ):
 			self.objects[i].selected = False
 			self.worldsurf.blit( self.objects[i].surface, self.objects[i].rect )
 			self.worldsurf.blit( self.objects[i].id_t, self.objects[i].id_rect )
-			if self.args.eyetracker and self.fix_data and self.objects[i].rect.collidepoint( self.fix_data.gaze_x, self.fix_data.gaze_y ):
+			if self.args.eyetracker and self.fix_data and self.objects[i].rect.collidepoint( self.fix_data.fix_x, self.fix_data.fix_y ):
 				d = distance( ( self.fix_data.fix_x, self.fix_data.fix_y ), self.objects[i].rect.center )
 				if d < best:
 					best = d
