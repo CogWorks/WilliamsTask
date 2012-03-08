@@ -143,7 +143,7 @@ class World( object ):
 		else:
 			self.output = sys.stdout
 
-		self.trial = 0
+		self.trial = 1
 		pygame.mouse.set_visible( False )
 		if self.args.fullscreen:
 			self.screen = pygame.display.set_mode( ( 0, 0 ), pygame.FULLSCREEN )
@@ -210,6 +210,8 @@ class World( object ):
 		if not self.args.random:
 			self.probes = random.sample( [1, 2, 3, 4, 5, 6, 7, 8] * 25, 200 )
 
+		self.regen = False
+
 		self.fix_data = None
 		if self.args.eyetracker:
 			self.client = iViewXClient( self.args.eyetracker, 4444 )
@@ -247,7 +249,8 @@ class World( object ):
 					self.cells.append( i )
 					used.append( o )
 					self.objects.append( s )
-		self.probe = Probe( self, self.objects[random.randint( 0, self.ncolors * self.nshapes * self.nsizes - 1 )], self.probes.pop() )
+		if not self.regen:
+			self.probe = Probe( self, self.objects[random.randint( 0, self.ncolors * self.nshapes * self.nsizes - 1 )], self.probes.pop() )
 
 	def drawSearchBG( self ):
 		pygame.draw.rect( self.worldsurf, self.searchBG, self.search_rect )
@@ -303,10 +306,14 @@ class World( object ):
 	def processEvents( self ):
 		for event in pygame.event.get():
 			if event.type == pygame.KEYDOWN:
-				if event.key == pygame.K_q:
-					if ( pygame.key.get_mods() & self.modifier ):
+				if ( pygame.key.get_mods() & self.modifier ):
+					if event.key == pygame.K_q:
 						self.cleanup()
-				if event.key == pygame.K_SPACE:
+					elif event.key == pygame.K_r:
+						if self.state == 3:
+							self.regen = True
+							self.state = 0
+				elif event.key == pygame.K_SPACE:
 					if self.state == -1 or self.state == 1:
 						self.state += 1
 					elif self.state == 5:
@@ -316,7 +323,6 @@ class World( object ):
 						for object in self.objects:
 							if object.selected and object.id == self.probe.id:
 								self.state = 4
-								return
 			elif event.type == pygame.MOUSEBUTTONDOWN:
 				if self.state == -1 or self.state == 1:
 					self.state += 1
@@ -329,7 +335,6 @@ class World( object ):
 						if object.clickCheck( ( mousex, mousey ) ):
 							if object.id == self.probe.id:
 								self.state = 4
-								return
 
 	def draw_fix( self ):
 		if self.fix_data:
@@ -341,8 +346,10 @@ class World( object ):
 			self.drawHelp()
 		elif self.state == 0:
 			self.setup()
-			self.trial = self.trial + 1
-			self.state += 1
+			if self.regen:
+				self.state = 2
+			else:
+				self.state = 1
 		elif self.state == 1:
 			self.drawProbe()
 		elif self.state == 2:
@@ -361,6 +368,7 @@ class World( object ):
 			if self.probe.show_color: result[3] = self.probe.color
 			if self.probe.show_shape: result[4] = self.probe.shape
 			self.output.write( '%s\n' % '\t'.join( result ) )
+			self.trial = self.trial + 1
 			self.state = 5
 		elif self.state == 5:
 			self.drawSearchTime()
