@@ -24,7 +24,6 @@ class Shape( object ):
 	"""Shape object"""
 
 	def __init__( self, world, size, name, color, id, location, rect = None ):
-		super( Shape, self ).__init__()
 		self.shape = name
 		self.color = color
 		self.size = size
@@ -51,8 +50,6 @@ class Probe( object ):
 	"""Probe objects"""
 
 	def __init__( self, world, shape, cues = 0 ):
-		super( Probe, self ).__init__()
-
 		self.id = shape.id
 		self.shape = shape.shape
 		self.size = shape.size
