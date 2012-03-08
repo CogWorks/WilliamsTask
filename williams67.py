@@ -148,7 +148,7 @@ class World( object ):
 		if self.args.fullscreen:
 			self.screen = pygame.display.set_mode( ( 0, 0 ), pygame.FULLSCREEN )
 		else:
-			self.screen = pygame.display.set_mode( ( 1400, 900 ), 0 )
+			self.screen = pygame.display.set_mode( ( 1024, 768 ), 0 )
 		self.worldsurf = self.screen.copy()
 		self.worldsurf_rect = self.worldsurf.get_rect()
 		self.search_rect = self.worldsurf_rect.copy()
