@@ -309,7 +309,7 @@ class World( object ):
 				if ( pygame.key.get_mods() & self.modifier ):
 					if event.key == pygame.K_q:
 						self.cleanup()
-					elif event.key == pygame.K_r:
+					elif event.key == pygame.K_r and self.args.debug:
 						if self.state == 3:
 							self.regen = True
 							self.state = 0
@@ -411,6 +411,7 @@ if __name__ == '__main__':
 	parser.add_argument( '-R', '--random', action = "store_true", dest = "random", help = 'Run random trials indefinitely.' )
 	parser.add_argument( '-e', '--eyetracker', action = "store", dest = "eyetracker", help = 'Use eyetracker.' )
 	parser.add_argument( '-f', '--fixation', action = "store_true", dest = "showfixation", help = 'Overlay fixation.' )
+	parser.add_argument( '-D', '--debug', action = "store_true", dest = "debug", help = 'Debug features.' )
 
 	args = parser.parse_args()
 
