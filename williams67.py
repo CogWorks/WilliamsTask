@@ -100,17 +100,17 @@ class Probe( object ):
 		if elmlen == 0:
 			self.id_rect.centery = world.worldsurf_rect.centery
 		elif elmlen == 1:
-			self.id_rect.centery = world.worldsurf_rect.centery - world.cell_side / 6 * .6
-			self.elements[0][1].centery = world.worldsurf_rect.centery + world.cell_side / 6 * .6
+			self.id_rect.bottom = world.worldsurf_rect.centery - 1
+			self.elements[0][1].top = world.worldsurf_rect.centery + 1
 		elif elmlen == 2:
-			self.id_rect.centery = world.worldsurf_rect.centery - world.cell_side / 6 * 1.3
 			self.elements[0][1].centery = world.worldsurf_rect.centery
-			self.elements[1][1].centery = world.worldsurf_rect.centery + world.cell_side / 6 * 1.3
+			self.id_rect.bottom = self.elements[0][1].top - 1
+			self.elements[1][1].top = self.elements[0][1].bottom + 1
 		elif elmlen == 3:
-			self.id_rect.centery = world.worldsurf_rect.centery - world.cell_side / 6 * 1.9
-			self.elements[0][1].centery = world.worldsurf_rect.centery - world.cell_side / 6 * .6
-			self.elements[1][1].centery = world.worldsurf_rect.centery + world.cell_side / 6 * .6
-			self.elements[2][1].centery = world.worldsurf_rect.centery + world.cell_side / 6 * 1.9
+			self.elements[0][1].bottom = world.worldsurf_rect.centery - 1
+			self.id_rect.bottom = self.elements[0][1].top - 1
+			self.elements[1][1].top = world.worldsurf_rect.centery + 1
+			self.elements[2][1].top = self.elements[1][1].bottom + 1
 
 class Color( object ):
 
@@ -156,6 +156,8 @@ class World( object ):
 		self.side = 11
 		self.query_cell = math.ceil( self.side * self.side / 2 )
 		self.cell_side = self.worldsurf_rect.height / self.side
+		self.probe_rect = pygame.Rect( 0, 0, self.cell_side, self.cell_side )
+		self.probe_rect.center = self.worldsurf_rect.center
 
 		self.modifier = pygame.KMOD_CTRL
 		if platform.system() == 'Darwin':
@@ -230,6 +232,8 @@ class World( object ):
 			while cont:
 				new = False
 				if not self.search_rect.contains( s.rect ):
+					new = True
+				elif s.rect.colliderect( self.probe_rect ):
 					new = True
 				else:
 					for o in self.objects:
