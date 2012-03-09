@@ -32,8 +32,13 @@ class Shape( object ):
 		self.surface = world.fonts[size].render( world.shapes[name], True, world.colors[color] )
 		self.surface = pygame.transform.rotate( self.surface, random.randint( 0, 360 ) )
 		self.rect = self.surface.get_rect()
-		self.rect.centerx = location[0]
-		self.rect.centery = location[1]
+		self.rect.center = location
+		self.brect = self.surface.get_bounding_rect()
+		self.brect.center = location
+		self.arect = self.rect.copy()
+		self.arect.width -= ( self.arect.width - self.brect.width ) / 2
+		self.arect.height -= ( self.arect.height - self.brect.height ) / 2
+		self.arect.center = location
 		self.id_t = world.fonts["id"].render( "%02d" % id, True, ( 0, 0, 0 ) )
 		self.id_rect = self.id_t.get_rect()
 		self.id_rect.centerx = location[0]
@@ -156,8 +161,11 @@ class World( object ):
 		self.side = 11
 		self.query_cell = math.ceil( self.side * self.side / 2 )
 		self.cell_side = self.worldsurf_rect.height / self.side
-		self.probe_rect = pygame.Rect( 0, 0, self.cell_side, self.cell_side )
+		self.probe_rect = pygame.Rect( 0, 0, self.cell_side + 2, self.cell_side + 2 )
 		self.probe_rect.center = self.worldsurf_rect.center
+
+		self.probeCues = None
+		self.hint = False
 
 		self.modifier = pygame.KMOD_CTRL
 		if platform.system() == 'Darwin':
@@ -166,10 +174,14 @@ class World( object ):
 		self.score_font = pygame.font.Font( "freesans.ttf", self.cell_side / 3 )
 		self.help_font = pygame.font.Font( "freesans.ttf", self.cell_side / 3 )
 
+		self.title_font = pygame.font.Font( "freesans.ttf", self.worldsurf_rect.height / 10 )
+
+		self.objects = None
+
 		self.fonts = {
-					  "large": pygame.font.Font( "cutouts.ttf", self.cell_side ),
-					  "medium": pygame.font.Font( "cutouts.ttf", int( self.cell_side * ( 1 - .5 / 3 * 1.5 ) ) ),
-					  "small": pygame.font.Font( "cutouts.ttf", int( self.cell_side * ( 1 - .5 / 3 * 3 ) ) ),
+					  "large": pygame.font.Font( "cutouts.ttf", int( self.cell_side * 1.25 ) ),
+					  "medium": pygame.font.Font( "cutouts.ttf", int( self.cell_side * .95 ) ),
+					  "small": pygame.font.Font( "cutouts.ttf", int( self.cell_side * .65 ) ),
 					  "id": pygame.font.Font( "freesans.ttf", self.cell_side / 7 ),
 					  "probe": pygame.font.Font( "freesans.ttf", self.cell_side / 6 )
 					  }
@@ -179,7 +191,7 @@ class World( object ):
 					   "oval":"F",
 					   "diamond":"T",
 					   "crescent":"Q",
-					   "cross":"R",
+					   "cross":"Y",
 					   "star":"C",
 					   "triangle":"A"
 					   }
@@ -198,7 +210,7 @@ class World( object ):
 
 		self.nobjects = len( self.exp_colors ) * len( self.exp_shapes ) * len( self.exp_sizes )
 
-		self.bgcolor = ( 0, 0, 0 )
+		self.bgcolor = ( 32, 32, 32 )
 		self.searchBG = ( 168, 168, 168 )
 
 		self.probes = True
@@ -214,7 +226,15 @@ class World( object ):
 			self.fp = FixationProcessor( 3.55, sample_rate = 500 )
 			self.calibrator = Calibrator( self.client, self.screen, reactor = reactor )
 
-	def setup( self ):
+		self.logo = pygame.image.load( "logo.png" )
+
+	def setup( self, bounds = None, max = None, avoid = None ):
+
+		if bounds is None:
+			bounds = self.search_rect
+
+		if avoid is None:
+			avoid = [self.probe_rect]
 
 		self.objects = list()
 		ids = random.sample( range( 0, self.nobjects ), self.nobjects )
@@ -223,34 +243,44 @@ class World( object ):
 			for j in range( 0, len( self.exp_shapes ) ):
 				for k in range( 0, len( self.exp_colors ) ):
 					objs.append( ( self.exp_sizes[i], self.exp_shapes[j], self.exp_colors[k] ) )
+		random.shuffle( objs )
 
 		tries = 1
 		for obj in objs:
 			id = ids.pop()
-			s = Shape( self, obj[0], obj[1], obj[2], id, ( random.randrange( self.search_rect.left, self.search_rect.right, 1 ), random.randrange( self.search_rect.top, self.search_rect.bottom, 1 ) ) )
+			s = Shape( self, obj[0], obj[1], obj[2], id, ( random.randrange( bounds.left, bounds.right, 1 ), random.randrange( bounds.top, bounds.bottom, 1 ) ) )
 			cont = True
 			while cont:
 				new = False
-				if not self.search_rect.contains( s.rect ):
-					new = True
-				elif s.rect.colliderect( self.probe_rect ):
+				if not bounds.contains( s.arect ):
 					new = True
 				else:
-					for o in self.objects:
-						if s.rect.colliderect( o.rect ):
+					for a in avoid:
+						if s.arect.colliderect( a ):
 							new = True
 							break
+					if not new:
+						for o in self.objects:
+							if s.arect.colliderect( o.arect ):
+								new = True
+								break
 				if new:
-					s = Shape( self, obj[0], obj[1], obj[2], id, ( random.randrange( self.search_rect.left, self.search_rect.right, 1 ), random.randrange( self.search_rect.top, self.search_rect.bottom, 1 ) ) )
+					s = Shape( self, obj[0], obj[1], obj[2], id, ( random.randrange( bounds.left, bounds.right, 1 ), random.randrange( bounds.top, bounds.bottom, 1 ) ) )
 					tries += 1
 				else:
 					cont = False
 			self.objects.append( s )
+			if not max is None:
+				if len( self.objects ) == max:
+					break
 
-		print "~~ Generating trial took %d tries" % tries
+		if self.args.debug:
+			print "~~ Generating trial took %d tries" % tries
 
-		if not self.regen:
-			self.probe = Probe( self, self.objects[random.randint( 0, self.nobjects - 1 )], self.probes.pop() )
+		if self.state > -1 and not self.regen:
+			self.probeCues = self.probes.pop()
+		if self.probeCues:
+			self.probe = Probe( self, self.objects[random.randint( 0, len( self.objects ) - 1 )], self.probeCues )
 
 	def drawSearchBG( self ):
 		pygame.draw.rect( self.worldsurf, self.searchBG, self.search_rect )
@@ -260,6 +290,7 @@ class World( object ):
 		self.worldsurf.blit( self.probe.id_t, self.probe.id_rect )
 		for pelm in self.probe.elements:
 			self.worldsurf.blit( pelm[0], pelm[1] )
+		pygame.draw.rect( self.worldsurf, ( 96, 96, 96 ), self.probe_rect, 1 )
 
 	def drawShapes( self ):
 		self.drawProbe()
@@ -269,6 +300,10 @@ class World( object ):
 			self.objects[i].selected = False
 			self.worldsurf.blit( self.objects[i].surface, self.objects[i].rect )
 			self.worldsurf.blit( self.objects[i].id_t, self.objects[i].id_rect )
+			if self.args.debug:
+				pygame.draw.rect( self.worldsurf, ( 128, 128, 255 ), self.objects[i].arect, 1 )
+			if self.args.hint and self.hint and self.objects[i].id == self.probe.id:
+				pygame.draw.rect( self.worldsurf, ( 128, 255, 128 ), self.objects[i].arect, 3 )
 			if self.args.eyetracker and self.fix_data and self.objects[i].rect.collidepoint( self.fix_data.fix_x, self.fix_data.fix_y ):
 				d = distance( ( self.fix_data.fix_x, self.fix_data.fix_y ), self.objects[i].rect.center )
 				if d < best:
@@ -286,15 +321,23 @@ class World( object ):
 		tr = t.get_rect()
 		tr.center = loc
 		self.worldsurf.blit( t, tr )
+		return tr
+
+	def dropShadow( self, text, font, fg, bg, loc, xoff = 3, yoff = 3 ):
+		t1 = self.draw_text( text, font, bg, ( loc[0] + xoff, loc[1] + yoff ) )
+		t2 = self.draw_text( text, font, fg, loc )
+		return t1.union( t2 )
 
 	def drawHelp( self ):
-		color = ( 255, 255, 0 )
-		self.draw_text( "The task is to find the probe object", self.help_font, color, ( self.worldsurf_rect.centerx, self.worldsurf_rect.height / 6 * 1.5 ) )
-		self.draw_text( "as quickly as possible.", self.help_font, color, ( self.worldsurf_rect.centerx, self.worldsurf_rect.height / 6 * 1.5 + self.cell_side / 3 ) )
-		self.draw_text( "Study each probe and then click the mouse", self.help_font, color, ( self.worldsurf_rect.centerx, self.worldsurf_rect.height / 6 * 2.5 ) )
-		self.draw_text( "when you are ready to being your search.", self.help_font, color, ( self.worldsurf_rect.centerx, self.worldsurf_rect.height / 6 * 2.5 + self.cell_side / 3 ) )
-		self.draw_text( "Click on the probed object once you find it.", self.help_font, color, ( self.worldsurf_rect.centerx, self.worldsurf_rect.height / 6 * 2.5 + self.cell_side / 3 * 2 ) )
-		self.draw_text( "Click to begin...", self.help_font, color, ( self.worldsurf_rect.centerx, self.worldsurf_rect.height / 6 * 3.5 + self.cell_side / 3 ) )
+		title_rect = self.dropShadow( 'Williams Search Task', self.title_font, ( 36, 168, 36 ), ( 255, 255, 255 ), ( self.worldsurf_rect.centerx, self.worldsurf_rect.height / 5 ) )
+		logo_rect = self.logo.get_rect()
+		logo_rect.centerx = self.worldsurf_rect.centerx
+		logo_rect.centery = self.worldsurf_rect.height / 5 * 2
+		self.worldsurf.blit( self.logo, logo_rect )
+		if not self.objects:
+			self.setup( bounds = self.worldsurf_rect, avoid = ( title_rect, logo_rect ) )
+		for i in range( 0, len( self.objects ) ):
+			self.worldsurf.blit( self.objects[i].surface, self.objects[i].rect )
 
 	def clear( self ):
 		self.worldsurf.fill( self.bgcolor )
@@ -305,7 +348,13 @@ class World( object ):
 
 	def processEvents( self ):
 		for event in pygame.event.get():
-			if event.type == pygame.KEYDOWN:
+			if event.type == pygame.KEYUP:
+				if ( pygame.key.get_mods() & self.modifier ):
+					if event.key == pygame.K_h and self.args.hint:
+						self.hint = False
+				elif not ( pygame.key.get_mods() & self.modifier ):
+					self.hint = False
+			elif event.type == pygame.KEYDOWN:
 				if ( pygame.key.get_mods() & self.modifier ):
 					if event.key == pygame.K_q:
 						self.cleanup()
@@ -313,6 +362,8 @@ class World( object ):
 						if self.state == 3:
 							self.regen = True
 							self.state = 0
+					elif event.key == pygame.K_h and self.args.hint:
+						self.hint = True
 				elif event.key == pygame.K_SPACE:
 					if self.state == -1 or self.state == 1:
 						self.state += 1
@@ -345,6 +396,7 @@ class World( object ):
 		if self.state == -1:
 			self.drawHelp()
 		elif self.state == 0:
+			self.bgcolor = ( 0, 0, 0 )
 			self.setup()
 			if self.regen:
 				self.state = 2
@@ -369,6 +421,7 @@ class World( object ):
 			if self.probe.show_shape: result[4] = self.probe.shape
 			self.output.write( '%s\n' % '\t'.join( result ) )
 			self.trial = self.trial + 1
+			self.regen = False
 			self.state = 5
 		elif self.state == 5:
 			self.drawSearchTime()
@@ -412,6 +465,7 @@ if __name__ == '__main__':
 	parser.add_argument( '-e', '--eyetracker', action = "store", dest = "eyetracker", help = 'Use eyetracker.' )
 	parser.add_argument( '-f', '--fixation', action = "store_true", dest = "showfixation", help = 'Overlay fixation.' )
 	parser.add_argument( '-D', '--debug', action = "store_true", dest = "debug", help = 'Debug features.' )
+	parser.add_argument( '-H', '--hint', action = "store_true", dest = "hint", help = 'Enable hint.' )
 
 	args = parser.parse_args()
 
