@@ -1,17 +1,26 @@
 #!/usr/bin/env python
 """
-This is a replicate of the classic Williams '67 visual search task with some
-minor alterations.
+This is a modern implementation of the L.G. Williams' classic 1967 visual search task.
 """
-import sys, random, math, time, pygame, gc
+import sys, random, math, time, pygame, gc, os
 import argparse, platform
 
 from twisted.internet import reactor
 from twisted.internet.task import LoopingCall
-from pycogworks.fixation import FixationProcessor
-sys.path.append( "PyViewX" )
-from pyviewx import iViewXClient, Dispatcher
-from pyviewx.pygamesupport import Calibrator
+
+useEyetracker = True
+
+try:
+	from pyfixation import FixationProcessor
+except ImportError:
+	useEyetracker = False
+try:
+	from pyviewx import iViewXClient, Dispatcher
+	from pyviewx.pygamesupport import Calibrator
+except ImportError:
+	useEyetracker = False
+
+os.environ['SDL_VIDEO_WINDOW_POS'] = 'center'
 
 gc.disable()
 pygame.display.init()
@@ -134,7 +143,8 @@ class Color( object ):
 class World( object ):
 	"""Main game application"""
 
-	d = Dispatcher()
+	if useEyetracker:
+		d = Dispatcher()
 
 	def __init__( self, args ):
 
@@ -147,10 +157,21 @@ class World( object ):
 
 		self.trial = 1
 		pygame.mouse.set_visible( False )
+
+		# Remove modes that are double the width of another mode
+		# which indicates a dual monitor resolution
+		modes = pygame.display.list_modes()
+		for mode in modes:
+			tmp = mode[0] / 2
+			for m in modes:
+				if tmp == m[0]:
+					modes.remove( mode )
+					break
+
 		if self.args.fullscreen:
 			self.screen = pygame.display.set_mode( ( 0, 0 ), pygame.FULLSCREEN )
 		else:
-			self.screen = pygame.display.set_mode( ( 1024, 768 ), 0 )
+			self.screen = pygame.display.set_mode( modes[1], 0 )
 		self.worldsurf = self.screen.copy()
 		self.worldsurf_rect = self.worldsurf.get_rect()
 		self.search_rect = self.worldsurf_rect.copy()
@@ -300,7 +321,7 @@ class World( object ):
 			self.objects[i].selected = False
 			self.worldsurf.blit( self.objects[i].surface, self.objects[i].rect )
 			self.worldsurf.blit( self.objects[i].id_t, self.objects[i].id_rect )
-			if self.args.debug:
+			if self.args.debug > 1:
 				pygame.draw.rect( self.worldsurf, ( 128, 128, 255 ), self.objects[i].arect, 1 )
 			if self.args.hint and self.hint and self.objects[i].id == self.probe.id:
 				pygame.draw.rect( self.worldsurf, ( 128, 255, 128 ), self.objects[i].arect, 3 )
@@ -450,11 +471,12 @@ class World( object ):
 			self.start( None )
 		reactor.run()
 
-	@d.listen( 'ET_SPL' )
-	def iViewXEvent( self, inSender, inEvent, inResponse ):
-		if self.state < 0:
-			return
-		self.fix_data = self.fp.detect_fixation( int( float( inResponse[4] ) ) > 0, float( inResponse[2] ), float( inResponse[4] ) )
+	if useEyetracker:
+		@d.listen( 'ET_SPL' )
+		def iViewXEvent( self, inSender, inEvent, inResponse ):
+			if self.state < 0:
+				return
+			self.fix_data = self.fp.detect_fixation( int( float( inResponse[4] ) ) > 0, float( inResponse[2] ), float( inResponse[4] ) )
 
 if __name__ == '__main__':
 
@@ -462,12 +484,15 @@ if __name__ == '__main__':
 	parser.add_argument( '-L', '--log', action = "store", dest = "logfile", help = 'Pipe results to file instead of stdout.' )
 	parser.add_argument( '-F', '--fullscreen', action = "store_true", dest = "fullscreen", help = 'Run in fullscreen mode.' )
 	parser.add_argument( '-R', '--random', action = "store_true", dest = "random", help = 'Run random trials indefinitely.' )
-	parser.add_argument( '-e', '--eyetracker', action = "store", dest = "eyetracker", help = 'Use eyetracker.' )
-	parser.add_argument( '-f', '--fixation', action = "store_true", dest = "showfixation", help = 'Overlay fixation.' )
-	parser.add_argument( '-D', '--debug', action = "store_true", dest = "debug", help = 'Debug features.' )
+	if useEyetracker:
+		parser.add_argument( '-e', '--eyetracker', action = "store", dest = "eyetracker", help = 'Use eyetracker.' )
+		parser.add_argument( '-f', '--fixation', action = "store_true", dest = "showfixation", help = 'Overlay fixation.' )
+	parser.add_argument( '-D', '--debug', action = "store", dest = "debug", default = 0, type = int, help = 'Debug level.' )
 	parser.add_argument( '-H', '--hint', action = "store_true", dest = "hint", help = 'Enable hint.' )
 
 	args = parser.parse_args()
+	if not useEyetracker:
+		setattr( args, 'eyetracker', False )
 
 	w = World( args )
 	w.run()
