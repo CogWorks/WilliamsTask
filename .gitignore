@@ -2,3 +2,5 @@ build
 dist
 *.pyc
 .settings
+.project
+.pydevproject
