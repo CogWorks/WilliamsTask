@@ -26,9 +26,6 @@ gc.disable()
 pygame.display.init()
 pygame.font.init()
 
-def distance( p1, p2 ):
-	math.sqrt( ( p2[0] - p1[0] ) * ( p2[0] - p1[0] ) + ( p2[1] - p1[1] ) * ( p2[1] - p1[1] ) )
-
 class Shape( object ):
 	"""Shape object"""
 
@@ -315,8 +312,6 @@ class World( object ):
 
 	def drawShapes( self ):
 		self.drawProbe()
-		obj = -1
-		best = 99999
 		for i in range( 0, len( self.objects ) ):
 			self.objects[i].selected = False
 			self.worldsurf.blit( self.objects[i].surface, self.objects[i].rect )
@@ -325,14 +320,9 @@ class World( object ):
 				pygame.draw.rect( self.worldsurf, ( 128, 128, 255 ), self.objects[i].arect, 1 )
 			if self.args.hint and self.hint and self.objects[i].id == self.probe.id:
 				pygame.draw.rect( self.worldsurf, ( 128, 255, 128 ), self.objects[i].arect, 3 )
-			if self.args.eyetracker and self.fix_data and self.objects[i].rect.collidepoint( self.fix_data.fix_x, self.fix_data.fix_y ):
-				d = distance( ( self.fix_data.fix_x, self.fix_data.fix_y ), self.objects[i].rect.center )
-				if d < best:
-					best = d
-					obj = i
-		if not obj < 0:
-			self.objects[obj].selected = True
-			pygame.draw.rect( self.worldsurf, ( 200, 200, 200 ), self.objects[obj].rect, 1 )
+			if self.args.eyetracker and self.fix_data and self.objects[i].arect.collidepoint( self.fix_data.fix_x, self.fix_data.fix_y ):
+				self.objects[i].selected = True
+				pygame.draw.rect( self.worldsurf, ( 200, 200, 200 ), self.objects[i].arect, 1 )
 
 	def drawSearchTime( self ):
 		self.draw_text( "Found target in %.2f seconds." % self.search_time, self.score_font, ( 255, 255, 0 ), self.worldsurf_rect.center )
