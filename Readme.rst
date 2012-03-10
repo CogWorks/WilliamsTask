@@ -15,5 +15,5 @@ System Requirements
 Optional Packages for Eyetracking
 ---------------------------------
 
-* PyFixation (http://pypi.python.org/pypi/PyViewX)
+* PyFixation (http://pypi.python.org/pypi/PyFixation)
 * PyViewX (http://pypi.python.org/pypi/PyViewX)
