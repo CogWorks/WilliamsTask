@@ -1,18 +1,32 @@
 from __future__ import division
 import math, random, sys
 
-def intersection1( ( m1, b1 ), ( m2, b2 ) ):
-	x = ( b2 - b1 ) / ( m1 - m2 )
-	y = m1 * x + b1
+def intersection( c1, c2 ):
+	if type( c1 ) == tuple and type( c2 ) == tuple:
+		x = ( c2[1] - c1[1] ) / ( c1[0] - c2[0] )
+		y = c1[0] * x + c1[1]
+	elif type( c1 ) != tuple and type( c2 ) == tuple:
+		x = c1
+		y = c2[0] * x + c2[1]
+	elif type( c2 ) != tuple and type( c1 ) == tuple:
+		x = c2
+		y = c1[0] * x + c1[1]
+	else:
+		return None
 	return ( x, y )
 
-def intersection2( ( m1, b1 ), x ):
-	return ( x, m1 * x + b1 )
+def slope( p1, p2 ):
+	d = ( p2[0] - p1[0] )
+	if d == 0:
+		return None
+	return ( p2[1] - p1[1] ) / d
 
 def lineComponents( p1, p2 ):
 	m = slope( p1, p2 )
-	b = p1[1] - m * p1[0]
-	return ( m, b )
+	if m != None:
+		b = p1[1] - m * p1[0]
+		return ( m, b )
+	return p1[0]
 
 def distance( p1, p2 ):
 	return math.sqrt( ( p2[0] - p1[0] ) ** 2 + ( p2[1] - p1[1] ) ** 2 )
@@ -21,9 +35,6 @@ def centroid( vertices ):
 	x = sum( [x[0] for x in vertices] ) / len( vertices )
 	y = sum( [y[1] for y in vertices] ) / len( vertices )
 	return ( x, y )
-
-def slope( p1, p2 ):
-	return ( p2[1] - p1[1] ) / ( p2[0] - p1[0] )
 
 def nearestPoint( vertices, p1 ):
 	dists = {}
@@ -45,15 +56,22 @@ def nearestSides( vertices, p1 ):
 def nearestEdge( vertices, p1 ):
 	ns = nearestSides( vertices, p1 )
 	print ns
+	print vertices[ns[0]], vertices[ns[1]], vertices[ns[2]]
 	p2 = centroid( vertices )
 	c1 = lineComponents( p1, p2 )
 	c2 = lineComponents( vertices[ns[1]], vertices[ns[0]] )
 	c3 = lineComponents( vertices[ns[1]], vertices[ns[2]] )
-	i1 = intersection1( c1, c2 )
-	i2 = intersection1( c1, c3 )
+	print ( c1, c2, c3 )
+	ints = []
+	ints.append( intersection( c1, c2 ) )
+	ints.append( intersection( c1, c3 ) )
+	print ints
 	dists = {}
-	dists[distance( p2, i1 )] = i1
-	dists[distance( p2, i2 )] = i2
+	for i in ints:
+		if i:
+			dists[distance( p2, i )] = i
+	print dists
+	print
 	return ( dists[min( dists )], min( dists ) )
 
 def testCollision( vertices, p1, r ):
@@ -87,11 +105,18 @@ if __name__ == '__main__':
 	import pygame
 	pygame.display.init()
 	pygame.font.init()
-	screen = pygame.display.set_mode( ( 0, 0 ), pygame.FULLSCREEN )
+	f = pygame.font.Font( None, 18 )
+	screen = pygame.display.set_mode( ( 1024, 768 ), 0 )
 	screen_rect = screen.get_rect()
+
+	def getVertices( r ):
+		return ( r.topleft, r.topright, r.bottomright, r.bottomleft )
 
 	def drawTest():
 		screen.fill( ( 0, 0, 0 ) )
+		#rect = pygame.Rect( 0, 0, random.choice( range( 40, 141 ) ), random.choice( range( 40, 141 ) ) )
+		#rect.center = screen_rect.center
+		#poly = getVertices( rect )
 		poly = genPolygon( random.choice( range( 3, 9 ) ), screen_rect.center, random.choice( range( 40, 141 ) ) )
 		fix = map( int, ( random.triangular( screen_rect.centerx / 4, screen_rect.centerx + screen_rect.centerx / 4, screen_rect.centerx ), random.triangular( screen_rect.centery / 4, screen_rect.centery + screen_rect.centery / 4, screen_rect.centery ) ) )
 		r = random.choice( range( 10, 31 ) )
@@ -99,6 +124,11 @@ if __name__ == '__main__':
 		ne = nearestEdge( poly, fix )
 		pygame.draw.line( screen, ( 255, 255, 0 ), fix, screen_rect.center )
 		pygame.draw.polygon( screen, ( 255, 0, 0 ), poly, 1 )
+		for i, v in enumerate( poly ):
+			t = f.render( str( i ), True, ( 255, 255, 255 ) )
+			t_rect = t.get_rect()
+			t_rect.topleft = v
+			screen.blit( t, t_rect )
 		pygame.draw.circle( screen, ( 255, 0, 0 ), map( int, poly[ns[1]] ), 5, 1 )
 		pygame.draw.circle( screen, ( 0, 0, 255 ), map( int, poly[ns[0]] ), 5, 1 )
 		pygame.draw.circle( screen, ( 0, 0, 255 ), map( int, poly[ns[2]] ), 5, 1 )
