@@ -3,6 +3,8 @@ import math, random, sys
 
 def intersection( c1, c2 ):
 	if type( c1 ) == tuple and type( c2 ) == tuple:
+		if c1[0] == c2[0] and c1[1] != c2[1]:
+			return None
 		x = ( c2[1] - c1[1] ) / ( c1[0] - c2[0] )
 		y = c1[0] * x + c1[1]
 	elif type( c1 ) != tuple and type( c2 ) == tuple:
@@ -55,28 +57,25 @@ def nearestSides( vertices, p1 ):
 
 def nearestEdge( vertices, p1 ):
 	ns = nearestSides( vertices, p1 )
-	print ns
-	print vertices[ns[0]], vertices[ns[1]], vertices[ns[2]]
 	p2 = centroid( vertices )
 	c1 = lineComponents( p1, p2 )
 	c2 = lineComponents( vertices[ns[1]], vertices[ns[0]] )
 	c3 = lineComponents( vertices[ns[1]], vertices[ns[2]] )
-	print ( c1, c2, c3 )
 	ints = []
 	ints.append( intersection( c1, c2 ) )
 	ints.append( intersection( c1, c3 ) )
-	print ints
 	dists = {}
 	for i in ints:
 		if i:
 			dists[distance( p2, i )] = i
-	print dists
-	print
 	return ( dists[min( dists )], min( dists ) )
 
 def testCollision( vertices, p1, r ):
-	ne = nearestEdge( vertices, p1 )
+	p1 = tuple( map( float, p1 ) )
 	p2 = centroid( vertices )
+	if p1 == p2:
+		return True
+	ne = nearestEdge( vertices, p1 )
 	if distance( p1, p2 ) - r <= ne[1]:
 		return True
 	return False
@@ -114,14 +113,19 @@ if __name__ == '__main__':
 
 	def drawTest():
 		screen.fill( ( 0, 0, 0 ) )
-		#rect = pygame.Rect( 0, 0, random.choice( range( 40, 141 ) ), random.choice( range( 40, 141 ) ) )
-		#rect.center = screen_rect.center
+		rect = pygame.Rect( 0, 0, random.choice( range( 40, 141 ) ), random.choice( range( 40, 141 ) ) )
+		rect.center = screen_rect.center
 		#poly = getVertices( rect )
 		poly = genPolygon( random.choice( range( 3, 9 ) ), screen_rect.center, random.choice( range( 40, 141 ) ) )
 		fix = map( int, ( random.triangular( screen_rect.centerx / 4, screen_rect.centerx + screen_rect.centerx / 4, screen_rect.centerx ), random.triangular( screen_rect.centery / 4, screen_rect.centery + screen_rect.centery / 4, screen_rect.centery ) ) )
+		#fix = screen_rect.center
+		#if random.choice( ( True, False ) ):
+		#	fix = map( int, ( screen_rect.centerx, screen_rect.centery + random.triangular( -300, 300, 0 ) ) )
+		#else:
+		#	fix = map( int, ( screen_rect.centerx + random.triangular( -300, 300, 0 ), screen_rect.centery ) )
 		r = random.choice( range( 10, 31 ) )
-		ns = nearestSides( poly, fix )
-		ne = nearestEdge( poly, fix )
+		#ns = nearestSides( poly, fix )
+		#ne = nearestEdge( poly, fix )
 		pygame.draw.line( screen, ( 255, 255, 0 ), fix, screen_rect.center )
 		pygame.draw.polygon( screen, ( 255, 0, 0 ), poly, 1 )
 		for i, v in enumerate( poly ):
@@ -129,10 +133,10 @@ if __name__ == '__main__':
 			t_rect = t.get_rect()
 			t_rect.topleft = v
 			screen.blit( t, t_rect )
-		pygame.draw.circle( screen, ( 255, 0, 0 ), map( int, poly[ns[1]] ), 5, 1 )
-		pygame.draw.circle( screen, ( 0, 0, 255 ), map( int, poly[ns[0]] ), 5, 1 )
-		pygame.draw.circle( screen, ( 0, 0, 255 ), map( int, poly[ns[2]] ), 5, 1 )
-		pygame.draw.circle( screen, ( 255, 255, 0 ), map( int, ne[0] ), 5, 1 )
+		#pygame.draw.circle( screen, ( 255, 0, 0 ), map( int, poly[ns[1]] ), 5, 1 )
+		#pygame.draw.circle( screen, ( 0, 0, 255 ), map( int, poly[ns[0]] ), 5, 1 )
+		#pygame.draw.circle( screen, ( 0, 0, 255 ), map( int, poly[ns[2]] ), 5, 1 )
+		#pygame.draw.circle( screen, ( 255, 255, 0 ), map( int, ne[0] ), 5, 1 )
 		pygame.draw.circle( screen, ( 0, 255, 0 ), fix, r , int( not testCollision( poly, fix, r ) ) )
 		pygame.display.flip()
 
