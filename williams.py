@@ -4,6 +4,7 @@ This is a modern implementation of the L.G. Williams' classic 1967 visual search
 """
 import sys, random, math, time, pygame, gc, os
 import argparse, platform
+import numpy as np
 
 from twisted.internet import reactor
 from twisted.internet.task import LoopingCall
@@ -20,11 +21,113 @@ try:
 except ImportError:
 	useEyetracker = False
 
+from collisionROI import testCollision
+from savitzky_golay import savitzky_golay
+
 os.environ['SDL_VIDEO_WINDOW_POS'] = 'center'
 
 gc.disable()
 pygame.display.init()
 pygame.font.init()
+
+class VelocityFP( object ):
+
+	def __init__( self, resolutionX = 1680, resolutionY = 1050, screenWidth = 473, screenHeight = 295, threshold = 35, blinkThreshold = 1000, minFix = 40 ):
+		self.resolutionX = resolutionX
+		self.resolutionY = resolutionY
+		self.screenWidth = screenWidth
+		self.screenHeight = screenHeight
+		self.threshold = threshold
+		self.blinkThreshold = blinkThreshold
+		self.minFix = minFix
+		self.fix = None
+		self.fixsamples = [[], []]
+		self.prevsample = None
+
+		self.winx = np.zeros( 11, dtype = float )
+		self.winy = np.zeros( 11, dtype = float )
+		self.d = None
+
+	def degrees2pixels( self, a, d, resolutionX, resolutionY, screenWidth, screenHeight ):
+		a = a * math.pi / 180
+		w = 2 * math.tan( a / 2 ) * d
+		aiph = resolutionX * w / screenWidth
+		aipv = resolutionY * w / screenHeight
+		return aiph, aipv
+
+	def appendWindow( self, x, y ):
+		self.winx = np.append( self.winx[1:], x )
+		self.winy = np.append( self.winy[1:], y )
+
+	def processWindow( self ):
+		vx = savitzky_golay( self.winx, 21, 2, 1 )[6]
+		vy = savitzky_golay( self.winy, 21, 2, 1 )[6]
+		return 500.0 * math.sqrt( vx ** 2 + vy ** 2 ) / self.d[1], self.winx[6], self.winy[6]
+
+	def distance2point( self, x, y, vx, vy, vz, rx, ry, sw, sh ):
+		dx = x / rx * sw - rx / 2.0 + vx
+		dy = y / ry * sh - ry / 2.0 - vy
+		sd = math.sqrt( dx ** 2 + dy ** 2 )
+		return math.sqrt( vz ** 2 + sd ** 2 )
+
+	def subtendedAngle( self, x1, y1, x2, y2, vx, vy, vz, rx, ry, sw, sh ):
+		d1 = self.distance2point( x1, y1, vx, vy, vz, rx, ry, sw, sh )
+		d2 = self.distance2point( x2, y2, vx, vy, vz, rx, ry, sw, sh )
+		dX = sw * ( ( x2 - x1 ) / rx )
+		dY = sh * ( ( y2 - y1 ) / ry )
+		dS = math.sqrt( dX ** 2 + dY ** 2 )
+		rad = math.acos( max( min( ( d1 ** 2 + d2 ** 2 - dS ** 2 ) / ( 2 * d1 * d2 ), 1 ), -1 ) )
+		return ( rad / ( 2 * math.pi ) ) * 360
+
+	def processData( self, t, x, y, ex, ey, ez ):
+		self.d = self.degrees2pixels( 1, ez, self.resolutionX, self.resolutionY, self.screenWidth, self.screenHeight )
+		if x >= 0 and x < self.resolutionX and y >= 0 and y < self.resolutionY:
+			self.appendWindow( x, y )
+			v, x, y = self.processWindow()
+			if v == 0 or v > self.blinkThreshold:
+				self.fixsamples = [[], []]
+				self.fix = None
+			else:
+				if v < self.threshold:
+					self.fixsamples[0].append( x )
+					self.fixsamples[1].append( y )
+					if len( self.fixsamples[0] ) >= self.minFix / 2:
+						self.fix = ( np.mean( self.fixsamples[0] ), np.mean( self.fixsamples[1] ) )
+					else:
+						self.fix = None
+				else:
+					self.fixsamples = [[], []]
+					self.fix = None
+		else:
+			self.appendWindow( self.screenWidth / 2, self.screenHeight / 2 )
+			self.fixsamples = [[], []]
+			self.fix = None
+		"""
+		if self.prevsample != None:
+			dT = t - self.prevsample[0]
+			dVA = self.subtendedAngle( x, y, self.prevsample[1][0], self.prevsample[1][1], ex, ey, ez, self.resolutionX, self.resolutionY, self.screenWidth, self.screenHeight )
+			if dT == 0:
+				self.fixsamples = [[], []]
+				self.fix = None
+			else:
+				v = dVA / dT
+				threshold = ( self.threshold * dT ) / 1000.0
+				if v < threshold:
+					self.fixsamples[0].append( x )
+					self.fixsamples[1].append( y )
+					self.fix = ( numpy.mean( self.fixsamples[0] ), numpy.mean( self.fixsamples[1] ) )
+				else:
+					self.fixsamples = [[], []]
+					self.fix = None
+		self.prevsample = ( t, ( x, y ) )
+		"""
+
+
+def radialPoint( p1, p2, r ):
+	l = ( p2[0] - p1[0], p2[1] - p1[1] )
+	z = math.sqrt( l[0] * l[0] + l[1] * l[1] )
+	l = ( r * l[0] / z, r * l[1] / z )
+	return ( p1[0] + l[0], p1[1] + l[1] )
 
 class Shape( object ):
 	"""Shape object"""
@@ -73,9 +176,9 @@ class Probe( object ):
 		self.color_t = world.fonts["probe"].render( self.color, True, ( 0, 0, 0 ) )
 		self.color_rect = self.color_t.get_rect()
 
-		self.show_shape = None
-		self.show_size = None
-		self.show_color = None
+		self.show_shape = 0
+		self.show_size = 0
+		self.show_color = 0
 
 		color = shape = size = 0
 		if cues == 0:
@@ -91,17 +194,23 @@ class Probe( object ):
 				shape = 1
 
 		if shape:
-			self.show_shape = self.shape
-			self.elements.append( ( self.shape_t, self.shape_rect ) )
+			self.show_shape = True
+			self.elements.append( ( self.shape_t, self.shape_rect, 'shape' ) )
 		if size:
-			self.show_size = self.size
-			self.elements.append( ( self.size_t, self.size_rect ) )
+			self.show_size = True
+			self.elements.append( ( self.size_t, self.size_rect, 'size' ) )
 		if color:
-			self.show_color = self.color
-			self.elements.append( ( self.color_t, self.color_rect ) )
+			self.show_color = True
+			self.elements.append( ( self.color_t, self.color_rect , 'color' ) )
 
 		random.shuffle( self.elements )
-
+		for i in range( 0, len( self.elements ) ):
+			if self.elements[i][2] == 'shape':
+				self.show_shape = i + 1
+			elif self.elements[i][2] == 'size':
+				self.show_size = i + 1
+			elif self.elements[i][2] == 'color':
+				self.show_color = i + 1
 		self.id_rect.centerx = world.worldsurf_rect.centerx
 		self.shape_rect.centerx = world.worldsurf_rect.centerx
 		self.size_rect.centerx = world.worldsurf_rect.centerx
@@ -123,18 +232,13 @@ class Probe( object ):
 			self.elements[1][1].top = world.worldsurf_rect.centery + 1
 			self.elements[2][1].top = self.elements[1][1].bottom + 1
 
-class Color( object ):
+class Color( tuple ):
 
-	def __init__( self, h, s, v ):
+	def __new__( self, h, s, v ):
 		self.color = pygame.Color( 0, 0, 0, 0 )
 		self.color.hsva = ( h, s, v, 0 )
 		self.color.set_length( 3 )
-
-	def rgb( self ):
-		return ( self.color.r, self.color.g, self.color.b )
-
-	def __repr__( self ):
-		return str( self.rgb() )
+		return tuple.__new__( Color, ( self.color.r, self.color.g, self.color.b ) )
 
 
 class World( object ):
@@ -172,8 +276,9 @@ class World( object ):
 		self.worldsurf = self.screen.copy()
 		self.worldsurf_rect = self.worldsurf.get_rect()
 		self.search_rect = self.worldsurf_rect.copy()
+		self.search_rect.height = int( self.search_rect.height )
 		self.search_rect.width = self.search_rect.height
-		self.search_rect.centerx = self.worldsurf_rect.centerx
+		self.search_rect.center = self.worldsurf_rect.center
 		self.xoffset = ( self.worldsurf_rect.width - self.search_rect.width ) / 2
 
 		self.side = 11
@@ -184,6 +289,12 @@ class World( object ):
 
 		self.probeCues = None
 		self.hint = False
+
+		self.color_fixations = 0
+		self.size_fixations = 0
+		self.shape_fixations = 0
+		self.fixations = 0
+		self.curFixDuration = 0
 
 		self.modifier = pygame.KMOD_CTRL
 		if platform.system() == 'Darwin':
@@ -216,11 +327,11 @@ class World( object ):
 		s = 50
 		v = 100
 		self.colors = {
-					   "red": Color( 0, s, v ).rgb(),
-					   "yellow": Color( 72, s, v ).rgb(),
-					   "green": Color( 144, s, v ).rgb(),
-					   "blue": Color( 216, s, v ).rgb(),
-					   "purple": Color( 288, s, v ).rgb()
+					   "red": Color( 0, s, v ),
+					   "yellow": Color( 72, s, v ),
+					   "green": Color( 144, s, v ),
+					   "blue": Color( 216, s, v ),
+					   "purple": Color( 288, s, v )
 					   }
 		self.exp_shapes = ["star", "cross", "crescent", "diamond", "oval"]
 		self.exp_colors = ["red", "yellow", "green", "blue", "purple"]
@@ -241,7 +352,8 @@ class World( object ):
 		if self.args.eyetracker:
 			self.client = iViewXClient( self.args.eyetracker, 4444 )
 			self.client.addDispatcher( self.d )
-			self.fp = FixationProcessor( 3.55, sample_rate = 500 )
+			#self.fp = FixationProcessor( 3.55, sample_rate = 500 )
+			self.fp = VelocityFP()
 			self.calibrator = Calibrator( self.client, self.screen, reactor = reactor )
 
 		self.logo = pygame.image.load( "logo.png" )
@@ -310,6 +422,9 @@ class World( object ):
 			self.worldsurf.blit( pelm[0], pelm[1] )
 		pygame.draw.rect( self.worldsurf, ( 96, 96, 96 ), self.probe_rect, 1 )
 
+	def getVertices( self, r ):
+		return ( r.topleft, r.topright, r.bottomright, r.bottomleft )
+
 	def drawShapes( self ):
 		self.drawProbe()
 		for i in range( 0, len( self.objects ) ):
@@ -320,7 +435,7 @@ class World( object ):
 				pygame.draw.rect( self.worldsurf, ( 128, 128, 255 ), self.objects[i].arect, 1 )
 			if self.args.hint and self.hint and self.objects[i].id == self.probe.id:
 				pygame.draw.rect( self.worldsurf, ( 128, 255, 128 ), self.objects[i].arect, 3 )
-			if self.args.eyetracker and self.fix_data and self.objects[i].arect.collidepoint( self.fix_data.fix_x, self.fix_data.fix_y ):
+			if self.args.eyetracker and self.fp.fix and testCollision( self.getVertices( self.objects[i].brect ), ( self.fp.fix[0], self.fp.fix[1] ), 23 ):
 				self.objects[i].selected = True
 				pygame.draw.rect( self.worldsurf, ( 200, 200, 200 ), self.objects[i].arect, 1 )
 
@@ -398,9 +513,21 @@ class World( object ):
 							if object.id == self.probe.id:
 								self.state = 4
 
+	def processResults( self ):
+		result = [
+					self.trial, self.probe.id, self.probe.size, self.probe.color, self.probe.shape, \
+					self.probe.show_size, self.probe.show_color, self.probe.show_shape, "%.2f" % self.search_time, \
+					self.size_fixations, self.color_fixations, self.shape_fixations, self.fixations
+				]
+		self.output.write( '%s\n' % '\t'.join( map( str, result ) ) )
+
 	def draw_fix( self ):
+		"""
 		if self.fix_data:
-			pygame.draw.circle( self.worldsurf, ( 0, 228, 0 ), ( int( self.fix_data.fix_x ), int( self.fix_data.fix_y ) ), 5, 0 )
+			pygame.draw.circle( self.worldsurf, ( 0, 228, 0 ), ( int( self.fix_data.fix_x ), int( self.fix_data.fix_y ) ), int( self.fp.gaze_deviation_thresh_px ), 1 )
+		"""
+		if self.fp.fix:
+			pygame.draw.circle( self.worldsurf, ( 0, 228, 0 ), ( int( self.fp.fix[0] ), int( self.fp.fix[1] ) ), 23, 1 )
 
 	def refresh( self ):
 		self.clear()
@@ -413,6 +540,10 @@ class World( object ):
 				self.state = 2
 			else:
 				self.state = 1
+			self.color_fixations = 0
+			self.size_fixations = 0
+			self.shape_fixations = 0
+			self.fixations = 0
 		elif self.state == 1:
 			self.drawProbe()
 		elif self.state == 2:
@@ -426,11 +557,7 @@ class World( object ):
 			self.drawShapes()
 		elif self.state == 4:
 			pygame.mouse.set_visible( False )
-			result = [str( self.trial ), str( self.probe.id ), '-', '-', '-', "%.2f" % self.search_time]
-			if self.probe.show_size: result[2] = self.probe.size
-			if self.probe.show_color: result[3] = self.probe.color
-			if self.probe.show_shape: result[4] = self.probe.shape
-			self.output.write( '%s\n' % '\t'.join( result ) )
+			self.processResults()
 			self.trial = self.trial + 1
 			self.regen = False
 			self.state = 5
@@ -466,7 +593,30 @@ class World( object ):
 		def iViewXEvent( self, inSender, inEvent, inResponse ):
 			if self.state < 0:
 				return
-			self.fix_data = self.fp.detect_fixation( int( float( inResponse[4] ) ) > 0, float( inResponse[2] ), float( inResponse[4] ) )
+			t = int( inResponse[0] )
+			x = float( inResponse[2] )
+			y = float( inResponse[4] )
+			ex = np.mean( ( float( inResponse[10] ), float( inResponse[11] ) ) )
+			ey = np.mean( ( float( inResponse[12] ), float( inResponse[13] ) ) )
+			ez = np.mean( ( float( inResponse[14] ), float( inResponse[15] ) ) )
+			#print t, x, y, ex, ey, ez
+			self.fp.processData( t, x, y, ex, ey, ez )
+			"""
+			if self.state < 0:
+				return
+			self.fix_data = tmp = self.fp.detect_fixation( int( float( inResponse[4] ) ) > 0, float( inResponse[2] ), float( inResponse[4] ) )
+			if self.state == 3 and self.fix_data.fix_duration < self.curFixDuration:
+				self.fixations += 1
+				for i in range( 0, len( self.objects ) ):
+					if self.objects[i].arect.collidepoint( radialPoint( ( tmp.fix_x, tmp.fix_y ), self.objects[i].arect.center, self.fp.gaze_deviation_thresh_px ) ):
+						if self.objects[i].color == self.probe.color:
+							self.color_fixations += 1
+						if self.objects[i].shape == self.probe.shape:
+							self.shape_fixations += 1
+						if self.objects[i].size == self.probe.size:
+							self.size_fixations += 1
+			self.curFixDuration = self.fix_data.fix_duration
+			"""
 
 if __name__ == '__main__':
 
