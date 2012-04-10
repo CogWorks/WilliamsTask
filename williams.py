@@ -352,6 +352,7 @@ class World( object ):
 
 	def drawSearchTime( self ):
 		self.draw_text( "Found target in %.2f seconds." % self.search_time, self.score_font, ( 255, 255, 0 ), self.worldsurf_rect.center )
+		self.draw_text("Click mouse or press spacebar to continue...", self.help_font, (255,255,255), (self.worldsurf_rect.centerx, self.worldsurf_rect.height-self.worldsurf_rect.height/3))
 
 	def draw_text( self, text, font, color, loc ):
 		t = font.render( text, True, color )
@@ -370,10 +371,11 @@ class World( object ):
 		logo_rect = self.logo.get_rect()
 		logo_rect.centerx = self.worldsurf_rect.centerx
 		logo_rect.centery = self.worldsurf_rect.height / 5 * 2
+		c = self.draw_text("Click mouse or press spacebar to continue...", self.help_font, (255,255,255), (self.worldsurf_rect.centerx, self.worldsurf_rect.height-self.worldsurf_rect.height/3))
 		self.worldsurf.blit( self.logo, logo_rect )
 		if not self.objects:
-			self.setup( bounds = self.worldsurf_rect, avoid = ( title_rect, logo_rect ) )
-		for i in range( 0, len( self.objects ) ):
+			self.setup( bounds = self.worldsurf_rect, avoid = ( title_rect, logo_rect, c ) )
+		for i in range( 0, len( self.objects )/2 ):
 			self.worldsurf.blit( self.objects[i].surface, self.objects[i].rect )
 
 	def clear( self ):
