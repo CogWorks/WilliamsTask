@@ -5,6 +5,7 @@ This is a modern implementation of the L.G. Williams' classic 1967 visual search
 import sys, random, math, time, pygame, gc, os
 import argparse, platform
 import numpy as np
+import json
 
 from twisted.internet import reactor
 from twisted.internet.task import LoopingCall
@@ -13,6 +14,7 @@ useEyetracker = True
 
 try:
 	from pyfixation import FixationProcessor
+	from vel import VelocityFP
 except ImportError:
 	useEyetracker = False
 try:
@@ -22,114 +24,12 @@ except ImportError:
 	useEyetracker = False
 
 from collisionROI import testCollision
-from savitzky_golay import savitzky_golay
 
 os.environ['SDL_VIDEO_WINDOW_POS'] = 'center'
 
 gc.disable()
 pygame.display.init()
 pygame.font.init()
-
-class VelocityFP( object ):
-
-	def __init__( self, resolutionX = 1680, resolutionY = 1050, screenWidth = 473.8, screenHeight = 296.1, threshold = 20, blinkThreshold = 1000, minFix = 40 ):
-		self.resolutionX = resolutionX
-		self.resolutionY = resolutionY
-		self.centerx = self.resolutionX / 2.0
-		self.centery = self.resolutionY / 2.0
-		self.screenWidth = screenWidth
-		self.screenHeight = screenHeight
-		self.threshold = threshold
-		self.blinkThreshold = blinkThreshold
-		self.minFix = minFix
-		self.fix = None
-		self.fixsamples = [[], []]
-		self.prevsample = None
-
-		self.winax = np.zeros( 11, dtype = float )
-		self.winay = np.zeros( 11, dtype = float )
-		self.winx = np.zeros( 11, dtype = float )
-		self.winy = np.zeros( 11, dtype = float )
-		self.d = None
-
-	def degrees2pixels( self, a, d, resolutionX, resolutionY, screenWidth, screenHeight ):
-		a = a * math.pi / 180
-		w = 2 * math.tan( a / 2 ) * d
-		aiph = resolutionX * w / screenWidth
-		aipv = resolutionY * w / screenHeight
-		return aiph, aipv
-
-	def appendWindow( self, ax, ay, x, y ):
-		self.winax = np.append( self.winax[1:], ax )
-		self.winay = np.append( self.winay[1:], ay )
-		self.winx = np.append( self.winx[1:], x )
-		self.winy = np.append( self.winy[1:], y )
-
-	def processWindow( self ):
-		vx = savitzky_golay( self.winax, 21, 2, 1 )[6]
-		vy = savitzky_golay( self.winay, 21, 2, 1 )[6]
-		return 500.0 * math.sqrt( vx ** 2 + vy ** 2 ), self.winx[6], self.winy[6]
-
-	def distance2point( self, x, y, vx, vy, vz, rx, ry, sw, sh ):
-		dx = x / rx * sw - rx / 2.0 + vx
-		dy = y / ry * sh - ry / 2.0 - vy
-		sd = math.sqrt( dx ** 2 + dy ** 2 )
-		return math.sqrt( vz ** 2 + sd ** 2 )
-
-	def subtendedAngle( self, x1, y1, x2, y2, vx, vy, vz, rx, ry, sw, sh ):
-		d1 = self.distance2point( x1, y1, vx, vy, vz, rx, ry, sw, sh )
-		d2 = self.distance2point( x2, y2, vx, vy, vz, rx, ry, sw, sh )
-		dX = sw * ( ( x2 - x1 ) / rx )
-		dY = sh * ( ( y2 - y1 ) / ry )
-		dS = math.sqrt( dX ** 2 + dY ** 2 )
-		rad = math.acos( max( min( ( d1 ** 2 + d2 ** 2 - dS ** 2 ) / ( 2 * d1 * d2 ), 1 ), -1 ) )
-		return ( rad / ( 2 * math.pi ) ) * 360
-
-	def processData( self, t, x, y, ex, ey, ez ):
-		ax = self.subtendedAngle( x, self.centery, self.centerx, self.centery, ex, ey, ez, self.resolutionX, self.resolutionY, self.screenWidth, self.screenHeight )
-		ay = self.subtendedAngle( self.centerx, y, self.centerx, self.centery, ex, ey, ez, self.resolutionX, self.resolutionY, self.screenWidth, self.screenHeight )
-		self.appendWindow( ax, ay, x, y )
-		v, x, y = self.processWindow()
-		if v == 0 or v > self.blinkThreshold:
-			self.fixsamples = [[], []]
-			self.fix = None
-		else:
-			if v < self.threshold:
-				self.fixsamples[0].append( x )
-				self.fixsamples[1].append( y )
-				if len( self.fixsamples[0] ) >= self.minFix / 2:
-					self.fix = ( np.mean( self.fixsamples[0] ), np.mean( self.fixsamples[1] ) )
-				else:
-					self.fix = None
-			else:
-				self.fixsamples = [[], []]
-				self.fix = None
-		"""
-		if self.prevsample != None:
-			dT = t - self.prevsample[0]
-			dVA = self.subtendedAngle( x, y, self.prevsample[1][0], self.prevsample[1][1], ex, ey, ez, self.resolutionX, self.resolutionY, self.screenWidth, self.screenHeight )
-			if dT == 0:
-				self.fixsamples = [[], []]
-				self.fix = None
-			else:
-				v = dVA / dT
-				threshold = ( self.threshold * dT ) / 1000.0
-				if v < threshold:
-					self.fixsamples[0].append( x )
-					self.fixsamples[1].append( y )
-					self.fix = ( numpy.mean( self.fixsamples[0] ), numpy.mean( self.fixsamples[1] ) )
-				else:
-					self.fixsamples = [[], []]
-					self.fix = None
-		self.prevsample = ( t, ( x, y ) )
-		"""
-
-
-def radialPoint( p1, p2, r ):
-	l = ( p2[0] - p1[0], p2[1] - p1[1] )
-	z = math.sqrt( l[0] * l[0] + l[1] * l[1] )
-	l = ( r * l[0] / z, r * l[1] / z )
-	return ( p1[0] + l[0], p1[1] + l[1] )
 
 class Shape( object ):
 	"""Shape object"""
@@ -158,6 +58,9 @@ class Shape( object ):
 	def clickCheck( self, position ):
 		return self.rect.collidepoint( position )
 
+	def describe(self):
+		return self.rect.center,self.shape,self.color,self.size,self.id
+
 
 class Probe( object ):
 	"""Probe objects"""
@@ -168,6 +71,7 @@ class Probe( object ):
 		self.size = shape.size
 		self.color = shape.color
 		self.elements = list()
+		self.cues = cues
 
 		self.id_t = world.fonts["probe"].render( "%02d" % self.id, True, ( 0, 0, 0 ) )
 		self.id_rect = self.id_t.get_rect()
@@ -257,6 +161,8 @@ class World( object ):
 			self.output = open( args.logfile, 'w' )
 		else:
 			self.output = sys.stdout
+		self.header = ("trial","probe_id","probe_size","probe_color","probe_shape","probe_cues","probe_size_pos","probe_color_pos","probe_shape_pos","search_time","size_fixations", "color_fixations", "shape_fixations", "total_fixations", "objects")
+		self.output.write( '%s\n' % '\t'.join( map( str, self.header ) ) )
 
 		self.trial = 1
 		pygame.mouse.set_visible( False )
@@ -414,6 +320,9 @@ class World( object ):
 		if self.probeCues:
 			self.probe = Probe( self, self.objects[random.randint( 0, len( self.objects ) - 1 )], self.probeCues )
 
+	def serializeObjects(self):
+		return json.dumps([o.describe() for o in self.objects])
+
 	def drawSearchBG( self ):
 		pygame.draw.rect( self.worldsurf, self.searchBG, self.search_rect )
 
@@ -517,9 +426,9 @@ class World( object ):
 
 	def processResults( self ):
 		result = [
-					self.trial, self.probe.id, self.probe.size, self.probe.color, self.probe.shape, \
+					self.trial, self.probe.id, self.probe.size, self.probe.color, self.probe.shape, self.probe.cues, \
 					self.probe.show_size, self.probe.show_color, self.probe.show_shape, "%.2f" % self.search_time, \
-					self.size_fixations, self.color_fixations, self.shape_fixations, self.fixations
+					self.size_fixations, self.color_fixations, self.shape_fixations, self.fixations, "'%s'" % self.serializeObjects()
 				]
 		self.output.write( '%s\n' % '\t'.join( map( str, result ) ) )
 
