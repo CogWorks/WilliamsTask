@@ -32,9 +32,11 @@ pygame.font.init()
 
 class VelocityFP( object ):
 
-	def __init__( self, resolutionX = 1680, resolutionY = 1050, screenWidth = 473, screenHeight = 295, threshold = 35, blinkThreshold = 1000, minFix = 40 ):
+	def __init__( self, resolutionX = 1680, resolutionY = 1050, screenWidth = 473.8, screenHeight = 296.1, threshold = 20, blinkThreshold = 1000, minFix = 40 ):
 		self.resolutionX = resolutionX
 		self.resolutionY = resolutionY
+		self.centerx = self.resolutionX / 2.0
+		self.centery = self.resolutionY / 2.0
 		self.screenWidth = screenWidth
 		self.screenHeight = screenHeight
 		self.threshold = threshold
@@ -44,6 +46,8 @@ class VelocityFP( object ):
 		self.fixsamples = [[], []]
 		self.prevsample = None
 
+		self.winax = np.zeros( 11, dtype = float )
+		self.winay = np.zeros( 11, dtype = float )
 		self.winx = np.zeros( 11, dtype = float )
 		self.winy = np.zeros( 11, dtype = float )
 		self.d = None
@@ -55,14 +59,16 @@ class VelocityFP( object ):
 		aipv = resolutionY * w / screenHeight
 		return aiph, aipv
 
-	def appendWindow( self, x, y ):
+	def appendWindow( self, ax, ay, x, y ):
+		self.winax = np.append( self.winax[1:], ax )
+		self.winay = np.append( self.winay[1:], ay )
 		self.winx = np.append( self.winx[1:], x )
 		self.winy = np.append( self.winy[1:], y )
 
 	def processWindow( self ):
-		vx = savitzky_golay( self.winx, 21, 2, 1 )[6]
-		vy = savitzky_golay( self.winy, 21, 2, 1 )[6]
-		return 500.0 * math.sqrt( vx ** 2 + vy ** 2 ) / self.d[1], self.winx[6], self.winy[6]
+		vx = savitzky_golay( self.winax, 21, 2, 1 )[6]
+		vy = savitzky_golay( self.winay, 21, 2, 1 )[6]
+		return 500.0 * math.sqrt( vx ** 2 + vy ** 2 ), self.winx[6], self.winy[6]
 
 	def distance2point( self, x, y, vx, vy, vz, rx, ry, sw, sh ):
 		dx = x / rx * sw - rx / 2.0 + vx
@@ -80,28 +86,24 @@ class VelocityFP( object ):
 		return ( rad / ( 2 * math.pi ) ) * 360
 
 	def processData( self, t, x, y, ex, ey, ez ):
-		self.d = self.degrees2pixels( 1, ez, self.resolutionX, self.resolutionY, self.screenWidth, self.screenHeight )
-		if x >= 0 and x < self.resolutionX and y >= 0 and y < self.resolutionY:
-			self.appendWindow( x, y )
-			v, x, y = self.processWindow()
-			if v == 0 or v > self.blinkThreshold:
-				self.fixsamples = [[], []]
-				self.fix = None
-			else:
-				if v < self.threshold:
-					self.fixsamples[0].append( x )
-					self.fixsamples[1].append( y )
-					if len( self.fixsamples[0] ) >= self.minFix / 2:
-						self.fix = ( np.mean( self.fixsamples[0] ), np.mean( self.fixsamples[1] ) )
-					else:
-						self.fix = None
-				else:
-					self.fixsamples = [[], []]
-					self.fix = None
-		else:
-			self.appendWindow( self.screenWidth / 2, self.screenHeight / 2 )
+		ax = self.subtendedAngle( x, self.centery, self.centerx, self.centery, ex, ey, ez, self.resolutionX, self.resolutionY, self.screenWidth, self.screenHeight )
+		ay = self.subtendedAngle( self.centerx, y, self.centerx, self.centery, ex, ey, ez, self.resolutionX, self.resolutionY, self.screenWidth, self.screenHeight )
+		self.appendWindow( ax, ay, x, y )
+		v, x, y = self.processWindow()
+		if v == 0 or v > self.blinkThreshold:
 			self.fixsamples = [[], []]
 			self.fix = None
+		else:
+			if v < self.threshold:
+				self.fixsamples[0].append( x )
+				self.fixsamples[1].append( y )
+				if len( self.fixsamples[0] ) >= self.minFix / 2:
+					self.fix = ( np.mean( self.fixsamples[0] ), np.mean( self.fixsamples[1] ) )
+				else:
+					self.fix = None
+			else:
+				self.fixsamples = [[], []]
+				self.fix = None
 		"""
 		if self.prevsample != None:
 			dT = t - self.prevsample[0]
@@ -526,6 +528,9 @@ class World( object ):
 		if self.fix_data:
 			pygame.draw.circle( self.worldsurf, ( 0, 228, 0 ), ( int( self.fix_data.fix_x ), int( self.fix_data.fix_y ) ), int( self.fp.gaze_deviation_thresh_px ), 1 )
 		"""
+		#if self.fp:
+		#	for i in range( 0, len( self.fp.winx ) ):
+		#		pygame.draw.circle( self.worldsurf, ( 228, 0, 0 ), ( int( self.fp.winx[i] ), int( self.fp.winy[i] ) ), 2, 0 )
 		if self.fp.fix:
 			pygame.draw.circle( self.worldsurf, ( 0, 228, 0 ), ( int( self.fp.fix[0] ), int( self.fp.fix[1] ) ), 23, 1 )
 
@@ -593,14 +598,14 @@ class World( object ):
 		def iViewXEvent( self, inSender, inEvent, inResponse ):
 			if self.state < 0:
 				return
-			t = int( inResponse[0] )
+			"""t = int( inResponse[0] )
 			x = float( inResponse[2] )
 			y = float( inResponse[4] )
 			ex = np.mean( ( float( inResponse[10] ), float( inResponse[11] ) ) )
 			ey = np.mean( ( float( inResponse[12] ), float( inResponse[13] ) ) )
-			ez = np.mean( ( float( inResponse[14] ), float( inResponse[15] ) ) )
+			ez = np.mean( ( float( inResponse[14] ), float( inResponse[15] ) ) )"""
 			#print t, x, y, ex, ey, ez
-			self.fp.processData( t, x, y, ex, ey, ez )
+			self.fp.processData( inResponse )
 			"""
 			if self.state < 0:
 				return
