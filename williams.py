@@ -256,11 +256,11 @@ class World( object ):
 
 		self.regen = False
 
-		self.fix_data = None
+		self.fix = None
+		self.samp = None
 		if self.args.eyetracker:
 			self.client = iViewXClient( self.args.eyetracker, 4444 )
 			self.client.addDispatcher( self.d )
-			#self.fp = FixationProcessor( 3.55, sample_rate = 500 )
 			self.fp = VelocityFP()
 			self.calibrator = Calibrator( self.client, self.screen, reactor = reactor )
 
@@ -346,7 +346,7 @@ class World( object ):
 				pygame.draw.rect( self.worldsurf, ( 128, 128, 255 ), self.objects[i].arect, 1 )
 			if self.args.hint and self.hint and self.objects[i].id == self.probe.id:
 				pygame.draw.rect( self.worldsurf, ( 128, 255, 128 ), self.objects[i].arect, 3 )
-			if self.args.eyetracker and self.fp.fix and testCollision( self.getVertices( self.objects[i].brect ), ( self.fp.fix[0], self.fp.fix[1] ), 23 ):
+			if self.args.eyetracker and self.fix and testCollision( self.getVertices( self.objects[i].brect ), self.fix, 23 ):
 				self.objects[i].selected = True
 				pygame.draw.rect( self.worldsurf, ( 200, 200, 200 ), self.objects[i].arect, 1 )
 
@@ -435,15 +435,8 @@ class World( object ):
 		self.output.write( '%s\n' % '\t'.join( map( str, result ) ) )
 
 	def draw_fix( self ):
-		"""
-		if self.fix_data:
-			pygame.draw.circle( self.worldsurf, ( 0, 228, 0 ), ( int( self.fix_data.fix_x ), int( self.fix_data.fix_y ) ), int( self.fp.gaze_deviation_thresh_px ), 1 )
-		"""
-		#if self.fp:
-		#	for i in range( 0, len( self.fp.winx ) ):
-		#		pygame.draw.circle( self.worldsurf, ( 228, 0, 0 ), ( int( self.fp.winx[i] ), int( self.fp.winy[i] ) ), 2, 0 )
-		if self.fp.fix:
-			pygame.draw.circle( self.worldsurf, ( 0, 228, 0 ), ( int( self.fp.fix[0] ), int( self.fp.fix[1] ) ), 23, 1 )
+		if self.fix:
+			pygame.draw.circle( self.worldsurf, ( 0, 228, 0 ), ( int( self.fix[0] ), int( self.fix[1] ) ), 23, 1 )
 
 	def refresh( self ):
 		self.clear()
@@ -509,30 +502,13 @@ class World( object ):
 		def iViewXEvent( self, inSender, inEvent, inResponse ):
 			if self.state < 0:
 				return
-			"""t = int( inResponse[0] )
+			t = int( inResponse[0] )
 			x = float( inResponse[2] )
 			y = float( inResponse[4] )
 			ex = np.mean( ( float( inResponse[10] ), float( inResponse[11] ) ) )
 			ey = np.mean( ( float( inResponse[12] ), float( inResponse[13] ) ) )
-			ez = np.mean( ( float( inResponse[14] ), float( inResponse[15] ) ) )"""
-			#print t, x, y, ex, ey, ez
-			self.fp.processData( inResponse )
-			"""
-			if self.state < 0:
-				return
-			self.fix_data = tmp = self.fp.detect_fixation( int( float( inResponse[4] ) ) > 0, float( inResponse[2] ), float( inResponse[4] ) )
-			if self.state == 3 and self.fix_data.fix_duration < self.curFixDuration:
-				self.fixations += 1
-				for i in range( 0, len( self.objects ) ):
-					if self.objects[i].arect.collidepoint( radialPoint( ( tmp.fix_x, tmp.fix_y ), self.objects[i].arect.center, self.fp.gaze_deviation_thresh_px ) ):
-						if self.objects[i].color == self.probe.color:
-							self.color_fixations += 1
-						if self.objects[i].shape == self.probe.shape:
-							self.shape_fixations += 1
-						if self.objects[i].size == self.probe.size:
-							self.size_fixations += 1
-			self.curFixDuration = self.fix_data.fix_duration
-			"""
+			ez = np.mean( ( float( inResponse[14] ), float( inResponse[15] ) ) )
+			self.fix, self.samp = self.fp.processData( t, x, y, ex, ey, ez )
 
 if __name__ == '__main__':
 
