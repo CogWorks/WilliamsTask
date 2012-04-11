@@ -72,7 +72,10 @@ class VelocityFP( object ):
 		rad = math.acos( max( min( ( d1 ** 2 + d2 ** 2 - dS ** 2 ) / ( 2 * d1 * d2 ), 1 ), -1 ) )
 		return ( rad / ( 2 * math.pi ) ) * 360
 
-	def processData( self, t, x, y, ex, ey, ez ):
+	def processData( self, t, d, x, y, ex, ey, ez ):
+		if not d:
+			self.fixsamples = [0, None, None]
+			return None, None
 		ax = self.subtendedAngle( x, self.centery, self.centerx, self.centery, ex, ey, ez, self.resolutionX, self.resolutionY, self.screenWidth, self.screenHeight )
 		ay = self.subtendedAngle( self.centerx, y, self.centerx, self.centery, ex, ey, ez, self.resolutionX, self.resolutionY, self.screenWidth, self.screenHeight )
 		self.appendWindow( t, ax, ay, x, y )
@@ -144,6 +147,8 @@ if __name__ == '__main__':
 		ey = []
 		ez = []
 
+		dia = int( inResponse[6] ) > 0 and int( inResponse[7] ) > 0 and int( inResponse[8] ) > 0 and int( inResponse[9] ) > 0
+
 		if screen_rect.collidepoint( int( inResponse[2] ), int( inResponse[4] ) ):
 			x.append( int( inResponse[2] ) )
 			y.append( int( inResponse[4] ) )
@@ -163,7 +168,7 @@ if __name__ == '__main__':
 		ey = np.mean( ey )
 		ez = np.mean( ez )
 
-		fix, samp = fp.processData( t, x, y, ex, ey, ez )
+		fix, samp = fp.processData( t, dia, x, y, ex, ey, ez )
 
 	def draw_text( text, font, color, loc, surf ):
 		t = font.render( text, True, color )
@@ -194,10 +199,7 @@ if __name__ == '__main__':
 		#	pygame.draw.circle( screen, ( 255, 255, 0 ), gaze[0], 3, 1 )
 		#	pygame.draw.circle( screen, ( 0, 255, 255 ), gaze[1], 3, 1 )
 		if fix:
-			try:
-				pygame.draw.circle( screen, ( 255, 0, 0 ), map( int, fix ), 15, 2 )
-			except ValueError as e:
-				print e, fix
+			pygame.draw.circle( screen, ( 255, 0, 0 ), map( int, fix ), 15, 2 )
 		draw_text( "%d" % fp.accThreshold, f, ( 255, 255, 255 ), ( screen_rect.left + 50, screen_rect.bottom - 15 ), screen )
 		draw_text( "%.2f" % fp.maxv, f, ( 255, 255, 255 ), ( screen_rect.left + 50, screen_rect.top + 15 ), screen )
 		pygame.display.flip()
