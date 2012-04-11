@@ -1,11 +1,10 @@
-from savitzky_golay import savitzky_golay
-from sg_filter import *
+import savitzky_golay as sg
 import numpy as np
 import math
 
 class VelocityFP( object ):
 
-	def __init__( self, resolutionX = 1680, resolutionY = 1050, screenWidth = 473.8, screenHeight = 296.1, threshold = 20, blinkThreshold = 1000, minFix = 40 ):
+	def __init__( self, resolutionX = 1680, resolutionY = 1050, screenWidth = 473.8, screenHeight = 296.1, threshold = 35, blinkThreshold = 400, minFix = 40, samplerate = 500 ):
 		self.resolutionX = resolutionX
 		self.resolutionY = resolutionY
 		self.centerx = self.resolutionX / 2.0
@@ -15,10 +14,12 @@ class VelocityFP( object ):
 		self.threshold = threshold
 		self.blinkThreshold = blinkThreshold
 		self.minFix = minFix
+		self.samplerate = samplerate
+		self.minSamples = int( self.minFix / ( 1.0 / self.samplerate * 1000.0 ) )
 		self.fix = None
 		self.fixsamples = [0, None, None]
 
-		self.coeff = calc_coeff( 11, 2, 1 )
+		self.coeff = [sg.calc_coeff( 11, 2, 0 ), sg.calc_coeff( 11, 2, 1 )]
 
 		self.winax = np.zeros( 11, dtype = float )
 		self.winay = np.zeros( 11, dtype = float )
@@ -26,6 +27,7 @@ class VelocityFP( object ):
 		self.winy = np.zeros( 11, dtype = float )
 		self.d = None
 		self.maxv = 0
+		self.output = open( "velocity.txt", "w" )
 
 	def degrees2pixels( self, a, d, resolutionX, resolutionY, screenWidth, screenHeight ):
 		a = a * math.pi / 180
@@ -41,12 +43,12 @@ class VelocityFP( object ):
 		self.winy = np.append( self.winy[1:], y )
 
 	def processWindow( self ):
-		vx = smooth( self.winax, self.coeff )[6]
-		vy = smooth( self.winay, self.coeff )[6]
-		#ax = savitzky_golay( self.winax, 21, 2, 2 )[7]
-		#ay = savitzky_golay( self.winay, 21, 2, 2 )[7]
+		x = sg.filter( self.winx, self.coeff[0] )[6]
+		y = sg.filter( self.winy, self.coeff[0] )[6]
+		vx = sg.filter( self.winax, self.coeff[1] )[6]
+		vy = sg.filter( self.winay, self.coeff[1] )[6]
 		v = 500.0 * math.sqrt( vx ** 2 + vy ** 2 )
-		return v, self.winx[6], self.winy[6]
+		return v, x, y
 
 	def distance2point( self, x, y, vx, vy, vz, rx, ry, sw, sh ):
 		dx = x / rx * sw - rx / 2.0 + vx
@@ -68,13 +70,14 @@ class VelocityFP( object ):
 		ay = self.subtendedAngle( self.centerx, y, self.centerx, self.centery, ex, ey, ez, self.resolutionX, self.resolutionY, self.screenWidth, self.screenHeight )
 		self.appendWindow( ax, ay, x, y )
 		v, x, y = self.processWindow()
-		#print v, a
-		print v
-		if v == 0:# or v > self.blinkThreshold:
+		if v > self.maxv:
+			self.maxv = v
+		self.output.write( "%.2f\n" % v )
+		if np.isnan( v ) or v > self.blinkThreshold:
 			self.fixsamples = [0, None, None]
-			return None
+			return None, None
 		else:
-			if v < 35:#self.threshold:
+			if v < self.threshold:
 				ncount = self.fixsamples[0] + 1
 				if self.fixsamples[1] == None:
 					self.fixsamples[1] = x
@@ -85,13 +88,13 @@ class VelocityFP( object ):
 				else:
 					self.fixsamples[2] = ( self.fixsamples[0] * self.fixsamples[2] + y ) / ncount
 				self.fixsamples[0] = ncount
-				if self.fixsamples[0] >= self.minFix / 2:
-					return ( self.fixsamples[1], self.fixsamples[2] )
+				if self.fixsamples[0] >= self.minSamples:
+					return ( self.fixsamples[1], self.fixsamples[2] ), self.fixsamples[0]
 				else:
-					return None
+					return None, None
 			else:
 				self.fixsamples = [0, None, None]
-				return None
+				return None, None
 
 
 if __name__ == '__main__':
@@ -112,43 +115,81 @@ if __name__ == '__main__':
 	screen = pygame.display.set_mode( ( 0, 0 ), pygame.FULLSCREEN )
 	screen_rect = screen.get_rect()
 
+	f = pygame.font.Font( None, 16 )
+
 	angle1 = random.uniform( 0, 360 )
 	angle2 = random.uniform( 0, 360 )
 
 	gaze = None
 	fix = None
+	samp = None
 
 	d = Dispatcher()
 
 	@d.listen( 'ET_SPL' )
 	def iViewXEvent( inSender, inEvent, inResponse ):
-		global gaze, fix, fp
+		global gaze, fix, samp, fp
 		gaze = ( ( int( inResponse[2] ), int( inResponse[4] ) ), ( int( inResponse[3] ), int( inResponse[5] ) ) )
 		t = int( inResponse[0] )
-		x = np.mean( ( int( inResponse[2] ), int( inResponse[3] ) ) )
-		y = np.mean( ( int( inResponse[4] ), int( inResponse[5] ) ) )
-		ex = np.mean( ( float( inResponse[10] ), float( inResponse[11] ) ) )
-		ey = np.mean( ( float( inResponse[12] ), float( inResponse[13] ) ) )
-		ez = np.mean( ( float( inResponse[14] ), float( inResponse[15] ) ) )
-		fix = fp.processData( t, x, y, ex, ey, ez )
+		x = []
+		y = []
+		ex = []
+		ey = []
+		ez = []
+
+		if screen_rect.collidepoint( int( inResponse[2] ), int( inResponse[4] ) ):
+			x.append( int( inResponse[2] ) )
+			y.append( int( inResponse[4] ) )
+			ex.append( float( inResponse[10] ) )
+			ey.append( float( inResponse[12] ) )
+			ez.append( float( inResponse[14] ) )
+		if screen_rect.collidepoint( int( inResponse[3] ), int( inResponse[5] ) ):
+			x.append( int( inResponse[3] ) )
+			y.append( int( inResponse[5] ) )
+			ex.append( float( inResponse[11] ) )
+			ey.append( float( inResponse[13] ) )
+			ez.append( float( inResponse[15] ) )
+
+		x = np.mean( x )
+		y = np.mean( y )
+		ex = np.mean( ex )
+		ey = np.mean( ey )
+		ez = np.mean( ez )
+
+		fix, samp = fp.processData( t, x, y, ex, ey, ez )
+
+	def draw_text( text, font, color, loc, surf ):
+		t = font.render( text, True, color )
+		tr = t.get_rect()
+		tr.center = loc
+		surf.blit( t, tr )
+		return tr
 
 	def update():
-		global state, angle1, angle2, gaze, fix
+		global state, angle1, angle2, gaze, fix, fp
 		if state < 0:
 			return
+		for event in pygame.event.get():
+			if event.type == pygame.KEYDOWN:
+				if event.key == pygame.K_UP:
+					fp.threshold += 5
+				elif event.key == pygame.K_DOWN:
+					fp.threshold -= 5
 		screen.fill( ( 0, 0, 0 ) )
-		pygame.draw.circle( screen, ( 255, 0, 0 ), screen_rect.center, 10, 0 )
-		pygame.draw.circle( screen, ( 255, 0, 0 ), ( screen_rect.width / 10, screen_rect.height / 10 ), 10, 0 )
-		pygame.draw.circle( screen, ( 255, 0, 0 ), ( screen_rect.width / 10, screen_rect.height / 10 * 9 ), 10, 0 )
-		pygame.draw.circle( screen, ( 255, 0, 0 ), ( screen_rect.width / 10 * 9, screen_rect.height / 10 ), 10, 0 )
-		pygame.draw.circle( screen, ( 255, 0, 0 ), ( screen_rect.width / 10 * 9, screen_rect.height / 10 * 9 ), 10, 0 )
+		pygame.draw.circle( screen, ( 0, 0, 255 ), screen_rect.center, 10, 0 )
+		pygame.draw.circle( screen, ( 0, 0, 255 ), ( screen_rect.width / 10, screen_rect.height / 10 ), 10, 0 )
+		pygame.draw.circle( screen, ( 0, 0, 255 ), ( screen_rect.width / 10, screen_rect.height / 10 * 9 ), 10, 0 )
+		pygame.draw.circle( screen, ( 0, 0, 255 ), ( screen_rect.width / 10 * 9, screen_rect.height / 10 ), 10, 0 )
+		pygame.draw.circle( screen, ( 0, 0, 255 ), ( screen_rect.width / 10 * 9, screen_rect.height / 10 * 9 ), 10, 0 )
 		pygame.draw.circle( screen, ( 0, 0, 255 ), ( screen_rect.centerx + int( math.cos( angle1 ) * screen_rect.height / 6 ), screen_rect.centery + int( math.sin( angle1 ) * screen_rect.height / 6 ) ), 5, 0 )
 		pygame.draw.circle( screen, ( 0, 0, 255 ), ( screen_rect.centerx + int( math.cos( angle2 ) * screen_rect.height / 3 ), screen_rect.centery + int( math.sin( angle2 ) * screen_rect.height / 3 ) ), 5, 0 )
-		if gaze:
-			pygame.draw.circle( screen, ( 255, 255, 0 ), gaze[0], 3, 1 )
-			pygame.draw.circle( screen, ( 0, 255, 255 ), gaze[1], 3, 1 )
+		#if gaze:
+		#	pygame.draw.circle( screen, ( 255, 255, 0 ), gaze[0], 3, 1 )
+		#	pygame.draw.circle( screen, ( 0, 255, 255 ), gaze[1], 3, 1 )
 		if fix:
-			pygame.draw.circle( screen, ( 255, 0, 255 ), map( int, fix ), 5, 1 )
+			pygame.draw.circle( screen, ( 255, 0, 0 ), map( int, fix ), 15, 2 )
+		draw_text( "%d" % fp.threshold, f, ( 255, 255, 255 ), ( screen_rect.left + 50, screen_rect.bottom - 15 ), screen )
+		draw_text( "%.2f" % fp.maxv, f, ( 255, 255, 255 ), ( screen_rect.left + 50, screen_rect.top + 15 ), screen )
 		pygame.display.flip()
 
 		angle1 += .05
@@ -159,7 +200,9 @@ if __name__ == '__main__':
 		if angle2 <= 0:
 			angle2 = 360
 
-	def cleanup( self, *args, **kwargs ):
+	def cleanup( *args, **kwargs ):
+		global fp
+		fp.output.close()
 		reactor.stop()
 
 	def start( lc ):
@@ -172,7 +215,7 @@ if __name__ == '__main__':
 
 	client = iViewXClient( '192.168.1.100', 4444 )
 	reactor.listenUDP( 5555, client )
-	calibrator = Calibrator( client, screen, reactor = reactor )
+	calibrator = Calibrator( client, screen, reactor = reactor, eye = 0 )
 	fp = VelocityFP()
 	calibrator.start( start )
 	reactor.run()
