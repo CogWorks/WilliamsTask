@@ -1,17 +1,19 @@
 import savitzky_golay as sg
 import numpy as np
 import math
+from exceptions import ValueError
 
 class VelocityFP( object ):
 
-	def __init__( self, resolutionX = 1680, resolutionY = 1050, screenWidth = 473.8, screenHeight = 296.1, threshold = 35, blinkThreshold = 400, minFix = 40, samplerate = 500 ):
+	def __init__( self, resolutionX = 1680, resolutionY = 1050, screenWidth = 473.8, screenHeight = 296.1, accThreshold = 20, velThreshold = 40, blinkThreshold = 400, minFix = 40, samplerate = 500 ):
 		self.resolutionX = resolutionX
 		self.resolutionY = resolutionY
 		self.centerx = self.resolutionX / 2.0
 		self.centery = self.resolutionY / 2.0
 		self.screenWidth = screenWidth
 		self.screenHeight = screenHeight
-		self.threshold = threshold
+		self.velThreshold = velThreshold
+		self.accThreshold = accThreshold
 		self.blinkThreshold = blinkThreshold
 		self.minFix = minFix
 		self.samplerate = samplerate
@@ -19,8 +21,9 @@ class VelocityFP( object ):
 		self.fix = None
 		self.fixsamples = [0, None, None]
 
-		self.coeff = [sg.calc_coeff( 11, 2, 0 ), sg.calc_coeff( 11, 2, 1 )]
+		self.coeff = [sg.calc_coeff( 11, 2, 0 ), sg.calc_coeff( 11, 2, 1 ), sg.calc_coeff( 11, 2, 2 )]
 
+		self.time = np.zeros( 11, dtype = float )
 		self.winax = np.zeros( 11, dtype = float )
 		self.winay = np.zeros( 11, dtype = float )
 		self.winx = np.zeros( 11, dtype = float )
@@ -36,7 +39,8 @@ class VelocityFP( object ):
 		aipv = resolutionY * w / screenHeight
 		return aiph, aipv
 
-	def appendWindow( self, ax, ay, x, y ):
+	def appendWindow( self, t, ax, ay, x, y ):
+		self.time = np.append( self.time[1:], t )
 		self.winax = np.append( self.winax[1:], ax )
 		self.winay = np.append( self.winay[1:], ay )
 		self.winx = np.append( self.winx[1:], x )
@@ -47,8 +51,11 @@ class VelocityFP( object ):
 		y = sg.filter( self.winy, self.coeff[0] )[6]
 		vx = sg.filter( self.winax, self.coeff[1] )[6]
 		vy = sg.filter( self.winay, self.coeff[1] )[6]
+		ax = sg.filter( self.winax, self.coeff[2] )[6]
+		ay = sg.filter( self.winay, self.coeff[2] )[6]
 		v = 500.0 * math.sqrt( vx ** 2 + vy ** 2 )
-		return v, x, y
+		a = 500.0 * math.sqrt( ax ** 2 + ay ** 2 )
+		return self.time[6], v, a, x, y
 
 	def distance2point( self, x, y, vx, vy, vz, rx, ry, sw, sh ):
 		dx = x / rx * sw - rx / 2.0 + vx
@@ -65,19 +72,22 @@ class VelocityFP( object ):
 		rad = math.acos( max( min( ( d1 ** 2 + d2 ** 2 - dS ** 2 ) / ( 2 * d1 * d2 ), 1 ), -1 ) )
 		return ( rad / ( 2 * math.pi ) ) * 360
 
-	def processData( self, t, x, y, ex, ey, ez ):
+	def processData( self, t, d, x, y, ex, ey, ez ):
+		if not d:
+			self.fixsamples = [0, None, None]
+			return None, None
 		ax = self.subtendedAngle( x, self.centery, self.centerx, self.centery, ex, ey, ez, self.resolutionX, self.resolutionY, self.screenWidth, self.screenHeight )
 		ay = self.subtendedAngle( self.centerx, y, self.centerx, self.centery, ex, ey, ez, self.resolutionX, self.resolutionY, self.screenWidth, self.screenHeight )
-		self.appendWindow( ax, ay, x, y )
-		v, x, y = self.processWindow()
+		self.appendWindow( t, ax, ay, x, y )
+		t, v, a, x, y = self.processWindow()
 		if v > self.maxv:
 			self.maxv = v
-		self.output.write( "%.2f\n" % v )
-		if np.isnan( v ) or v > self.blinkThreshold:
+		self.output.write( "%.4f\t%.2f\t%.2f\n" % ( t, v, a ) )
+		if np.isnan( v ):
 			self.fixsamples = [0, None, None]
 			return None, None
 		else:
-			if v < self.threshold:
+			if not ( a > self.accThreshold or v > self.velThreshold ):
 				ncount = self.fixsamples[0] + 1
 				if self.fixsamples[1] == None:
 					self.fixsamples[1] = x
@@ -137,6 +147,8 @@ if __name__ == '__main__':
 		ey = []
 		ez = []
 
+		dia = int( inResponse[6] ) > 0 and int( inResponse[7] ) > 0 and int( inResponse[8] ) > 0 and int( inResponse[9] ) > 0
+
 		if screen_rect.collidepoint( int( inResponse[2] ), int( inResponse[4] ) ):
 			x.append( int( inResponse[2] ) )
 			y.append( int( inResponse[4] ) )
@@ -156,7 +168,7 @@ if __name__ == '__main__':
 		ey = np.mean( ey )
 		ez = np.mean( ez )
 
-		fix, samp = fp.processData( t, x, y, ex, ey, ez )
+		fix, samp = fp.processData( t, dia, x, y, ex, ey, ez )
 
 	def draw_text( text, font, color, loc, surf ):
 		t = font.render( text, True, color )
@@ -172,9 +184,9 @@ if __name__ == '__main__':
 		for event in pygame.event.get():
 			if event.type == pygame.KEYDOWN:
 				if event.key == pygame.K_UP:
-					fp.threshold += 5
+					fp.accThreshold += 0.5
 				elif event.key == pygame.K_DOWN:
-					fp.threshold -= 5
+					fp.accThreshold -= 0.5
 		screen.fill( ( 0, 0, 0 ) )
 		pygame.draw.circle( screen, ( 0, 0, 255 ), screen_rect.center, 10, 0 )
 		pygame.draw.circle( screen, ( 0, 0, 255 ), ( screen_rect.width / 10, screen_rect.height / 10 ), 10, 0 )
@@ -188,7 +200,7 @@ if __name__ == '__main__':
 		#	pygame.draw.circle( screen, ( 0, 255, 255 ), gaze[1], 3, 1 )
 		if fix:
 			pygame.draw.circle( screen, ( 255, 0, 0 ), map( int, fix ), 15, 2 )
-		draw_text( "%d" % fp.threshold, f, ( 255, 255, 255 ), ( screen_rect.left + 50, screen_rect.bottom - 15 ), screen )
+		draw_text( "%d" % fp.accThreshold, f, ( 255, 255, 255 ), ( screen_rect.left + 50, screen_rect.bottom - 15 ), screen )
 		draw_text( "%.2f" % fp.maxv, f, ( 255, 255, 255 ), ( screen_rect.left + 50, screen_rect.top + 15 ), screen )
 		pygame.display.flip()
 

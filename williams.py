@@ -7,6 +7,8 @@ import argparse, platform
 import numpy as np
 import json
 
+from sets import Set
+
 from twisted.internet import reactor
 from twisted.internet.task import LoopingCall
 
@@ -54,6 +56,7 @@ class Shape( object ):
 		self.id_rect = self.id_t.get_rect()
 		self.id_rect.centerx = location[0]
 		self.id_rect.centery = location[1]
+		self.fixations = Set()
 
 	def clickCheck( self, position ):
 		return self.rect.collidepoint( position )
@@ -348,6 +351,7 @@ class World( object ):
 				pygame.draw.rect( self.worldsurf, ( 128, 255, 128 ), self.objects[i].arect, 3 )
 			if self.args.eyetracker and self.fix and testCollision( self.getVertices( self.objects[i].brect ), self.fix, 23 ):
 				self.objects[i].selected = True
+				self.objects[i].fixations.add( self.fixations )
 				pygame.draw.rect( self.worldsurf, ( 200, 200, 200 ), self.objects[i].arect, 1 )
 
 	def drawSearchTime( self ):
@@ -427,6 +431,14 @@ class World( object ):
 								self.state = 4
 
 	def processResults( self ):
+		for o in self.objects:
+			l = len( o.fixations )
+			if self.probe.color == o.color:
+				self.color_fixations += l
+			if self.probe.shape == o.shape:
+				self.shape_fixations += l
+			if self.probe.size == o.size:
+				self.size_fixations += l
 		result = [
 					self.trial, self.probe.id, self.probe.size, self.probe.color, self.probe.shape, self.probe.cues, \
 					self.probe.show_size, self.probe.show_color, self.probe.show_shape, "%.2f" % self.search_time, \
@@ -437,6 +449,12 @@ class World( object ):
 	def draw_fix( self ):
 		if self.fix:
 			pygame.draw.circle( self.worldsurf, ( 0, 228, 0 ), ( int( self.fix[0] ), int( self.fix[1] ) ), 23, 1 )
+
+	def resetFixationCount( self ):
+		self.color_fixations = 0
+		self.size_fixations = 0
+		self.shape_fixations = 0
+		self.fixations = 0
 
 	def refresh( self ):
 		self.clear()
@@ -449,10 +467,6 @@ class World( object ):
 				self.state = 2
 			else:
 				self.state = 1
-			self.color_fixations = 0
-			self.size_fixations = 0
-			self.shape_fixations = 0
-			self.fixations = 0
 		elif self.state == 1:
 			self.drawProbe()
 		elif self.state == 2:
@@ -462,6 +476,7 @@ class World( object ):
 			self.end_time = 0
 			self.start_time = time.time()
 			self.state = 3
+			self.resetFixationCount()
 		elif self.state == 3:
 			self.drawShapes()
 		elif self.state == 4:
@@ -508,7 +523,15 @@ class World( object ):
 			ex = np.mean( ( float( inResponse[10] ), float( inResponse[11] ) ) )
 			ey = np.mean( ( float( inResponse[12] ), float( inResponse[13] ) ) )
 			ez = np.mean( ( float( inResponse[14] ), float( inResponse[15] ) ) )
-			self.fix, self.samp = self.fp.processData( t, x, y, ex, ey, ez )
+			dia = int( inResponse[6] ) > 0 and int( inResponse[7] ) > 0 and int( inResponse[8] ) > 0 and int( inResponse[9] ) > 0
+			fix, samp = self.fp.processData( t, dia, x, y, ex, ey, ez )
+
+			if self.samp == None and samp > 0:
+				self.fixations += 1
+
+			self.fix = fix
+			self.samp = samp
+
 
 if __name__ == '__main__':
 
