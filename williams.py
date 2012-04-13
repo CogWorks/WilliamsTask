@@ -3,6 +3,7 @@
 This is a modern implementation of the L.G. Williams' classic 1967 visual search task.
 """
 import sys, random, math, time, pygame, gc, os
+from os.path import basename, splitext
 import argparse, platform
 import numpy as np
 import json
@@ -172,11 +173,15 @@ class World( object ):
 			self.log_basename = cwsubject.makeLogFileBase( 'WilliamsSearch_' + eid[:8] )
 			cwsubject.writeHistoryFile( os.path.join( self.logdir, self.log_basename ), self.subjectInfo )
 			self.output = open( os.path.join( self.logdir, self.log_basename ) + '.log', 'w' )
+			if self.args.eyetracker:
+				self.eyeout = open( os.path.join( self.logdir, self.log_basename ) + '.eye', 'w' )
 		else:
 			if self.args.logfile:
 				self.output = open( args.logfile, 'w' )
+				self.eyeout = open( splitext( basename( args.logfile ) )[0] + '.eye', 'w' )
 			else:
 				self.output = sys.stdout
+				self.eyeout = os.devnull
 
 		self.header = ( "trial", "screenDim", "worldDim", "probe_id", "probe_size", "probe_color", "probe_shape", "probe_cues", "probe_size_pos", "probe_color_pos", "probe_shape_pos", "search_time", "size_fixations", "color_fixations", "shape_fixations", "total_fixations", "objects", "scanPath" )
 		self.output.write( '%s\n' % '\t'.join( map( str, self.header ) ) )
@@ -522,6 +527,7 @@ class World( object ):
 	def cleanup( self, *args, **kwargs ):
 		if self.args.logfile:
 			self.output.close()
+			self.eyeout.close()
 		reactor.stop()
 
 	def start( self, lc ):
@@ -560,6 +566,9 @@ class World( object ):
 
 			self.fix = fix
 			self.samp = samp
+
+			self.eyeout.write( "%d\t%d\t" % ( self.trial, self.state ) )
+			self.eyeout.write( "%s\n" % "\t".join( inResponse ) )
 
 
 if __name__ == '__main__':
