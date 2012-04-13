@@ -275,10 +275,8 @@ class World( object ):
 
 		self.probeTypes = [1, 2, 3, 4, 5, 6, 7, 8]
 
-		self.probes = True
-		if not self.args.random:
-			self.probes = self.probeTypes * self.args.replicates
-			random.shuffle( self.probes )
+		self.probes = self.probeTypes * self.args.replicates
+		random.shuffle( self.probes )
 
 		self.regen = False
 
@@ -583,7 +581,6 @@ if __name__ == '__main__':
 	parser = argparse.ArgumentParser( formatter_class = argparse.ArgumentDefaultsHelpFormatter )
 	parser.add_argument( '-L', '--log', action = "store", dest = "logfile", help = 'Pipe results to file instead of stdout.' )
 	parser.add_argument( '-F', '--fullscreen', action = "store_true", dest = "fullscreen", help = 'Run in fullscreen mode.' )
-	parser.add_argument( '-R', '--random', action = "store_true", dest = "random", help = 'Run random trials indefinitely.' )
 	parser.add_argument( '-r', '--replicates', action = "store", dest = "replicates", default = 20, type = int, help = 'Number of replicates.' )
 	if useEyetracker:
 		parser.add_argument( '-e', '--eyetracker', action = "store", dest = "eyetracker", help = 'Use eyetracker.' )
