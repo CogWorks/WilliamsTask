@@ -156,14 +156,28 @@ class World( object ):
 	if useEyetracker:
 		d = Dispatcher()
 
-	def __init__( self, args ):
+	def __init__( self, args, subjectInfo ):
 
 		self.args = args
+		self.subjectInfo = subjectInfo
 
-		if self.args.logfile:
-			self.output = open( args.logfile, 'w' )
+		self.logdir = args.logdir
+		if not os.path.exists( self.logdir ):
+			os.makedirs( self.logdir )
+
+		if self.subjectInfo:
+			eid = rin2id( subjectInfo['rin'] )
+			subjectInfo['encrypted_rin'] = eid
+			subjectInfo['cipher'] = 'AES/CBC (RIJNDAEL) - 16Byte Key'
+			self.log_basename = cwsubject.makeLogFileBase( 'WilliamsSearch_' + eid[:8] )
+			cwsubject.writeHistoryFile( os.path.join( self.logdir, self.log_basename ), self.subjectInfo )
+			self.output = open( os.path.join( self.logdir, self.log_basename ) + '.log', 'w' )
 		else:
-			self.output = sys.stdout
+			if self.args.logfile:
+				self.output = open( args.logfile, 'w' )
+			else:
+				self.output = sys.stdout
+
 		self.header = ( "trial", "screenDim", "worldDim", "probe_id", "probe_size", "probe_color", "probe_shape", "probe_cues", "probe_size_pos", "probe_color_pos", "probe_shape_pos", "search_time", "size_fixations", "color_fixations", "shape_fixations", "total_fixations", "objects", "scanPath" )
 		self.output.write( '%s\n' % '\t'.join( map( str, self.header ) ) )
 
@@ -558,11 +572,28 @@ if __name__ == '__main__':
 		parser.add_argument( '-e', '--eyetracker', action = "store", dest = "eyetracker", help = 'Use eyetracker.' )
 		parser.add_argument( '-f', '--fixation', action = "store_true", dest = "showfixation", help = 'Overlay fixation.' )
 	parser.add_argument( '-D', '--debug', action = "store", dest = "debug", default = 0, type = int, help = 'Debug level.' )
+	parser.add_argument( '-d', '--logdir', action = "store", dest = "logdir", default = 'data', help = 'Log dir' )
 	parser.add_argument( '-H', '--hint', action = "store_true", dest = "hint", help = 'Enable hint.' )
+
+	subjectInfo = False
+	try:
+		import pycogworks.cwsubject as cwsubject
+		from pycogworks.util import rin2id
+		parser.add_argument( '-S', '--subject', action = "store_true", dest = "subject", help = 'Get CogWorks subject info.' )
+		subjectInfo = True
+	except ImportError:
+		pass
 
 	args = parser.parse_args()
 	if not useEyetracker:
 		setattr( args, 'eyetracker', False )
 
-	w = World( args )
+	if subjectInfo and args.subject:
+		subjectInfo = cwsubject.getSubjectInfo( minimal = True )
+		if not subjectInfo:
+			sys.exit()
+	else:
+		subjectInfo = False
+
+	w = World( args, subjectInfo )
 	w.run()
