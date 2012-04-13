@@ -5,7 +5,7 @@ from exceptions import ValueError
 
 class VelocityFP( object ):
 
-	def __init__( self, resolutionX = 1680, resolutionY = 1050, screenWidth = 473.8, screenHeight = 296.1, accThreshold = 20, velThreshold = 40, blinkThreshold = 400, minFix = 40, samplerate = 500 ):
+	def __init__( self, resolutionX = 1680, resolutionY = 1050, screenWidth = 473.8, screenHeight = 296.1, accThreshold = 7, velThreshold = 40, blinkThreshold = 400, minFix = 40, samplerate = 500 ):
 		self.resolutionX = resolutionX
 		self.resolutionY = resolutionY
 		self.centerx = self.resolutionX / 2.0
@@ -87,7 +87,7 @@ class VelocityFP( object ):
 			self.fixsamples = [0, None, None]
 			return None, None
 		else:
-			if not ( a > self.accThreshold or v > self.velThreshold ):
+			if a < self.accThreshold:#not ( a > self.accThreshold or v > self.velThreshold ):
 				ncount = self.fixsamples[0] + 1
 				if self.fixsamples[1] == None:
 					self.fixsamples[1] = x
@@ -133,14 +133,20 @@ if __name__ == '__main__':
 	gaze = None
 	fix = None
 	samp = None
+	startTime = None
 
 	d = Dispatcher()
 
 	@d.listen( 'ET_SPL' )
 	def iViewXEvent( inSender, inEvent, inResponse ):
-		global gaze, fix, samp, fp
+		global gaze, fix, samp, fp, startTime
 		gaze = ( ( int( inResponse[2] ), int( inResponse[4] ) ), ( int( inResponse[3] ), int( inResponse[5] ) ) )
 		t = int( inResponse[0] )
+		if startTime == None:
+			startTime = t
+			t = 0
+		else:
+			t = t - startTime
 		x = []
 		y = []
 		ex = []
@@ -193,6 +199,10 @@ if __name__ == '__main__':
 		pygame.draw.circle( screen, ( 0, 0, 255 ), ( screen_rect.width / 10, screen_rect.height / 10 * 9 ), 10, 0 )
 		pygame.draw.circle( screen, ( 0, 0, 255 ), ( screen_rect.width / 10 * 9, screen_rect.height / 10 ), 10, 0 )
 		pygame.draw.circle( screen, ( 0, 0, 255 ), ( screen_rect.width / 10 * 9, screen_rect.height / 10 * 9 ), 10, 0 )
+		pygame.draw.circle( screen, ( 0, 0, 255 ), ( screen_rect.width / 5, screen_rect.height / 5 ), 10, 0 )
+		pygame.draw.circle( screen, ( 0, 0, 255 ), ( screen_rect.width / 5, screen_rect.height / 5 * 4 ), 10, 0 )
+		pygame.draw.circle( screen, ( 0, 0, 255 ), ( screen_rect.width / 5 * 4, screen_rect.height / 5 ), 10, 0 )
+		pygame.draw.circle( screen, ( 0, 0, 255 ), ( screen_rect.width / 5 * 4, screen_rect.height / 5 * 4 ), 10, 0 )
 		pygame.draw.circle( screen, ( 0, 0, 255 ), ( screen_rect.centerx + int( math.cos( angle1 ) * screen_rect.height / 6 ), screen_rect.centery + int( math.sin( angle1 ) * screen_rect.height / 6 ) ), 5, 0 )
 		pygame.draw.circle( screen, ( 0, 0, 255 ), ( screen_rect.centerx + int( math.cos( angle2 ) * screen_rect.height / 3 ), screen_rect.centery + int( math.sin( angle2 ) * screen_rect.height / 3 ) ), 5, 0 )
 		#if gaze:

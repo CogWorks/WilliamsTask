@@ -61,8 +61,8 @@ class Shape( object ):
 	def clickCheck( self, position ):
 		return self.rect.collidepoint( position )
 
-	def describe(self):
-		return self.rect.center,self.shape,self.color,self.size,self.id
+	def describe( self ):
+		return self.rect.center, self.shape, self.color, self.size, self.id
 
 
 class Probe( object ):
@@ -164,7 +164,7 @@ class World( object ):
 			self.output = open( args.logfile, 'w' )
 		else:
 			self.output = sys.stdout
-		self.header = ("trial","probe_id","probe_size","probe_color","probe_shape","probe_cues","probe_size_pos","probe_color_pos","probe_shape_pos","search_time","size_fixations", "color_fixations", "shape_fixations", "total_fixations", "objects")
+		self.header = ( "trial", "screenDim", "worldDim", "probe_id", "probe_size", "probe_color", "probe_shape", "probe_cues", "probe_size_pos", "probe_color_pos", "probe_shape_pos", "search_time", "size_fixations", "color_fixations", "shape_fixations", "total_fixations", "objects", "scanPath" )
 		self.output.write( '%s\n' % '\t'.join( map( str, self.header ) ) )
 
 		self.trial = 1
@@ -201,6 +201,7 @@ class World( object ):
 		self.probeCues = None
 		self.hint = False
 
+		self.fixationList = []
 		self.color_fixations = 0
 		self.size_fixations = 0
 		self.shape_fixations = 0
@@ -255,7 +256,7 @@ class World( object ):
 
 		self.probes = True
 		if not self.args.random:
-			self.probes = random.sample( [1, 2, 3, 4, 5, 6, 7, 8] * 25, 200 )
+			self.probes = random.sample( [1, 2, 3, 4, 5, 6, 7, 8] * 20, 160 )
 
 		self.regen = False
 
@@ -323,8 +324,8 @@ class World( object ):
 		if self.probeCues:
 			self.probe = Probe( self, self.objects[random.randint( 0, len( self.objects ) - 1 )], self.probeCues )
 
-	def serializeObjects(self):
-		return json.dumps([o.describe() for o in self.objects])
+	def serializeObjects( self ):
+		return json.dumps( [o.describe() for o in self.objects] )
 
 	def drawSearchBG( self ):
 		pygame.draw.rect( self.worldsurf, self.searchBG, self.search_rect )
@@ -356,7 +357,7 @@ class World( object ):
 
 	def drawSearchTime( self ):
 		self.draw_text( "Found target in %.2f seconds." % self.search_time, self.score_font, ( 255, 255, 0 ), self.worldsurf_rect.center )
-		self.draw_text("Click mouse or press spacebar to continue...", self.help_font, (255,255,255), (self.worldsurf_rect.centerx, self.worldsurf_rect.height-self.worldsurf_rect.height/3))
+		self.draw_text( "Click mouse or press spacebar to continue...", self.help_font, ( 255, 255, 255 ), ( self.worldsurf_rect.centerx, self.worldsurf_rect.height - self.worldsurf_rect.height / 3 ) )
 
 	def draw_text( self, text, font, color, loc ):
 		t = font.render( text, True, color )
@@ -375,11 +376,11 @@ class World( object ):
 		logo_rect = self.logo.get_rect()
 		logo_rect.centerx = self.worldsurf_rect.centerx
 		logo_rect.centery = self.worldsurf_rect.height / 5 * 2
-		c = self.draw_text("Click mouse or press spacebar to continue...", self.help_font, (255,255,255), (self.worldsurf_rect.centerx, self.worldsurf_rect.height-self.worldsurf_rect.height/3))
+		c = self.draw_text( "Click mouse or press spacebar to continue...", self.help_font, ( 255, 255, 255 ), ( self.worldsurf_rect.centerx, self.worldsurf_rect.height - self.worldsurf_rect.height / 3 ) )
 		self.worldsurf.blit( self.logo, logo_rect )
 		if not self.objects:
 			self.setup( bounds = self.worldsurf_rect, avoid = ( title_rect, logo_rect, c ) )
-		for i in range( 0, len( self.objects )/2 ):
+		for i in range( 0, len( self.objects ) / 2 ):
 			self.worldsurf.blit( self.objects[i].surface, self.objects[i].rect )
 
 	def clear( self ):
@@ -431,6 +432,11 @@ class World( object ):
 								self.state = 4
 
 	def processResults( self ):
+		if self.samp != None:
+			self.fixations += 1
+			self.fixationList.append( ( self.fixations, map( int, self.fix ), self.samp ) )
+			self.fix = None
+			self.samp = None
 		for o in self.objects:
 			l = len( o.fixations )
 			if self.probe.color == o.color:
@@ -439,10 +445,14 @@ class World( object ):
 				self.shape_fixations += l
 			if self.probe.size == o.size:
 				self.size_fixations += l
+		screenDim = json.dumps( [self.worldsurf_rect.width, self.worldsurf_rect.height] )
+		worldDim = json.dumps( [self.search_rect.width, self.search_rect.height] )
+		scanPath = json.dumps( self.fixationList )
 		result = [
-					self.trial, self.probe.id, self.probe.size, self.probe.color, self.probe.shape, self.probe.cues, \
+					self.trial, "'%s'" % screenDim, "'%s'" % worldDim, self.probe.id, self.probe.size, self.probe.color, self.probe.shape, self.probe.cues, \
 					self.probe.show_size, self.probe.show_color, self.probe.show_shape, "%.2f" % self.search_time, \
-					self.size_fixations, self.color_fixations, self.shape_fixations, self.fixations, "'%s'" % self.serializeObjects()
+					self.size_fixations, self.color_fixations, self.shape_fixations, self.fixations, \
+					"'%s'" % self.serializeObjects(), "'%s'" % scanPath
 				]
 		self.output.write( '%s\n' % '\t'.join( map( str, result ) ) )
 
@@ -455,6 +465,9 @@ class World( object ):
 		self.size_fixations = 0
 		self.shape_fixations = 0
 		self.fixations = 0
+		self.fixationList = []
+		self.fix = None
+		self.samp = None
 
 	def refresh( self ):
 		self.clear()
@@ -528,6 +541,8 @@ class World( object ):
 
 			if self.samp == None and samp > 0:
 				self.fixations += 1
+			elif self.samp != None and samp == None:
+				self.fixationList.append( ( self.fixations, map( int, self.fix ), self.samp ) )
 
 			self.fix = fix
 			self.samp = samp
