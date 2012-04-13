@@ -166,19 +166,22 @@ class World( object ):
 		if not os.path.exists( self.logdir ):
 			os.makedirs( self.logdir )
 
+		self.logname = None
 		if self.subjectInfo:
 			eid = rin2id( subjectInfo['rin'] )
 			subjectInfo['encrypted_rin'] = eid
 			subjectInfo['cipher'] = 'AES/CBC (RIJNDAEL) - 16Byte Key'
 			self.log_basename = cwsubject.makeLogFileBase( 'WilliamsSearch_' + eid[:8] )
 			cwsubject.writeHistoryFile( os.path.join( self.logdir, self.log_basename ), self.subjectInfo )
-			self.output = open( os.path.join( self.logdir, self.log_basename ) + '.log', 'w' )
+			self.logname = os.path.join( self.logdir, self.log_basename ) + '.log.incomplete'
+			self.output = open( self.logname, 'w' )
 			if self.args.eyetracker:
 				self.eyeout = open( os.path.join( self.logdir, self.log_basename ) + '.eye', 'w' )
 		else:
 			if self.args.logfile:
-				self.output = open( args.logfile, 'w' )
-				self.eyeout = open( splitext( basename( args.logfile ) )[0] + '.eye', 'w' )
+				self.logname = self.args.logfile + ".incomplete"
+				self.output = open( self.args.logfile, 'w' )
+				self.eyeout = open( splitext( basename( self.args.logfile ) )[0] + '.eye', 'w' )
 			else:
 				self.output = sys.stdout
 				self.eyeout = os.devnull
@@ -530,16 +533,18 @@ class World( object ):
 		self.processEvents()
 
 	def cleanup( self, *args, **kwargs ):
-		if self.args.logfile:
-			self.output.close()
+		self.output.close()
+		if self.args.eyetracker:
 			self.eyeout.close()
+		if not self.probes and self.logname:
+			os.rename( self.logname, self.logname[:-11] )
 		reactor.stop()
 
 	def start( self, lc ):
 		self.state = -1
 		self.lc = LoopingCall( self.refresh )
 		d = self.lc.start( 1.0 / 30 )
-		d.addCallbacks( self.cleanup )
+		self.cleanupD = d.addCallbacks( self.cleanup )
 
 	def run( self ):
 		self.state = -2
