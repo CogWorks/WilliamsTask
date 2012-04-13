@@ -273,9 +273,12 @@ class World( object ):
 		self.bgcolor = ( 32, 32, 32 )
 		self.searchBG = ( 168, 168, 168 )
 
+		self.probeTypes = [1, 2, 3, 4, 5, 6, 7, 8]
+
 		self.probes = True
 		if not self.args.random:
-			self.probes = random.sample( [1, 2, 3, 4, 5, 6, 7, 8] * 20, 160 )
+			self.probes = self.probeTypes * self.args.replicates
+			random.shuffle( self.probes )
 
 		self.regen = False
 
@@ -290,6 +293,10 @@ class World( object ):
 		self.logo = pygame.image.load( "logo.png" )
 
 	def setup( self, bounds = None, max = None, avoid = None ):
+
+		if not self.probes:
+			self.lc.stop()
+			return
 
 		if bounds is None:
 			bounds = self.search_rect
@@ -577,6 +584,7 @@ if __name__ == '__main__':
 	parser.add_argument( '-L', '--log', action = "store", dest = "logfile", help = 'Pipe results to file instead of stdout.' )
 	parser.add_argument( '-F', '--fullscreen', action = "store_true", dest = "fullscreen", help = 'Run in fullscreen mode.' )
 	parser.add_argument( '-R', '--random', action = "store_true", dest = "random", help = 'Run random trials indefinitely.' )
+	parser.add_argument( '-r', '--replicates', action = "store", dest = "replicates", default = 20, type = int, help = 'Number of replicates.' )
 	if useEyetracker:
 		parser.add_argument( '-e', '--eyetracker', action = "store", dest = "eyetracker", help = 'Use eyetracker.' )
 		parser.add_argument( '-f', '--fixation', action = "store_true", dest = "showfixation", help = 'Overlay fixation.' )
