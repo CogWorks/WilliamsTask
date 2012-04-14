@@ -168,6 +168,8 @@ class World( object ):
 
 		self.logname = None
 		if self.subjectInfo:
+			import pycogworks.cwsubject as cwsubject
+			from pycogworks.util import rin2id
 			eid = rin2id( subjectInfo['rin'] )
 			subjectInfo['encrypted_rin'] = eid
 			subjectInfo['cipher'] = 'AES/CBC (RIJNDAEL) - 16Byte Key'
@@ -597,7 +599,6 @@ if __name__ == '__main__':
 	subjectInfo = False
 	try:
 		import pycogworks.cwsubject as cwsubject
-		from pycogworks.util import rin2id
 		parser.add_argument( '-S', '--subject', action = "store_true", dest = "subject", help = 'Get CogWorks subject info.' )
 		subjectInfo = True
 	except ImportError:
