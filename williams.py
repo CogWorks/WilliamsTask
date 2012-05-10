@@ -16,11 +16,7 @@ from twisted.internet.task import LoopingCall
 useEyetracker = True
 
 try:
-	from pyfixation import FixationProcessor
-	from vel import VelocityFP
-except ImportError:
-	useEyetracker = False
-try:
+	from pyfixation import VelocityFP
 	from pyviewx import iViewXClient, Dispatcher
 	from pyviewx.pygamesupport import Calibrator
 except ImportError:
@@ -178,7 +174,7 @@ class World( object ):
 			self.logname = os.path.join( self.logdir, self.log_basename ) + '.log.incomplete'
 			self.output = open( self.logname, 'w' )
 			if self.args.eyetracker:
-				self.eyeout = open( os.path.join( self.logdir, self.log_basename ) + '.eye', 'w' )
+                                self.eyeout = open( os.path.join( self.logdir, self.log_basename ) + '.eye', 'w' )
 		else:
 			if self.args.logfile:
 				self.logname = self.args.logfile + ".incomplete"
@@ -542,7 +538,8 @@ class World( object ):
 			os.rename( self.logname, self.logname[:-11] )
 		reactor.stop()
 
-	def start( self, lc ):
+	def start( self, lc, results ):
+                self.eyeout.write("# '%s'\n" % json.dumps(results, encoding="cp1252"))
 		self.state = -1
 		self.lc = LoopingCall( self.refresh )
 		d = self.lc.start( 1.0 / 30 )
