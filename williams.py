@@ -539,7 +539,8 @@ class World( object ):
 		reactor.stop()
 
 	def start( self, lc, results ):
-                self.eyeout.write("# '%s'\n" % json.dumps(results, encoding="cp1252"))
+		if results:
+                	self.eyeout.write("# '%s'\n" % json.dumps(results, encoding="cp1252"))
 		self.state = -1
 		self.lc = LoopingCall( self.refresh )
 		d = self.lc.start( 1.0 / 30 )
@@ -551,7 +552,7 @@ class World( object ):
 			reactor.listenUDP( 5555, self.client )
 			self.calibrator.start( self.start )
 		else:
-			self.start( None )
+			self.start( None, None )
 		reactor.run()
 
 	if useEyetracker:
