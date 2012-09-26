@@ -16,11 +16,7 @@ from twisted.internet.task import LoopingCall
 useEyetracker = True
 
 try:
-	from pyfixation import FixationProcessor
-	from vel import VelocityFP
-except ImportError:
-	useEyetracker = False
-try:
+	from pyfixation import VelocityFP
 	from pyviewx import iViewXClient, Dispatcher
 	from pyviewx.pygamesupport import Calibrator
 except ImportError:
@@ -168,6 +164,8 @@ class World( object ):
 
 		self.logname = None
 		if self.subjectInfo:
+			import pycogworks.cwsubject as cwsubject
+			from pycogworks.util import rin2id
 			eid = rin2id( subjectInfo['rin'] )
 			subjectInfo['encrypted_rin'] = eid
 			subjectInfo['cipher'] = 'AES/CBC (RIJNDAEL) - 16Byte Key'
@@ -176,7 +174,7 @@ class World( object ):
 			self.logname = os.path.join( self.logdir, self.log_basename ) + '.log.incomplete'
 			self.output = open( self.logname, 'w' )
 			if self.args.eyetracker:
-				self.eyeout = open( os.path.join( self.logdir, self.log_basename ) + '.eye', 'w' )
+                                self.eyeout = open( os.path.join( self.logdir, self.log_basename ) + '.eye', 'w' )
 		else:
 			if self.args.logfile:
 				self.logname = self.args.logfile + ".incomplete"
@@ -540,7 +538,9 @@ class World( object ):
 			os.rename( self.logname, self.logname[:-11] )
 		reactor.stop()
 
-	def start( self, lc ):
+	def start( self, lc, results ):
+		if results:
+                	self.eyeout.write("# '%s'\n" % json.dumps(results, encoding="cp1252"))
 		self.state = -1
 		self.lc = LoopingCall( self.refresh )
 		d = self.lc.start( 1.0 / 30 )
@@ -552,7 +552,7 @@ class World( object ):
 			reactor.listenUDP( 5555, self.client )
 			self.calibrator.start( self.start )
 		else:
-			self.start( None )
+			self.start( None, None )
 		reactor.run()
 
 	if useEyetracker:
@@ -597,7 +597,6 @@ if __name__ == '__main__':
 	subjectInfo = False
 	try:
 		import pycogworks.cwsubject as cwsubject
-		from pycogworks.util import rin2id
 		parser.add_argument( '-S', '--subject', action = "store_true", dest = "subject", help = 'Get CogWorks subject info.' )
 		subjectInfo = True
 	except ImportError:
