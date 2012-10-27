@@ -4,16 +4,13 @@ WilliamsTask
 
 This is a modern implementation of L.G. Williams' classic 1967 visual search task.
 
-
 System Requirements
 -------------------
 
-* Python 2
-* Pygame (http://http://pygame.org)
-* Twisted (http://pypi.python.org/pypi/Twisted)
+* Python 2.7
+* pyglet
+* cocos2d
+* twisted
 
-Optional Packages for Eyetracking
----------------------------------
-
-* PyFixation (http://pypi.python.org/pypi/PyFixation)
-* PyViewX (http://pypi.python.org/pypi/PyViewX)
+::
+pip install pyglet cocos2d twisted
