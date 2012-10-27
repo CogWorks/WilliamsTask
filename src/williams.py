@@ -342,6 +342,4 @@ def main():
     reactor.run()
 
 if __name__ == '__main__':
-
-    import cProfile
-    cProfile.run("main()", "williams.prof")
+    main()
