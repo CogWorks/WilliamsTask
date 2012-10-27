@@ -190,20 +190,18 @@ class MainMenu(BetterMenu):
         
 class Shape(Sprite):
 
-    def __init__(self, *args, **kwargs):
-        super(Shape, self).__init__(*args, **kwargs)
-        speed = uniform(1, 10)
-        if self.opacity == 65:
-            self.action = Repeat(FadeTo(0, speed) + FadeTo(64, speed))
-        else:
-            self.action = Repeat(FadeTo(64, speed) + FadeTo(0, speed))
-        self.cshape = CircleShape(eu.Vector2(self.position[0], self.position[1]), self.width / 2)
-        self.position = self.cshape.center
+    def __init__(self, image, position=(0, 0), rotation=0, scale=1, opacity=255, color=(255, 255, 255)):
+        super(Shape, self).__init__(image, rotation=rotation, scale=scale, opacity=opacity, color=color)
+        self.set_position(position[0], position[1])
+        self.on_enter_action = None
+    
+    def set_position(self, x, y):
+        self.cshape = CircleShape(eu.Vector2(x, y), max(self.width, self.height) * .55)
+        super(Shape, self).set_position(self.cshape.center[0], self.cshape.center[1])
         
     def on_enter(self):
         super(Shape, self).on_enter()
-        if self.opacity != 255:
-            self.do(self.action)
+        if self.on_enter_action: self.do(self.on_enter_action)
         
 class BackgroundLayer(Layer):
     
@@ -229,11 +227,17 @@ class BackgroundLayer(Layer):
         n = int(750 * ratio)
         for _ in range(0, n):
             img = choice(self.glyphs).get_texture()
-            img.anchor_x = 'center'#img.width / 2
-            img.anchor_y = 'center'#img.height / 2
+            img.anchor_x = 'center'
+            img.anchor_y = 'center'
+            o = choice([0, 64])
+            speed = uniform(1, 10)
             sprite = Shape(img, rotation=randrange(0, 365), scale=uniform(ratio, 2 * ratio),
                             position=(randrange(0, self.screen[0]), randrange(0, self.screen[1])),
-                            opacity=choice([0, 64]), color=(randrange(0, 256), randrange(0, 256), randrange(0, 256)))
+                            opacity=o, color=(randrange(0, 256), randrange(0, 256), randrange(0, 256)))
+            if o == 64:
+                sprite.on_enter_action = Repeat(FadeTo(0, speed) + FadeTo(64, speed))
+            else:
+                sprite.on_enter_action = Repeat(FadeTo(64, speed) + FadeTo(0, speed))
             self.batch.add(sprite)
 
 class Probe(HTMLLabel):
@@ -263,7 +267,8 @@ class Task(ColorLayer):
                        "cross":"Y",
                        "star":"C"}
         self.font = font.load('Cut Outs for 3D FX', 128)
-        self.glyphs = self.font.get_glyphs("".join(self.shapes.values()))
+        for shape in self.shapes:
+            self.shapes[shape] = self.font.get_glyphs(self.shapes[shape])[0]
         self.shapes_visible = False
         s = 50
         v = 100
@@ -274,24 +279,37 @@ class Task(ColorLayer):
                        "purple": hsv_to_rgb(288, s, v)
                        }
         
+    def clear_shapes(self):
+        self.cm.clear()
+        for c in self.batch.get_children():
+            self.batch.remove(c)
+        self.shapes_visible = False
+        
     def show_shapes(self):
-        self.shapes_visible = True
-        ratio = 1 - self.screen[1] / self.screen[0]
-        w = 128 * ratio
         self.cm.add(self.probe)
-        for _ in range(0, 74):
-            img = choice(self.glyphs).get_texture()
+        self.shapes_visible = True
+        ratio = self.screen[1] / 128 / 11
+        scales = [ratio * 1.5, ratio, ratio * .5, ]
+        sprites = 0
+        resets = 0
+        combos = []
+        for scale in scales:
+            for color in self.colors:
+                for shape in self.shapes:
+                    combos.append((shape, color, scale))
+        placed = 0
+        for c in combos:
+            img = self.shapes[c[0]].get_texture()
             img.anchor_x = 'center'
             img.anchor_y = 'center'
-            sprite = Shape(img, rotation=randrange(0, 365), scale=ratio,
-                            position=(randrange(w, self.screen[1] - w), randrange(w, self.screen[1] - w)),
-                            opacity=255, color=choice(self.colors.values()))
+            sprite = Shape(img, rotation=randrange(0, 365), color=self.colors[c[1]], scale=c[2])
+            sprite.set_position(uniform(sprite.width * .6, self.screen[1] - sprite.width * .6), uniform(sprite.height * .6, self.screen[1] - sprite.height * .6))
+            pad = max(sprite.width,sprite.height)
             while self.cm.objs_colliding(sprite):
-                position = ((randrange(w, self.screen[1] - w), randrange(w, self.screen[1] - w)))
-                sprite.cshape = CircleShape(eu.Vector2(position[0], position[1]), w)
-                sprite.position = sprite.cshape.center
+                sprite.set_position(uniform(pad, self.screen[1] - pad), uniform(pad, self.screen[1] - pad))
             self.cm.add(sprite)
             self.batch.add(sprite)
+            placed += 1
         self.add(self.batch)
         
     def on_key_press(self, symbol, modifiers):
@@ -299,10 +317,7 @@ class Task(ColorLayer):
             if not self.shapes_visible:
                 self.show_shapes()
             else:
-                self.cm.clear()
-                for c in self.batch.get_children():
-                    self.batch.remove(c)
-                self.shapes_visible = False
+                self.clear_shapes()
                  
 def main():
     screen = pyglet.window.get_platform().get_default_display().get_default_screen()
