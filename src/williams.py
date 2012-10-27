@@ -210,15 +210,27 @@ class BackgroundLayer(Layer):
     def __init__(self):
         super(BackgroundLayer, self).__init__()
         self.screen = director.get_window_size()
-        self.shapes = ['circle', 'crescent', 'cross', 'diamond', 'oval', 'square', 'star', 'triangle']
         self.batch = BatchNode()
         self.add(self.batch)
+        
+        self.shapes = {"circle":"E",
+                       "square":"K",
+                       "oval":"F",
+                       "diamond":"T",
+                       "crescent":"Q",
+                       "cross":"Y",
+                       "star":"C",
+                       "triangle":"A"}
+        
+        self.font = font.load('Cut Outs for 3D FX', 128)
+        self.glyphs = self.font.get_glyphs("".join(self.shapes.values()))
+        
         ratio = 1 - self.screen[1] / self.screen[0]
         n = int(750 * ratio)
         for _ in range(0, n):
-            img = pyglet.resource.image(choice(self.shapes) + ".png")
-            img.anchor_x = 'center'
-            img.anchor_y = 'center'
+            img = choice(self.glyphs).get_texture()
+            img.anchor_x = 'center'#img.width / 2
+            img.anchor_y = 'center'#img.height / 2
             sprite = Shape(img, rotation=randrange(0, 365), scale=uniform(ratio, 2 * ratio),
                             position=(randrange(0, self.screen[0]), randrange(0, self.screen[1])),
                             opacity=choice([0, 64]), color=(randrange(0, 256), randrange(0, 256), randrange(0, 256)))
@@ -245,7 +257,13 @@ class Task(ColorLayer):
         self.probe = Probe("12", "RED", "STAR", "MEDIUM", side, (self.screen[1] / 2, self.screen[1] / 2))
         self.add(self.probe)
         self.batch = BatchNode()
-        self.shapes = ['circle', 'crescent', 'cross', 'diamond', 'oval', 'square', 'star', 'triangle']
+        self.shapes = {"oval":"F",
+                       "diamond":"T",
+                       "crescent":"Q",
+                       "cross":"Y",
+                       "star":"C"}
+        self.font = font.load('Cut Outs for 3D FX', 128)
+        self.glyphs = self.font.get_glyphs("".join(self.shapes.values()))
         self.shapes_visible = False
         s = 50
         v = 100
@@ -262,7 +280,7 @@ class Task(ColorLayer):
         w = 128 * ratio
         self.cm.add(self.probe)
         for _ in range(0, 74):
-            img = pyglet.resource.image(choice(self.shapes) + ".png")
+            img = choice(self.glyphs).get_texture()
             img.anchor_x = 'center'
             img.anchor_y = 'center'
             sprite = Shape(img, rotation=randrange(0, 365), scale=ratio,
@@ -270,7 +288,7 @@ class Task(ColorLayer):
                             opacity=255, color=choice(self.colors.values()))
             while self.cm.objs_colliding(sprite):
                 position = ((randrange(w, self.screen[1] - w), randrange(w, self.screen[1] - w)))
-                sprite.cshape = CircleShape(eu.Vector2(position[0], position[1]), w / 1.5)
+                sprite.cshape = CircleShape(eu.Vector2(position[0], position[1]), w)
                 sprite.position = sprite.cshape.center
             self.cm.add(sprite)
             self.batch.add(sprite)
@@ -313,7 +331,7 @@ def main():
                         OptionsMenu(settings),
                     ), z=0)
     
-    #scene.add(BackgroundLayer(), z= -1)
+    scene.add(BackgroundLayer(), z= -1)
     
     cursor = director.window.get_system_mouse_cursor("hand")
     director.window.set_mouse_cursor(cursor)
