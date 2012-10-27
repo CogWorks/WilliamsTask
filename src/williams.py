@@ -22,11 +22,11 @@ from cocos.actions.instant_actions import *
 from cocos.batch import BatchNode
 from cocos.collision_model import *
 import cocos.euclid as eu
+from pyglet.media import StaticSource
 
 from random import choice, randrange, uniform, sample
 import string
 
-import soundex
 import colorsys
 
 def hsv_to_rgb(h, s, v):
@@ -69,7 +69,7 @@ class OptionsMenu(BetterMenu):
         
         ratio = self.screen[1] / self.screen[0]
         
-        self.select_sound = soundex.load('move.mp3')
+        self.select_sound = StaticSource(pyglet.resource.media('move.wav'))
         
         self.font_title['font_name'] = 'Pipe Dream'
         self.font_title['font_size'] = self.screen[0] / 18
@@ -137,7 +137,7 @@ class MainMenu(BetterMenu):
         
         ratio = self.screen[1] / self.screen[0]
                 
-        self.select_sound = soundex.load('move.mp3')
+        self.select_sound = StaticSource(pyglet.resource.media('move.wav'))
 
         self.font_title['font_name'] = 'Pipe Dream'
         self.font_title['font_size'] = self.screen[0] / 18
