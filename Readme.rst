@@ -13,4 +13,5 @@ System Requirements
 * twisted
 
 ::
-pip install pyglet cocos2d twisted
+
+  pip install pyglet cocos2d twisted
