@@ -6,7 +6,7 @@ import pygletreactor
 pygletreactor.install()
 from twisted.internet import reactor
 
-from pyglet import image, font
+from pyglet import image, font, text
 from pyglet.gl import *
 from pyglet.window import key
 
@@ -24,7 +24,7 @@ from cocos.collision_model import *
 import cocos.euclid as eu
 from pyglet.media import StaticSource
 
-from random import choice, randrange, uniform, sample
+from random import choice, randrange, uniform, sample, shuffle
 import string
 
 import colorsys
@@ -245,7 +245,13 @@ class Probe(HTMLLabel):
     def __init__(self, id, color, shape, size, width, position):
         html = "<center>%s<br>%s<br>%s<br>%s</center>" % (color, shape, size, id)
         super(Probe, self).__init__(html, position=position, anchor_x='center', anchor_y='center', multiline=True, width=width, height=width)
-        self.cshape = CircleShape(eu.Vector2(position[0], position[1]), width / 2)
+        self.cshape = CircleShape(eu.Vector2(position[0], position[1]), width * .6)
+
+class ID(BatchableNode, text.Label):
+    
+    def __init__(self, *args, **kwargs):
+        pyglet.sprite.Sprite.__init__(self, *args, **kwargs)
+        BatchableNode.__init__(self)
 
 class Task(ColorLayer):
     
@@ -253,14 +259,11 @@ class Task(ColorLayer):
     
     def __init__(self):
         self.screen = director.get_window_size()
-        super(Task, self).__init__(168, 168, 168, 255, self.screen[1], self.screen[1])
-        side = self.screen[1] / 11
+        super(Task, self).__init__(168, 168, 168, 255, self.screen[1], self.screen[1])        
         xmin = (self.screen[0] - self.screen[1]) / 2
         self.position = (xmin, 0)
         self.cm = CollisionManagerBruteForce()
-        self.probe = Probe("12", "RED", "STAR", "MEDIUM", side, (self.screen[1] / 2, self.screen[1] / 2))
-        self.add(self.probe)
-        self.batch = BatchNode()
+        self.mono = font.load("Mono", 32)
         self.shapes = {"oval":"F",
                        "diamond":"T",
                        "crescent":"Q",
@@ -276,14 +279,28 @@ class Task(ColorLayer):
                        "yellow": hsv_to_rgb(72, s, v),
                        "green": hsv_to_rgb(144, s, v),
                        "blue": hsv_to_rgb(216, s, v),
-                       "purple": hsv_to_rgb(288, s, v)
-                       }
+                       "purple": hsv_to_rgb(288, s, v)}
+        self.gen_probe()
+        self.batch = BatchNode()
+        self.id_batch = BatchNode()
+        
+    def gen_probe(self):
+        side = self.screen[1] / 11
+        id = "%02d" % randrange(0, 75)
+        color = choice(self.colors.keys()).upper()
+        shape = choice(self.shapes.keys()).upper()
+        size = choice(["SMALL", "MEDIUM", "LARGE"])
+        self.probe = Probe(id, color, shape, size, side, (self.screen[1] / 2, self.screen[1] / 2))
+        self.add(self.probe)
         
     def clear_shapes(self):
         self.cm.clear()
-        for c in self.batch.get_children():
-            self.batch.remove(c)
+        for c in self.get_children():
+            self.remove(c)
+        self.batch = BatchNode()
+        self.id_batch = BatchNode()
         self.shapes_visible = False
+        self.gen_probe()
         
     def show_shapes(self):
         self.cm.add(self.probe)
@@ -293,24 +310,29 @@ class Task(ColorLayer):
         sprites = 0
         resets = 0
         combos = []
+        ids = range(1, 76)
+        shuffle(ids)
         for scale in scales:
             for color in self.colors:
                 for shape in self.shapes:
-                    combos.append((shape, color, scale))
-        placed = 0
+                    combos.append((shape, color, scale, ids.pop()))
         for c in combos:
             img = self.shapes[c[0]].get_texture()
             img.anchor_x = 'center'
             img.anchor_y = 'center'
             sprite = Shape(img, rotation=randrange(0, 365), color=self.colors[c[1]], scale=c[2])
-            sprite.set_position(uniform(sprite.width * .6, self.screen[1] - sprite.width * .6), uniform(sprite.height * .6, self.screen[1] - sprite.height * .6))
-            pad = max(sprite.width,sprite.height)
+            pad = max(sprite.width, sprite.height) * .75
+            sprite.set_position(uniform(pad, self.screen[1] - pad), uniform(pad, self.screen[1] - pad))
             while self.cm.objs_colliding(sprite):
                 sprite.set_position(uniform(pad, self.screen[1] - pad), uniform(pad, self.screen[1] - pad))
+            l = text.Label("%02d" % c[3], font_size=14 * ratio,
+                            x=sprite.position[0], y=sprite.position[1],
+                            font_name="Monospace", color=(48, 48, 48, 255),
+                            anchor_x='center', anchor_y='center', batch=self.id_batch.batch)
             self.cm.add(sprite)
             self.batch.add(sprite)
-            placed += 1
         self.add(self.batch)
+        self.add(self.id_batch,z=1)
         
     def on_key_press(self, symbol, modifiers):
         if symbol == key.SPACE:
