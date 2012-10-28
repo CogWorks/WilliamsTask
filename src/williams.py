@@ -353,6 +353,7 @@ class Task(ColorLayer):
         self.side = self.screen[1] / 11
         self.ratio = self.side / 128
         self.scales = [self.ratio * 1.5, self.ratio, self.ratio * .5]
+        self.sizes = ["large", "medium", "small"]
         self.gen_combos()
         self.gen_probe()
         self.batch = BatchNode()
@@ -365,19 +366,18 @@ class Task(ColorLayer):
         ids = range(1, 76)
         shuffle(ids)
         self.combos = []
-        for scale in self.scales:
+        for scale in self.sizes:
             for color in self.colors:
                 for shape in self.shapes:
                     self.combos.append([shape, color, scale, ids.pop()])
         
     def gen_probe(self):
-        sizes = ["LARGE", "MEDIUM", "SMALL"]
         combo = choice(self.combos)
         print combo
         id = "%02d" % combo[3]
         color = combo[1].upper()
         shape = combo[0].upper()
-        size = sizes[self.scales.index(combo[2])]
+        size = combo[2].upper()
         self.probe = Probe(self.settings['mode'], id, color, shape, size, self.side, (self.screen[1] / 2, self.screen[1] / 2), 14 * self.ratio)
         self.add(self.probe)
         
@@ -404,7 +404,7 @@ class Task(ColorLayer):
             img = self.shapes[c[0]]
             img.anchor_x = 'center'
             img.anchor_y = 'center'
-            sprite = Shape(img, chunk=c, rotation=randrange(0, 365), color=self.colors[c[1]], scale=c[2])
+            sprite = Shape(img, chunk=c, rotation=randrange(0, 365), color=self.colors[c[1]], scale=self.scales[self.sizes.index(c[2])])
             pad = max(sprite.width, sprite.height) * .75
             sprite.set_position(uniform(pad, self.screen[1] - pad), uniform(pad, self.screen[1] - pad))
             while self.cm.objs_colliding(sprite):
