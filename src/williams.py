@@ -29,6 +29,8 @@ import string
 
 import colorsys
 
+from primitives import Circle
+
 def hsv_to_rgb(h, s, v):
     return tuple(map(lambda x: int(x * 255), list(colorsys.hsv_to_rgb(h / 360., s / 100., v / 100.))))
 
@@ -190,8 +192,9 @@ class MainMenu(BetterMenu):
         
 class Shape(Sprite):
 
-    def __init__(self, image, position=(0, 0), rotation=0, scale=1, opacity=255, color=(255, 255, 255)):
+    def __init__(self, image, chunk=None, position=(0, 0), rotation=0, scale=1, opacity=255, color=(255, 255, 255)):
         super(Shape, self).__init__(image, rotation=rotation, scale=scale, opacity=opacity, color=color)
+        self.chunk = chunk
         self.set_position(position[0], position[1])
         self.on_enter_action = None
     
@@ -240,18 +243,14 @@ class BackgroundLayer(Layer):
                 sprite.on_enter_action = Repeat(FadeTo(64, speed) + FadeTo(0, speed))
             self.batch.add(sprite)
 
-class Probe(HTMLLabel):
+class Probe(Label):
     
-    def __init__(self, id, color, shape, size, width, position):
-        html = "<center>%s<br>%s<br>%s<br>%s</center>" % (color, shape, size, id)
-        super(Probe, self).__init__(html, position=position, anchor_x='center', anchor_y='center', multiline=True, width=width, height=width)
+    def __init__(self, id, color, shape, size, width, position, font_size):
+        html = '%s\n%s\n%s\n%s' % (color, shape, size, id)
+        super(Probe, self).__init__(html, position=position, anchor_x='center', anchor_y='center',
+                                    multiline=True, width=width, height=width, align='center',
+                                    color=(64, 64, 64, 255), font_name="Monospace", font_size=font_size)
         self.cshape = CircleShape(eu.Vector2(position[0], position[1]), width * .6)
-
-class ID(BatchableNode, text.Label):
-    
-    def __init__(self, *args, **kwargs):
-        pyglet.sprite.Sprite.__init__(self, *args, **kwargs)
-        BatchableNode.__init__(self)
 
 class Task(ColorLayer):
     
@@ -283,17 +282,22 @@ class Task(ColorLayer):
         self.gen_probe()
         self.batch = BatchNode()
         self.id_batch = BatchNode()
+        director.window.set_mouse_visible(False)
+        self.responding = False
+        self.circles = []
         
     def gen_probe(self):
         side = self.screen[1] / 11
+        ratio = side / 128
         id = "%02d" % randrange(0, 75)
         color = choice(self.colors.keys()).upper()
         shape = choice(self.shapes.keys()).upper()
         size = choice(["SMALL", "MEDIUM", "LARGE"])
-        self.probe = Probe(id, color, shape, size, side, (self.screen[1] / 2, self.screen[1] / 2))
+        self.probe = Probe(id, color, shape, size, side, (self.screen[1] / 2, self.screen[1] / 2), 14 * ratio)
         self.add(self.probe)
         
     def clear_shapes(self):
+        self.circles = []
         self.cm.clear()
         for c in self.get_children():
             self.remove(c)
@@ -316,30 +320,52 @@ class Task(ColorLayer):
             for color in self.colors:
                 for shape in self.shapes:
                     combos.append((shape, color, scale, ids.pop()))
+        self.circles = []
         for c in combos:
             img = self.shapes[c[0]].get_texture()
             img.anchor_x = 'center'
             img.anchor_y = 'center'
-            sprite = Shape(img, rotation=randrange(0, 365), color=self.colors[c[1]], scale=c[2])
+            sprite = Shape(img, chunk=c, rotation=randrange(0, 365), color=self.colors[c[1]], scale=c[2])
             pad = max(sprite.width, sprite.height) * .75
             sprite.set_position(uniform(pad, self.screen[1] - pad), uniform(pad, self.screen[1] - pad))
             while self.cm.objs_colliding(sprite):
                 sprite.set_position(uniform(pad, self.screen[1] - pad), uniform(pad, self.screen[1] - pad))
             l = text.Label("%02d" % c[3], font_size=14 * ratio,
                             x=sprite.position[0], y=sprite.position[1],
-                            font_name="Monospace", color=(48, 48, 48, 255),
+                            font_name="Monospace", color=(32, 32, 32, 255),
                             anchor_x='center', anchor_y='center', batch=self.id_batch.batch)
+            self.circles.append(Circle(sprite.position[0] + (self.screen[0] - self.screen[1]) / 2, sprite.position[1], width=2 * sprite.cshape.r))
             self.cm.add(sprite)
             self.batch.add(sprite)
-        self.add(self.batch)
-        self.add(self.id_batch,z=1)
+        self.add(self.batch, z=1)
+        self.add(self.id_batch, z=2)
+        
+    #def draw(self):
+    #    super(Task, self).draw()
+    #    for c in self.circles:
+    #        c.render()
+        
+    def on_mouse_press(self, x, y, buttons, modifiers):
+        print x, y,
+        x, y = director.get_virtual_coordinates(x, y)
+        print x, y
+        for obj in self.cm.objs_touching_point(x - (self.screen[0] - self.screen[1]) / 2, y):
+            print obj.chunk
+
+    def on_mouse_motion(self, x, y, dx, dy):
+        if self.shapes_visible and not self.responding:
+            director.window.set_mouse_position(self.screen[0] / 2, self.screen[1] / 2)
+            director.window.set_mouse_visible(True)
+            self.responding = True
         
     def on_key_press(self, symbol, modifiers):
         if symbol == key.SPACE:
             if not self.shapes_visible:
                 self.show_shapes()
+                self.responding = False
             else:
                 self.clear_shapes()
+                director.window.set_mouse_visible(False)
                  
 def main():
     screen = pyglet.window.get_platform().get_default_display().get_default_screen()
