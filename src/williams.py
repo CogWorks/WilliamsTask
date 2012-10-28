@@ -2,8 +2,6 @@
 
 from __future__ import division
 
-from profilehooks import profile
-
 import pygletreactor
 pygletreactor.install()
 from twisted.internet import reactor
@@ -303,7 +301,12 @@ class BackgroundLayer(Layer):
 
 class Probe(Label):
     
-    def __init__(self, mode, id, color, shape, size, width, position, font_size):
+    def __init__(self, mode, chunk, width, position, font_size):
+        self.chunk = chunk
+        id = "%02d" % chunk[3]
+        color = chunk[1].upper()
+        shape = chunk[0].upper()
+        size = chunk[2].upper()
         if mode == 'Easy':
             s = 3
         elif mode == 'Moderate':
@@ -317,8 +320,8 @@ class Probe(Label):
         cues = tuple(sample([color, shape, size], s) + [id])
         template = '\n'.join(["%s"] * len(cues))
         html = template % (cues)
-        super(Probe, self).__init__(html, position=position, anchor_x='center', anchor_y='center',
-                                    multiline=True, width=width, height=width, align='center',
+        super(Probe, self).__init__(html, position=position, multiline=True, width=width,
+                                    anchor_x='center', anchor_y='center', align='center',
                                     color=(64, 64, 64, 255), font_name="Monospace", font_size=font_size)
         self.cshape = CircleShape(eu.Vector2(position[0], position[1]), width * .6)
 
@@ -359,7 +362,6 @@ class Task(ColorLayer):
         self.batch = BatchNode()
         self.id_batch = BatchNode()
         director.window.set_mouse_visible(False)
-        self.responding = False
         self.circles = []
         
     def gen_combos(self):
@@ -372,13 +374,7 @@ class Task(ColorLayer):
                     self.combos.append([shape, color, scale, ids.pop()])
         
     def gen_probe(self):
-        combo = choice(self.combos)
-        print combo
-        id = "%02d" % combo[3]
-        color = combo[1].upper()
-        shape = combo[0].upper()
-        size = combo[2].upper()
-        self.probe = Probe(self.settings['mode'], id, color, shape, size, self.side, (self.screen[1] / 2, self.screen[1] / 2), 14 * self.ratio)
+        self.probe = Probe(self.settings['mode'], choice(self.combos), self.side, (self.screen[1] / 2, self.screen[1] / 2), 14 * self.ratio)
         self.add(self.probe)
         
     def clear_shapes(self):
@@ -392,7 +388,6 @@ class Task(ColorLayer):
         self.gen_combos()
         self.gen_probe()
     
-    @profile(filename="williams.prof")
     def show_shapes(self):
         self.cm.add(self.probe)
         self.shapes_visible = True
@@ -416,6 +411,7 @@ class Task(ColorLayer):
             self.circles.append(Circle(sprite.position[0] + (self.screen[0] - self.screen[1]) / 2, sprite.position[1], width=2 * sprite.cshape.r))
             self.cm.add(sprite)
             self.batch.add(sprite)
+        self.circles.append(Circle(self.probe.position[0] + (self.screen[0] - self.screen[1]) / 2, self.probe.position[1], width=2 * self.probe.cshape.r))
         self.add(self.batch, z=1)
         self.add(self.id_batch, z=2)
         
@@ -425,26 +421,26 @@ class Task(ColorLayer):
     #        c.render()
         
     def on_mouse_press(self, x, y, buttons, modifiers):
-        print x, y,
-        x, y = director.get_virtual_coordinates(x, y)
-        print x, y
-        for obj in self.cm.objs_touching_point(x - (self.screen[0] - self.screen[1]) / 2, y):
-            print obj.chunk
+        if self.shapes_visible:
+            x, y = director.get_virtual_coordinates(x, y)
+            for obj in self.cm.objs_touching_point(x - (self.screen[0] - self.screen[1]) / 2, y):
+                if obj.chunk == self.probe.chunk:
+                    self.clear_shapes()
+                    director.window.set_mouse_visible(False)
+        else:
+            self.show_shapes()
+            director.window.set_mouse_position(self.screen[0] / 2, self.screen[1] / 2 - self.probe.cshape.r * .75)
+            director.window.set_mouse_visible(True)
 
     def on_mouse_motion(self, x, y, dx, dy):
-        if self.shapes_visible and not self.responding:
-            director.window.set_mouse_position(self.screen[0] / 2, self.screen[1] / 2)
-            director.window.set_mouse_visible(True)
-            self.responding = True
+        pass
         
     def on_key_press(self, symbol, modifiers):
         if symbol == key.SPACE:
             if not self.shapes_visible:
                 self.show_shapes()
-                self.responding = False
-            else:
-                self.clear_shapes()
-                director.window.set_mouse_visible(False)
+                director.window.set_mouse_position(self.screen[0] / 2, self.screen[1] / 2 - self.probe.cshape.r * .75)
+                director.window.set_mouse_visible(True)
         elif symbol == key.D:
             print director.scene_stack, director.scene, director.next_scene
         elif symbol == key.P:
