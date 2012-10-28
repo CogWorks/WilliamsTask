@@ -16,6 +16,7 @@ from cocos.scene import *
 from cocos.sprite import *
 from cocos.menu import *
 from cocos.text import *
+from cocos.scenes.transitions import *
 from cocos.actions.interval_actions import *
 from cocos.actions.base_actions import *
 from cocos.actions.instant_actions import * 
@@ -188,7 +189,7 @@ class MainMenu(BetterMenu):
         else:
             scene = Scene()
             scene.add(Task(self.settings), z=0)
-            director.push(scene)
+            director.push(SplitRowsTransition(scene))
 
     def on_quit(self):
         reactor.callFromThread(reactor.stop)
@@ -240,7 +241,7 @@ class ParticipantMenu(BetterMenu):
     def on_start(self):
         scene = Scene()
         scene.add(Task(self.settings), z=0)
-        director.push(scene)
+        director.push(SplitRowsTransition(scene))
 
     def on_quit(self):
         self.parent.switch_to(0)
