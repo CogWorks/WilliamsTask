@@ -101,7 +101,10 @@ class OptionsMenu(BetterMenu):
     def on_fullscreen(self, value):
         screen = pyglet.window.get_platform().get_default_display().get_default_screen()
         director.window.set_fullscreen(value, screen)
-        
+    
+    def on_experiment(self, value):
+        self.settings['experiment'] = value
+    
     def set_eyetracker_extras(self, value):
         self.items[3].visible = value
         self.items[4].visible = value
@@ -117,13 +120,7 @@ class OptionsMenu(BetterMenu):
         self.settings['eyetracker_port'] = port
             
     def on_quit(self):
-        exit = True
-        if self.items[3].value.strip() is '':
-            exit = False
-        if self.items[4].value.strip() is '':
-            exit = False
-        if exit:
-            self.parent.switch_to(0)
+        self.parent.switch_to(0)
 
 class GhostMenuItem(MenuItem):
     def __init__(self):
@@ -152,24 +149,70 @@ class MainMenu(BetterMenu):
         self.font_item_selected['color'] = (0, 0, 255, 255)
         self.font_item_selected['font_size'] = self.screen[1] / 16 * ratio
 
+        self.menu_anchor_y = 'center'
+        self.menu_anchor_x = 'center'
 
+        self.items = []
+        
+        self.items.append(MultipleMenuItem('Mode: ', self.on_mode, self.settings['modes']))
+        self.items.append(MenuItem('Start', self.on_start))
+        self.items.append(MenuItem('Options', self.on_options))
+        self.items.append(MenuItem('Quit', self.on_quit))
+        
+        self.create_menu(self.items, zoom_in(), zoom_out())
+
+    def on_mode(self, mode):
+         self.settings['mode'] = self.settings['modes'][mode]
+        
+    def on_options(self):
+        self.parent.switch_to(1)
+        
+    def on_start(self):
+        if self.settings['mode'] == "Experiment":
+            self.parent.switch_to(2)
+        else:
+            scene = Scene()
+            scene.add(Task(self.settings), z=0)
+            director.replace(scene)
+
+    def on_quit(self):
+        print "on_quit"
+        reactor.callFromThread(reactor.stop)
+        
+class ParticipantMenu(BetterMenu):
+
+    def __init__(self, settings):
+        super(ParticipantMenu, self).__init__("Participant Information")
+        self.screen = director.get_window_size()
+        self.settings = settings
+        
+        ratio = self.screen[1] / self.screen[0]
+                
+        self.select_sound = StaticSource(pyglet.resource.media('move.wav'))
+
+        self.font_title['font_name'] = 'Pipe Dream'
+        self.font_title['font_size'] = self.screen[0] / 18
+        self.font_title['color'] = (255, 255, 255, 255)
+
+        self.font_item['font_name'] = 'Pipe Dream',
+        self.font_item['color'] = (255, 255, 255, 255)
+        self.font_item['font_size'] = self.screen[1] / 16 * ratio
+        self.font_item_selected['font_name'] = 'Pipe Dream'
+        self.font_item_selected['color'] = (0, 0, 255, 255)
+        self.font_item_selected['font_size'] = self.screen[1] / 16 * ratio
+        
         # example: menus can be vertical aligned and horizontal aligned
         self.menu_anchor_y = 'center'
         self.menu_anchor_x = 'center'
 
         self.items = []
-
+        
         self.items.append(EntryMenuItem('Full Name:', self.on_name, ""))
         self.items.append(EntryMenuItem('RIN:', self.on_rin, "", max_length=9))
         self.items.append(MenuItem('Start', self.on_start))
-        self.items.append(GhostMenuItem())
-        self.items.append(MenuItem('Options', self.on_options))
-        self.items.append(MenuItem('Quit', self.on_quit))
+    
         
         self.create_menu(self.items, zoom_in(), zoom_out())
-        
-    def on_options(self):
-        self.parent.switch_to(1)
         
     def on_name(self, name):
         print "on_name", name
@@ -183,12 +226,11 @@ class MainMenu(BetterMenu):
         
     def on_start(self):
         scene = Scene()
-        scene.add(Task(), z=0)
+        scene.add(Task(self.settings), z=0)
         director.replace(scene)
 
     def on_quit(self):
-        print "on_quit"
-        reactor.callFromThread(reactor.stop)
+        self.parent.switch_to(0)
         
 class Shape(Sprite):
 
@@ -232,21 +274,34 @@ class BackgroundLayer(Layer):
             img = choice(self.glyphs).get_texture()
             img.anchor_x = 'center'
             img.anchor_y = 'center'
-            o = choice([0, 64])
+            max_o = 96
+            o = choice([0, max_o])
             speed = uniform(1, 10)
-            sprite = Shape(img, rotation=randrange(0, 365), scale=uniform(ratio, 2 * ratio),
+            sprite = Shape(img, rotation=randrange(0, 365), scale=uniform(ratio, 3 * ratio),
                             position=(randrange(0, self.screen[0]), randrange(0, self.screen[1])),
                             opacity=o, color=(randrange(0, 256), randrange(0, 256), randrange(0, 256)))
-            if o == 64:
-                sprite.on_enter_action = Repeat(FadeTo(0, speed) + FadeTo(64, speed))
+            if o == max_o:
+                sprite.on_enter_action = Repeat(FadeTo(0, speed) + FadeTo(max_o, speed))
             else:
-                sprite.on_enter_action = Repeat(FadeTo(64, speed) + FadeTo(0, speed))
+                sprite.on_enter_action = Repeat(FadeTo(max_o, speed) + FadeTo(0, speed))
             self.batch.add(sprite)
 
 class Probe(Label):
     
-    def __init__(self, id, color, shape, size, width, position, font_size):
-        html = '%s\n%s\n%s\n%s' % (color, shape, size, id)
+    def __init__(self, mode, id, color, shape, size, width, position, font_size):
+        if mode == 'Easy':
+            s = 3
+        elif mode == 'Moderate':
+            s = choice([2, 3])
+        elif mode == 'Hard':
+            s = choice([1, 2, 3])
+        elif mode == 'Insane':
+            s = choice([0, 1, 2, 3])
+        else: #Experiment mode needs fixing
+            s = choice([0, 1, 2, 3])
+        cues = tuple(sample([color, shape, size], s) + [id])
+        template = '\n'.join(["%s"] * len(cues))
+        html = template % (cues)
         super(Probe, self).__init__(html, position=position, anchor_x='center', anchor_y='center',
                                     multiline=True, width=width, height=width, align='center',
                                     color=(64, 64, 64, 255), font_name="Monospace", font_size=font_size)
@@ -256,7 +311,8 @@ class Task(ColorLayer):
     
     is_event_handler = True
     
-    def __init__(self):
+    def __init__(self, settings):
+        self.settings = settings
         self.screen = director.get_window_size()
         super(Task, self).__init__(168, 168, 168, 255, self.screen[1], self.screen[1])        
         xmin = (self.screen[0] - self.screen[1]) / 2
@@ -310,7 +366,7 @@ class Task(ColorLayer):
         color = combo[1].upper()
         shape = combo[0].upper()
         size = sizes[scales.index(combo[2])]
-        self.probe = Probe(id, color, shape, size, side, (self.screen[1] / 2, self.screen[1] / 2), 14 * ratio)
+        self.probe = Probe(self.settings['mode'], id, color, shape, size, side, (self.screen[1] / 2, self.screen[1] / 2), 14 * ratio)
         self.add(self.probe)
         
     def clear_shapes(self):
@@ -387,7 +443,9 @@ def main():
     
     settings = {'eyetracker': False,
                 'eyetracker_ip': '127.0.0.1',
-                'eyetracker_port': '5555'}
+                'eyetracker_port': '5555',
+                'mode': 'Easy',
+                'modes': ['Easy', 'Moderate', 'Hard', 'Insane', 'Experiment']}
     
     director.init(width=screen.width, height=screen.height,
                   caption="The Williams' Search Task",
@@ -403,6 +461,7 @@ def main():
     scene.add(MultiplexLayer(
                         MainMenu(settings),
                         OptionsMenu(settings),
+                        ParticipantMenu(settings),
                     ), z=0)
     
     scene.add(BackgroundLayer(), z= -1)
