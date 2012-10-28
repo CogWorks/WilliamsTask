@@ -2,6 +2,8 @@
 
 from __future__ import division
 
+from profilehooks import profile
+
 import pygletreactor
 pygletreactor.install()
 from twisted.internet import reactor
@@ -389,7 +391,8 @@ class Task(ColorLayer):
         self.shapes_visible = False
         self.gen_combos()
         self.gen_probe()
-        
+    
+    @profile(filename="williams.prof")
     def show_shapes(self):
         self.cm.add(self.probe)
         self.shapes_visible = True
