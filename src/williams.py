@@ -348,6 +348,9 @@ class Task(ColorLayer):
                        "green": hsv_to_rgb(144, s, v),
                        "blue": hsv_to_rgb(216, s, v),
                        "purple": hsv_to_rgb(288, s, v)}
+        self.side = self.screen[1] / 11
+        self.ratio = self.side / 128
+        self.scales = [self.ratio * 1.5, self.ratio, self.ratio * .5]
         self.gen_combos()
         self.gen_probe()
         self.batch = BatchNode()
@@ -357,13 +360,10 @@ class Task(ColorLayer):
         self.circles = []
         
     def gen_combos(self):
-        side = self.screen[1] / 11
-        ratio = side / 128
-        scales = [ratio * 1.5, ratio, ratio * .5, ]
         ids = range(1, 76)
         shuffle(ids)
         self.combos = []
-        for scale in scales:
+        for scale in self.scales:
             for color in self.colors:
                 for shape in self.shapes:
                     self.combos.append([shape, color, scale, ids.pop()])
@@ -372,14 +372,11 @@ class Task(ColorLayer):
         sizes = ["LARGE", "MEDIUM", "SMALL"]
         combo = choice(self.combos)
         print combo
-        side = self.screen[1] / 11
-        ratio = side / 128
-        scales = [ratio * 1.5, ratio, ratio * .5, ]
         id = "%02d" % combo[3]
         color = combo[1].upper()
         shape = combo[0].upper()
-        size = sizes[scales.index(combo[2])]
-        self.probe = Probe(self.settings['mode'], id, color, shape, size, side, (self.screen[1] / 2, self.screen[1] / 2), 14 * ratio)
+        size = sizes[self.scales.index(combo[2])]
+        self.probe = Probe(self.settings['mode'], id, color, shape, size, self.side, (self.screen[1] / 2, self.screen[1] / 2), 14 * self.ratio)
         self.add(self.probe)
         
     def clear_shapes(self):
@@ -396,8 +393,7 @@ class Task(ColorLayer):
     def show_shapes(self):
         self.cm.add(self.probe)
         self.shapes_visible = True
-        side = self.screen[1] / 11
-        ratio = self.screen[1] / 128 / 11
+        ratio = self.side / 128
         sprites = 0
         resets = 0
         self.circles = []
