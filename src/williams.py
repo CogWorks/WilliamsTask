@@ -34,6 +34,24 @@ from primitives import Circle
 def hsv_to_rgb(h, s, v):
     return tuple(map(lambda x: int(x * 255), list(colorsys.hsv_to_rgb(h / 360., s / 100., v / 100.))))
 
+class ExperimentHandler(object):
+    def __init__(self):
+        super(ExperimentHandler, self).__init__()
+
+    def on_key_press(self, symbol, modifiers):
+        if symbol == key.F and (modifiers & key.MOD_ACCEL):
+            director.window.set_fullscreen(not director.window.fullscreen)
+            return True
+
+        elif symbol == key.X and (modifiers & key.MOD_ACCEL):
+            director.show_FPS = not director.show_FPS
+            return True
+
+        elif symbol == key.S and (modifiers & key.MOD_ACCEL):
+            import time
+            pyglet.image.get_buffer_manager().get_color_buffer().save('screenshot-%d.png' % (int(time.time())))
+            return True
+
 class BetterMenu(Menu):
     
     def on_key_press(self, symbol, modifiers):
@@ -54,10 +72,7 @@ class BetterMenu(Menu):
             self._select_item(new_idx)
             return True
         else:
-            # send the menu item the rest of the keys
             ret = self.children[self.selected_index][1].on_key_press(symbol, modifiers)
-
-            # play sound if key was handled
             if ret and self.activate_sound:
                 self.activate_sound.play()
             return ret
@@ -173,10 +188,9 @@ class MainMenu(BetterMenu):
         else:
             scene = Scene()
             scene.add(Task(self.settings), z=0)
-            director.replace(scene)
+            director.push(scene)
 
     def on_quit(self):
-        print "on_quit"
         reactor.callFromThread(reactor.stop)
         
 class ParticipantMenu(BetterMenu):
@@ -200,8 +214,7 @@ class ParticipantMenu(BetterMenu):
         self.font_item_selected['font_name'] = 'Pipe Dream'
         self.font_item_selected['color'] = (0, 0, 255, 255)
         self.font_item_selected['font_size'] = self.screen[1] / 16 * ratio
-        
-        # example: menus can be vertical aligned and horizontal aligned
+
         self.menu_anchor_y = 'center'
         self.menu_anchor_x = 'center'
 
@@ -227,7 +240,7 @@ class ParticipantMenu(BetterMenu):
     def on_start(self):
         scene = Scene()
         scene.add(Task(self.settings), z=0)
-        director.replace(scene)
+        director.push(scene)
 
     def on_quit(self):
         self.parent.switch_to(0)
@@ -271,7 +284,7 @@ class BackgroundLayer(Layer):
         ratio = 1 - self.screen[1] / self.screen[0]
         n = int(750 * ratio)
         for _ in range(0, n):
-            img = choice(self.glyphs).get_texture()
+            img = choice(self.glyphs).get_texture(True)
             img.anchor_x = 'center'
             img.anchor_y = 'center'
             max_o = 96
@@ -326,7 +339,7 @@ class Task(ColorLayer):
                        "star":"C"}
         self.font = font.load('Cut Outs for 3D FX', 128)
         for shape in self.shapes:
-            self.shapes[shape] = self.font.get_glyphs(self.shapes[shape])[0]
+            self.shapes[shape] = self.font.get_glyphs(self.shapes[shape])[0].get_texture(True)
         self.shapes_visible = False
         s = 50
         v = 100
@@ -389,7 +402,7 @@ class Task(ColorLayer):
         resets = 0
         self.circles = []
         for c in self.combos:
-            img = self.shapes[c[0]].get_texture()
+            img = self.shapes[c[0]]
             img.anchor_x = 'center'
             img.anchor_y = 'center'
             sprite = Shape(img, chunk=c, rotation=randrange(0, 365), color=self.colors[c[1]], scale=c[2])
@@ -433,6 +446,10 @@ class Task(ColorLayer):
             else:
                 self.clear_shapes()
                 director.window.set_mouse_visible(False)
+        elif symbol == key.D:
+            print director.scene_stack, director.scene, director.next_scene
+        elif symbol == key.P:
+            director.pop()
                  
 def main():
     screen = pyglet.window.get_platform().get_default_display().get_default_screen()
@@ -454,7 +471,10 @@ def main():
     
     director.window.set_size(screen.width / 2, screen.height / 2)
     director.window.set_fullscreen(True, screen)
-        
+
+    director.window.pop_handlers()
+    director.window.push_handlers(ExperimentHandler())
+    
     director.set_show_FPS(True)
     
     scene = Scene()
