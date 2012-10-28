@@ -279,6 +279,7 @@ class Task(ColorLayer):
                        "green": hsv_to_rgb(144, s, v),
                        "blue": hsv_to_rgb(216, s, v),
                        "purple": hsv_to_rgb(288, s, v)}
+        self.gen_combos()
         self.gen_probe()
         self.batch = BatchNode()
         self.id_batch = BatchNode()
@@ -286,13 +287,29 @@ class Task(ColorLayer):
         self.responding = False
         self.circles = []
         
-    def gen_probe(self):
+    def gen_combos(self):
         side = self.screen[1] / 11
         ratio = side / 128
-        id = "%02d" % randrange(0, 75)
-        color = choice(self.colors.keys()).upper()
-        shape = choice(self.shapes.keys()).upper()
-        size = choice(["SMALL", "MEDIUM", "LARGE"])
+        scales = [ratio * 1.5, ratio, ratio * .5, ]
+        ids = range(1, 76)
+        shuffle(ids)
+        self.combos = []
+        for scale in scales:
+            for color in self.colors:
+                for shape in self.shapes:
+                    self.combos.append([shape, color, scale, ids.pop()])
+        
+    def gen_probe(self):
+        sizes = ["LARGE", "MEDIUM", "SMALL"]
+        combo = choice(self.combos)
+        print combo
+        side = self.screen[1] / 11
+        ratio = side / 128
+        scales = [ratio * 1.5, ratio, ratio * .5, ]
+        id = "%02d" % combo[3]
+        color = combo[1].upper()
+        shape = combo[0].upper()
+        size = sizes[scales.index(combo[2])]
         self.probe = Probe(id, color, shape, size, side, (self.screen[1] / 2, self.screen[1] / 2), 14 * ratio)
         self.add(self.probe)
         
@@ -304,24 +321,18 @@ class Task(ColorLayer):
         self.batch = BatchNode()
         self.id_batch = BatchNode()
         self.shapes_visible = False
+        self.gen_combos()
         self.gen_probe()
         
     def show_shapes(self):
         self.cm.add(self.probe)
         self.shapes_visible = True
+        side = self.screen[1] / 11
         ratio = self.screen[1] / 128 / 11
-        scales = [ratio * 1.5, ratio, ratio * .5, ]
         sprites = 0
         resets = 0
-        combos = []
-        ids = range(1, 76)
-        shuffle(ids)
-        for scale in scales:
-            for color in self.colors:
-                for shape in self.shapes:
-                    combos.append((shape, color, scale, ids.pop()))
         self.circles = []
-        for c in combos:
+        for c in self.combos:
             img = self.shapes[c[0]].get_texture()
             img.anchor_x = 'center'
             img.anchor_y = 'center'
