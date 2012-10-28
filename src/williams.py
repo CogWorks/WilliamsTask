@@ -28,55 +28,13 @@ from pyglet.media import StaticSource
 from random import choice, randrange, uniform, sample, shuffle
 import string
 
-import colorsys
-
 from primitives import Circle
 
-def hsv_to_rgb(h, s, v):
-    return tuple(map(lambda x: int(x * 255), list(colorsys.hsv_to_rgb(h / 360., s / 100., v / 100.))))
-
-class ExperimentHandler(object):
-    def __init__(self):
-        super(ExperimentHandler, self).__init__()
-
-    def on_key_press(self, symbol, modifiers):
-        if symbol == key.F and (modifiers & key.MOD_ACCEL):
-            director.window.set_fullscreen(not director.window.fullscreen)
-            return True
-
-        elif symbol == key.X and (modifiers & key.MOD_ACCEL):
-            director.show_FPS = not director.show_FPS
-            return True
-
-        elif symbol == key.S and (modifiers & key.MOD_ACCEL):
-            import time
-            pyglet.image.get_buffer_manager().get_color_buffer().save('screenshot-%d.png' % (int(time.time())))
-            return True
-
-class BetterMenu(Menu):
-    
-    def on_key_press(self, symbol, modifiers):
-        if symbol == key.ESCAPE:
-            self.on_quit()
-            return True
-        elif symbol in (key.ENTER, key.NUM_ENTER):
-            self._activate_item()
-            return True
-        elif symbol in (key.DOWN, key.UP):
-            if symbol == key.DOWN:
-                mod = 1
-            elif symbol == key.UP:
-                mod = -1
-            new_idx = (self.selected_index + mod) % len(self.children)
-            while self.children[ new_idx ][1].visible == False:
-                new_idx = (new_idx + mod) % len(self.children)
-            self._select_item(new_idx)
-            return True
-        else:
-            ret = self.children[self.selected_index][1].on_key_press(symbol, modifiers)
-            if ret and self.activate_sound:
-                self.activate_sound.play()
-            return ret
+###
+from util import hsv_to_rgb
+from handler import ExperimentHandler
+from menu import BetterMenu, GhostMenuItem
+###
 
 class OptionsMenu(BetterMenu):
 
@@ -137,11 +95,6 @@ class OptionsMenu(BetterMenu):
             
     def on_quit(self):
         self.parent.switch_to(0)
-
-class GhostMenuItem(MenuItem):
-    def __init__(self):
-        super(GhostMenuItem, self).__init__('', lambda: _)
-        self.visible = False
 
 class MainMenu(BetterMenu):
 
