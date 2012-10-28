@@ -8,10 +8,11 @@ System Requirements
 -------------------
 
 * Python 2.7
-* pyglet
+* pyglet >=1.2alpha1
 * cocos2d
 * twisted
 
 ::
 
-  pip install pyglet cocos2d twisted
+  pip install http://pyglet.googlecode.com/files/pyglet-1.2alpha1.zip
+  pip install cocos2d twisted
