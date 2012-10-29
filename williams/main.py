@@ -141,7 +141,6 @@ class MainMenu(BetterMenu):
             self.parent.switch_to(2)
         else:
             scene = Scene()
-            scene.add(TaskBackground(self.settings), z=0)
             scene.add(Task(self.settings), z=1)
             director.push(SplitRowsTransition(scene))
 
@@ -194,7 +193,10 @@ class ParticipantMenu(BetterMenu):
         
     def on_start(self):
         scene = Scene()
-        scene.add(Task(self.settings), z=0)
+        tb = TaskBackground()
+        t = Task(self.settings, tb)
+        scene.add(tb, z=0)
+        scene.add(t, z=1)
         director.push(SplitRowsTransition(scene))
 
     def on_quit(self):
@@ -262,6 +264,8 @@ class Probe(Label):
         
         if mode == 'Experiment':
             trial = app.trials.pop()
+            app.current_trial += 1
+            app.bg.update(app.current_trial, app.total_trials)
             for c in app.combos:
                 if c[0] == trial[0] and c[1] == trial[1] and c[2] == trial[2]:
                     self.chunk = c
@@ -292,18 +296,22 @@ class Probe(Label):
 
 class TaskBackground(Layer):
     
-    def __init__(self, settings):
+    def __init__(self):
         super(TaskBackground, self).__init__()
         self.screen = director.get_window_size()
-        self.trial_display = Label("1 of 300", position=(self.screen[0]-10,10), font_name='', font_size=18, bold=True, color=(128,128,128,128), anchor_x='right')
+        
+    def update(self, current_trial, total_trials):
+        for c in self.get_children(): self.remove(c)
+        self.trial_display = Label("%d of %d" % (current_trial, total_trials), position=(self.screen[0]-10,10), font_name='', font_size=18, bold=True, color=(128,128,128,128), anchor_x='right')
         self.add(self.trial_display)
 
 class Task(ColorLayer):
     
     is_event_handler = True
     
-    def __init__(self, settings):
+    def __init__(self, settings, bg):
         self.settings = settings
+        self.bg = bg
         self.screen = director.get_window_size()
         super(Task, self).__init__(168, 168, 168, 255, self.screen[1], self.screen[1])        
         xmin = (self.screen[0] - self.screen[1]) / 2
@@ -345,6 +353,8 @@ class Task(ColorLayer):
                 for shape in self.shapes:
                     for c in [0,1,2,3]:
                         self.trials.append([shape, color, scale, c])
+        self.total_trials = len(self.trials)
+        self.current_trial = 0
         shuffle(self.trials)
         
     def gen_combos(self):
