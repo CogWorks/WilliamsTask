@@ -340,11 +340,21 @@ class Task(ColorLayer):
         self.sizes = ["large", "medium", "small"]
         self.gen_trials()
         self.gen_combos()
-        self.gen_probe()
         self.batch = BatchNode()
         self.id_batch = BatchNode()
         director.window.set_mouse_visible(False)
         self.circles = []
+        self.search_time = -1
+        self.study_time = -1
+        self.ready = False
+        self.ready_label = Label("Click mouse when ready!", position=(self.width/2, self.height/2), font_name='Pipe Dream', font_size=24, color=(0, 0, 0, 255), anchor_x='center', anchor_y='center')
+        self.add(self.ready_label)
+        
+    def trial_done(self):
+        self.search_time = get_time() - self.start_time
+        print "Study Time: %f\tSearch Time: %f" % (self.study_time, self.search_time)
+        director.window.set_mouse_visible(False)
+        self.clear_shapes()
         
     def gen_trials(self):
         self.trials = []
@@ -367,6 +377,8 @@ class Task(ColorLayer):
                     self.combos.append([shape, color, scale, ids.pop()])
         
     def gen_probe(self):
+        for c in self.get_children():
+            self.remove(c)
         self.probe = Probe(self, self.settings['mode'], self.side, (self.screen[1] / 2, self.screen[1] / 2), 14 * self.ratio)
         self.add(self.probe)
         
@@ -379,7 +391,8 @@ class Task(ColorLayer):
         self.id_batch = BatchNode()
         self.shapes_visible = False
         self.gen_combos()
-        self.gen_probe()
+        self.ready = False
+        self.add(self.ready_label)
     
     def show_shapes(self):
         self.cm.add(self.probe)
@@ -414,36 +427,31 @@ class Task(ColorLayer):
     #        c.render()
         
     def on_mouse_press(self, x, y, buttons, modifiers):
-        if self.shapes_visible:
+        if not self.ready:
+            self.ready = True
+            self.gen_probe()
+            self.start_time = get_time()
+        elif self.shapes_visible:
             x, y = director.get_virtual_coordinates(x, y)
             for obj in self.cm.objs_touching_point(x - (self.screen[0] - self.screen[1]) / 2, y):
                 if obj.chunk == self.probe.chunk:
-                    self.clear_shapes()
-                    director.window.set_mouse_visible(False)
-            diff = get_time() - self.start_time
-            print "Search Time: %f" % diff
-            self.start_time = get_time()
+                    self.trial_done()
         else:
             self.show_shapes()
-            director.window.set_mouse_position(self.screen[0] / 2, self.screen[1] / 2 - self.probe.cshape.r * .75)
+            window = director.window.get_size()
+            nx = window[0] / 2
+            ny = window[1] / 2 - self.probe.cshape.r * .75 * (window[1] / self.screen[1])
+            
+            director.window.set_mouse_position(nx, ny)
             director.window.set_mouse_visible(True)
-            diff = get_time() - self.start_time
-            print "Study Time: %f, " % diff,
+            self.study_time = get_time() - self.start_time
             self.start_time = get_time()
 
     def on_mouse_motion(self, x, y, dx, dy):
         pass
         
     def on_key_press(self, symbol, modifiers):
-        if symbol == key.SPACE:
-            if not self.shapes_visible:
-                self.show_shapes()
-                director.window.set_mouse_position(self.screen[0] / 2, self.screen[1] / 2 - self.probe.cshape.r * .75)
-                director.window.set_mouse_visible(True)
-                diff = get_time() - self.start_time
-                print "Study Time: %f, " % diff,
-                self.start_time = get_time()
-        elif symbol == key.D:
+        if symbol == key.D:
             print director.scene_stack, director.scene, director.next_scene
         elif symbol == key.P:
             director.pop()
