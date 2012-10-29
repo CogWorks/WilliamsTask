@@ -31,7 +31,7 @@ import string
 from primitives import Circle
 
 ###
-from util import hsv_to_rgb
+from util import hsv_to_rgb, get_time
 from handler import ExperimentHandler
 from menu import BetterMenu, GhostMenuItem
 ###
@@ -265,7 +265,7 @@ class Probe(Label):
         if mode == 'Experiment':
             trial = app.trials.pop()
             app.current_trial += 1
-            app.bg.update(app.current_trial, app.total_trials)
+            if app.bg: app.bg.update(app.current_trial, app.total_trials)
             for c in app.combos:
                 if c[0] == trial[0] and c[1] == trial[1] and c[2] == trial[2]:
                     self.chunk = c
@@ -302,14 +302,14 @@ class TaskBackground(Layer):
         
     def update(self, current_trial, total_trials):
         for c in self.get_children(): self.remove(c)
-        self.trial_display = Label("%d of %d" % (current_trial, total_trials), position=(self.screen[0]-10,10), font_name='', font_size=18, bold=True, color=(128,128,128,128), anchor_x='right')
+        self.trial_display = Label("%d of %d" % (current_trial, total_trials), position=(self.screen[0] - 10, 10), font_name='', font_size=18, bold=True, color=(128, 128, 128, 128), anchor_x='right')
         self.add(self.trial_display)
 
 class Task(ColorLayer):
     
     is_event_handler = True
     
-    def __init__(self, settings, bg):
+    def __init__(self, settings, bg=None):
         self.settings = settings
         self.bg = bg
         self.screen = director.get_window_size()
@@ -351,7 +351,7 @@ class Task(ColorLayer):
         for scale in self.sizes:
             for color in self.colors:
                 for shape in self.shapes:
-                    for c in [0,1,2,3]:
+                    for c in [0, 1, 2, 3]:
                         self.trials.append([shape, color, scale, c])
         self.total_trials = len(self.trials)
         self.current_trial = 0
@@ -420,10 +420,16 @@ class Task(ColorLayer):
                 if obj.chunk == self.probe.chunk:
                     self.clear_shapes()
                     director.window.set_mouse_visible(False)
+            diff = get_time() - self.start_time
+            print "Search Time: %f" % diff
+            self.start_time = get_time()
         else:
             self.show_shapes()
             director.window.set_mouse_position(self.screen[0] / 2, self.screen[1] / 2 - self.probe.cshape.r * .75)
             director.window.set_mouse_visible(True)
+            diff = get_time() - self.start_time
+            print "Study Time: %f, " % diff,
+            self.start_time = get_time()
 
     def on_mouse_motion(self, x, y, dx, dy):
         pass
@@ -434,10 +440,18 @@ class Task(ColorLayer):
                 self.show_shapes()
                 director.window.set_mouse_position(self.screen[0] / 2, self.screen[1] / 2 - self.probe.cshape.r * .75)
                 director.window.set_mouse_visible(True)
+                diff = get_time() - self.start_time
+                print "Study Time: %f, " % diff,
+                self.start_time = get_time()
         elif symbol == key.D:
             print director.scene_stack, director.scene, director.next_scene
         elif symbol == key.P:
             director.pop()
+            
+    def on_enter(self):
+        super(Task, self).on_enter()
+        self.start_time = get_time()
+        
                  
 def main():
     screen = pyglet.window.get_platform().get_default_display().get_default_screen()
