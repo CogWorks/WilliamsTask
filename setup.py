@@ -24,7 +24,7 @@ setup(
       long_description=open(descr_file).read(),
       author_email="rmh3093@gmail.com",
       license='GPL-3',
-      #data_files=DATA_FILES,
+      data_files=DATA_FILES,
       options={'py2app': OPTIONS},
       setup_requires=['py2app'],
       install_requires=[
