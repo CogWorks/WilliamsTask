@@ -27,6 +27,7 @@ from pyglet.media import StaticSource
 
 from random import choice, randrange, uniform, sample, shuffle
 import string
+import os
 
 from primitives import Circle
 
@@ -403,9 +404,11 @@ class Task(ColorLayer):
 def main():
     screen = pyglet.window.get_platform().get_default_display().get_default_screen()
     
-    pyglet.resource.path.append('resources')
+    pyglet.resource.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),'resources'))
     pyglet.resource.reindex()
-    font.add_directory('resources')
+    
+    pyglet.resource.add_font('Pipe_Dream.ttf')
+    pyglet.resource.add_font('cutouts.ttf')
     
     settings = {'eyetracker': False,
                 'eyetracker_ip': '127.0.0.1',
@@ -442,6 +445,3 @@ def main():
     director.replace(scene)
     
     reactor.run()
-
-if __name__ == '__main__':
-    main()

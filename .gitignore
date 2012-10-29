@@ -1,6 +1,7 @@
 build
 dist
 data
+*.egg-info
 *.pyc
 .settings
 .project

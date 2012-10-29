@@ -1,18 +1,1 @@
-============
-WilliamsTask
-============
-
-This is a modern implementation of L.G. Williams' classic 1967 visual search task.
-
-System Requirements
--------------------
-
-* Python 2.7
-* pyglet >=1.2alpha1
-* cocos2d
-* twisted
-
-::
-
-  pip install http://pyglet.googlecode.com/files/pyglet-1.2alpha1.zip
-  pip install cocos2d twisted
+README
