@@ -11,6 +11,6 @@ py2app:
 	python setup.py py2app
 	
 clean:
-	rm -rf build dist *.egg-info
+	rm -rf build dist *.egg*
 	rm -rf `find . -name "*.pyc"`
 	rm -rf `find . -name "\.DS_Store"`

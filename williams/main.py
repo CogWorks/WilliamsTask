@@ -6,7 +6,7 @@ import pygletreactor
 pygletreactor.install()
 from twisted.internet import reactor
 
-from pyglet import image, font, text
+from pyglet import image, font, text, clock
 from pyglet.gl import *
 from pyglet.window import key
 
@@ -27,7 +27,6 @@ from pyglet.media import StaticSource
 
 from random import choice, randrange, uniform, sample, shuffle
 import string
-import os
 
 from primitives import Circle
 
@@ -142,7 +141,8 @@ class MainMenu(BetterMenu):
             self.parent.switch_to(2)
         else:
             scene = Scene()
-            scene.add(Task(self.settings), z=0)
+            scene.add(TaskBackground(self.settings), z=0)
+            scene.add(Task(self.settings), z=1)
             director.push(SplitRowsTransition(scene))
 
     def on_quit(self):
@@ -256,22 +256,32 @@ class BackgroundLayer(Layer):
 
 class Probe(Label):
     
-    def __init__(self, mode, chunk, width, position, font_size):
-        self.chunk = chunk
-        id = "%02d" % chunk[3]
-        color = chunk[1].upper()
-        shape = chunk[0].upper()
-        size = chunk[2].upper()
-        if mode == 'Easy':
-            s = 3
-        elif mode == 'Moderate':
+    def __init__(self, app, mode, width, position, font_size):
+        
+        s = 3
+        
+        if mode == 'Experiment':
+            trial = app.trials.pop()
+            for c in app.combos:
+                if c[0] == trial[0] and c[1] == trial[1] and c[2] == trial[2]:
+                    self.chunk = c
+                    s = trial[3]
+                    break
+        else:
+            self.chunk = choice(app.combos)
+        
+        id = "%02d" % self.chunk[3]
+        color = self.chunk[1].upper()
+        shape = self.chunk[0].upper()
+        size = self.chunk[2].upper()        
+
+        if mode == 'Moderate':
             s = choice([2, 3])
         elif mode == 'Hard':
             s = choice([1, 2, 3])
         elif mode == 'Insane':
             s = choice([0, 1, 2, 3])
-        else: #Experiment mode needs fixing
-            s = choice([0, 1, 2, 3])
+        
         cues = tuple(sample([color, shape, size], s) + [id])
         template = '\n'.join(["%s"] * len(cues))
         html = template % (cues)
@@ -279,6 +289,14 @@ class Probe(Label):
                                     anchor_x='center', anchor_y='center', align='center',
                                     color=(64, 64, 64, 255), font_name="Monospace", font_size=font_size)
         self.cshape = CircleShape(eu.Vector2(position[0], position[1]), width * .6)
+
+class TaskBackground(Layer):
+    
+    def __init__(self, settings):
+        super(TaskBackground, self).__init__()
+        self.screen = director.get_window_size()
+        self.trial_display = Label("1 of 300", position=(self.screen[0]-10,10), font_name='', font_size=18, bold=True, color=(128,128,128,128), anchor_x='right')
+        self.add(self.trial_display)
 
 class Task(ColorLayer):
     
@@ -312,12 +330,22 @@ class Task(ColorLayer):
         self.ratio = self.side / 128
         self.scales = [self.ratio * 1.5, self.ratio, self.ratio * .5]
         self.sizes = ["large", "medium", "small"]
+        self.gen_trials()
         self.gen_combos()
         self.gen_probe()
         self.batch = BatchNode()
         self.id_batch = BatchNode()
         director.window.set_mouse_visible(False)
         self.circles = []
+        
+    def gen_trials(self):
+        self.trials = []
+        for scale in self.sizes:
+            for color in self.colors:
+                for shape in self.shapes:
+                    for c in [0,1,2,3]:
+                        self.trials.append([shape, color, scale, c])
+        shuffle(self.trials)
         
     def gen_combos(self):
         ids = range(1, 76)
@@ -329,7 +357,7 @@ class Task(ColorLayer):
                     self.combos.append([shape, color, scale, ids.pop()])
         
     def gen_probe(self):
-        self.probe = Probe(self.settings['mode'], choice(self.combos), self.side, (self.screen[1] / 2, self.screen[1] / 2), 14 * self.ratio)
+        self.probe = Probe(self, self.settings['mode'], self.side, (self.screen[1] / 2, self.screen[1] / 2), 14 * self.ratio)
         self.add(self.probe)
         
     def clear_shapes(self):
@@ -404,7 +432,7 @@ class Task(ColorLayer):
 def main():
     screen = pyglet.window.get_platform().get_default_display().get_default_screen()
     
-    pyglet.resource.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),'resources'))
+    pyglet.resource.path.append('resources')
     pyglet.resource.reindex()
     
     pyglet.resource.add_font('Pipe_Dream.ttf')
@@ -427,6 +455,7 @@ def main():
     director.window.pop_handlers()
     director.window.push_handlers(ExperimentHandler())
     
+    director.fps_display = clock.ClockDisplay(font=font.load('', 18, bold=True))
     director.set_show_FPS(True)
     
     scene = Scene()

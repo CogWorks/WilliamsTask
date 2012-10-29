@@ -11,7 +11,8 @@ PLIST = {
 OPTIONS = {
            'argv_emulation': True,
            'iconfile': 'williams/resources/logo.icns',
-           'plist': PLIST
+           'plist': PLIST,
+           'site_packages': True
            }
 
 setup(
