@@ -7,7 +7,7 @@ This is a modern implementation of L.G. Williams' classic 1967 visual search tas
 System Requirements
 -------------------
 
-* Python 2.7
+* Python 2.6 or 2.7
 * pyglet >=1.2alpha1
 * cocos2d
 * twisted
