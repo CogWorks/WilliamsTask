@@ -32,7 +32,7 @@ from primitives import Circle
 
 ###
 from util import hsv_to_rgb, get_time
-from handler import ExperimentHandler
+from handler import DefaultHandler
 from menu import BetterMenu, GhostMenuItem
 ###
 
@@ -485,7 +485,7 @@ def main():
     director.window.set_fullscreen(True, screen)
 
     director.window.pop_handlers()
-    director.window.push_handlers(ExperimentHandler())
+    director.window.push_handlers(DefaultHandler())
     
     director.fps_display = clock.ClockDisplay(font=font.load('', 18, bold=True))
     director.set_show_FPS(True)

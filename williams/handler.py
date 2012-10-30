@@ -7,9 +7,9 @@ from cocos.director import director
 
 from PIL import Image
 
-class ExperimentHandler(object):
+class DefaultHandler(object):
     def __init__(self):
-        super(ExperimentHandler, self).__init__()
+        super(DefaultHandler, self).__init__()
 
     def on_key_press(self, symbol, modifiers):
         if symbol == key.F and (modifiers & key.MOD_ACCEL):
