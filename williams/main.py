@@ -124,6 +124,7 @@ class MainMenu(BetterMenu):
         self.items = []
         
         self.items.append(MultipleMenuItem('Mode: ', self.on_mode, self.settings['modes']))
+        self.items.append(MenuItem('Tutorial', self.on_tutorial))
         self.items.append(MenuItem('Start', self.on_start))
         self.items.append(MenuItem('Options', self.on_options))
         self.items.append(MenuItem('Quit', self.on_quit))
@@ -132,13 +133,16 @@ class MainMenu(BetterMenu):
 
     def on_mode(self, mode):
          self.settings['mode'] = self.settings['modes'][mode]
+    
+    def on_tutorial(self):
+        self.parent.switch_to(1)
         
     def on_options(self):
-        self.parent.switch_to(1)
+        self.parent.switch_to(2)
         
     def on_start(self):
         if self.settings['mode'] == "Experiment":
-            self.parent.switch_to(2)
+            self.parent.switch_to(3)
         else:
             scene = Scene()
             scene.add(Task(self.settings), z=1)
@@ -218,6 +222,74 @@ class Shape(Sprite):
     def on_enter(self):
         super(Shape, self).on_enter()
         if self.on_enter_action: self.do(self.on_enter_action)
+
+class TutorialLayer(ColorLayer):
+    
+    def __init__(self, settings):
+        self.settings = settings
+        self.screen = director.get_window_size()
+        super(TutorialLayer, self).__init__(0, 0, 0, 255, self.screen[0], self.screen[1])
+        
+        self.side = self.screen[1] / 11
+        self.ratio = self.side / 128
+        self.scales = [self.ratio * 1.5, self.ratio, self.ratio * .5]
+        self.sizes = ["large", "medium", "small"]
+        
+        self.batch = BatchNode()
+        self.text_batch = BatchNode()
+        self.add(self.batch)
+        self.add(self.text_batch)
+        
+        s = 50
+        v = 100
+        self.colors = {"red": hsv_to_rgb(0, s, v),
+                       "yellow": hsv_to_rgb(72, s, v),
+                       "green": hsv_to_rgb(144, s, v),
+                       "blue": hsv_to_rgb(216, s, v),
+                       "purple": hsv_to_rgb(288, s, v)}
+        
+        self.shapes = {"oval":"F",
+                       "diamond":"T",
+                       "crescent":"Q",
+                       "cross":"Y",
+                       "star":"C"}
+        self.font = font.load('Cut Outs for 3D FX', 128)
+        for shape in self.shapes:
+            self.shapes[shape] = self.font.get_glyphs(self.shapes[shape])[0].get_texture(True)
+            
+        j = 1
+        for scale in self.scales:
+            i = 0
+            y = self.screen[1] / 2 + self.screen[1] / 5 * j
+            x = self.screen[0] / 2 + self.screen[0] / 7 * (i - 2.75)
+            
+            l = text.Label("%s" % self.sizes[self.scales.index(scale)].upper(), font_size=36 * self.ratio,
+                            x=x, y=y, font_name="Pipe Dream", color=(255, 255, 255, 255),
+                            anchor_x='center', anchor_y='center', batch=self.text_batch.batch)
+            
+            i += 1
+            for shape in self.shapes:
+                img = self.shapes[shape].get_texture(True)
+                img.anchor_x = 'center'
+                img.anchor_y = 'center'
+                x = self.screen[0] / 2 + self.screen[0] / 7 * (i - 2.75)
+                sprite = Shape(img, scale=scale, position=(x, y), color=self.colors.values()[i - 1], rotation=randrange(0, 365))
+                self.batch.add(sprite)
+                if self.scales.index(scale) == 0:
+                    yy = self.screen[1] / 2 + self.screen[1] / 5 * (j + .75)
+                    l = text.Label("%s" % self.colors.keys()[i - 1].upper(), font_size=36 * self.ratio,
+                                   x=x, y=yy, font_name="Pipe Dream", color=(255, 255, 255, 255),
+                                   anchor_x='center', anchor_y='center', batch=self.text_batch.batch)
+                i += 1
+                if self.scales.index(scale) == 2:
+                    yy = self.screen[1] / 2 + self.screen[1] / 5 * (j - .5)
+                    l = text.Label("%s" % shape.upper(), font_size=36 * self.ratio,
+                                   x=x, y=yy, font_name="Pipe Dream", color=(255, 255, 255, 255),
+                                   anchor_x='center', anchor_y='center', batch=self.text_batch.batch)
+                    
+            
+            j -= 1
+        
         
 class BackgroundLayer(Layer):
     
@@ -348,7 +420,7 @@ class Task(ColorLayer):
         self.search_time = -1
         self.study_time = -1
         self.ready = False
-        self.ready_label = Label("Click mouse when ready!", position=(self.width/2, self.height/2), font_name='Pipe Dream', font_size=24, color=(0, 0, 0, 255), anchor_x='center', anchor_y='center')
+        self.ready_label = Label("Click mouse when ready!", position=(self.width / 2, self.height / 2), font_name='Pipe Dream', font_size=24, color=(0, 0, 0, 255), anchor_x='center', anchor_y='center')
         self.add(self.ready_label)
         
     def trial_done(self):
@@ -494,6 +566,7 @@ def main():
     scene = Scene()
     scene.add(MultiplexLayer(
                         MainMenu(settings),
+                        TutorialLayer(settings),
                         OptionsMenu(settings),
                         ParticipantMenu(settings),
                     ), z=0)
