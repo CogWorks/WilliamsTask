@@ -5,6 +5,7 @@ from __future__ import division
 import pygletreactor
 pygletreactor.install()
 from twisted.internet import reactor
+from twisted.internet.task import Cooperator
 
 from pyglet import image, font, text, clock
 from pyglet.gl import *
@@ -29,6 +30,18 @@ from random import choice, randrange, uniform, sample, shuffle
 import string
 
 from primitives import Circle
+
+import sys
+sys.path.append("/System/Library/Frameworks/Python.framework/Versions/2.7/Extras/lib/python/PyObjC")
+import pyttsx
+engine = pyttsx.init()
+engine.startLoop(False)
+def pyttsx_iterate():
+    while True:
+        engine.iterate()
+        yield
+coop = Cooperator()
+coop.coiterate(pyttsx_iterate())
 
 ###
 from util import hsv_to_rgb, get_time
@@ -225,6 +238,8 @@ class Shape(Sprite):
 
 class TutorialLayer(ColorLayer):
     
+    is_event_handler = True
+    
     def __init__(self, settings):
         self.settings = settings
         self.screen = director.get_window_size()
@@ -238,7 +253,7 @@ class TutorialLayer(ColorLayer):
         self.batch = BatchNode()
         self.text_batch = BatchNode()
         self.add(self.batch)
-        self.add(self.text_batch)
+        self.add(self.text_batch, z=1)
         
         s = 50
         v = 100
@@ -297,6 +312,31 @@ class TutorialLayer(ColorLayer):
                     
             
             j -= 1
+        
+    def on_enter(self):
+        super(TutorialLayer, self).on_enter()
+        self.token = engine.connect('finished-utterance', self.finished_utterance)
+        
+    def on_exit(self):
+        super(TutorialLayer, self).on_exit()
+        engine.disconnect(self.token)
+        
+    def finished_utterance(self, name, completed):
+        print name, completed
+            
+    def on_key_press(self, symbol, modifiers):
+        if symbol == key.ESCAPE:
+            self.parent.switch_to(0)
+        elif symbol == key.SPACE:
+            engine.say('In this task your job will be to search for target objects.')
+            engine.say('Each object in the search display will have a unique shape, color and size.')
+            engine.say('The 5 colors used in this task are blue, purple, green, yellow and red.')
+            engine.say('The 5 shapes used in this task are oval, diamond, star, crescent and cross.')
+            engine.say('The 3 sizes used in this task are large, medium and small.')
+            engine.say('The 5 colors, 5 shapes, and 3 sizes result in 75 unique combinations.')
+            engine.say('Note, not all combinations are shown on this screen.')
+            engine.say('Each object will also have a randomly assigned numeric I D between 1 and 75.')
+            engine.say('Take a moment and study the shapes, colors and sizes.')
         
         
 class BackgroundLayer(Layer):
@@ -543,6 +583,8 @@ class Task(ColorLayer):
         
                  
 def main():
+    engine = pyttsx.init()
+    
     screen = pyglet.window.get_platform().get_default_display().get_default_screen()
     
     pyglet.resource.path.append('resources')
