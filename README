@@ -12,8 +12,10 @@ System Requirements
 * cocos2d
 * twisted
 * PIL
+* ez_setup
+* pyttsx
 
 ::
 
   pip install http://pyglet.googlecode.com/files/pyglet-1.2alpha1.zip
-  pip install cocos2d twisted PIL
+  pip install ez_setup pyttsx cocos2d twisted PIL
