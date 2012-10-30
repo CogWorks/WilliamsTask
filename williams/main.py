@@ -197,6 +197,7 @@ class ParticipantMenu(BetterMenu):
         t = Task(self.settings, tb)
         scene.add(tb, z=0)
         scene.add(t, z=1)
+        self.parent.switch_to(0)
         director.push(SplitRowsTransition(scene))
 
     def on_quit(self):
