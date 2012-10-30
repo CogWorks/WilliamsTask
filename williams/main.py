@@ -228,7 +228,7 @@ class TutorialLayer(ColorLayer):
     def __init__(self, settings):
         self.settings = settings
         self.screen = director.get_window_size()
-        super(TutorialLayer, self).__init__(0, 0, 0, 255, self.screen[0], self.screen[1])
+        super(TutorialLayer, self).__init__(168, 168, 168, 255, self.screen[0], self.screen[1])
         
         self.side = self.screen[1] / 11
         self.ratio = self.side / 128
@@ -257,6 +257,11 @@ class TutorialLayer(ColorLayer):
         for shape in self.shapes:
             self.shapes[shape] = self.font.get_glyphs(self.shapes[shape])[0].get_texture(True)
             
+        label_color = (32, 32, 32, 255)
+            
+        ids = range(1,76)
+        shuffle(ids)
+            
         j = 1
         for scale in self.scales:
             i = 0
@@ -264,7 +269,7 @@ class TutorialLayer(ColorLayer):
             x = self.screen[0] / 2 + self.screen[0] / 7 * (i - 2.75)
             
             l = text.Label("%s" % self.sizes[self.scales.index(scale)].upper(), font_size=36 * self.ratio,
-                            x=x, y=y, font_name="Pipe Dream", color=(255, 255, 255, 255),
+                            x=x, y=y, font_name="Pipe Dream", color=label_color,
                             anchor_x='center', anchor_y='center', batch=self.text_batch.batch)
             
             i += 1
@@ -274,17 +279,20 @@ class TutorialLayer(ColorLayer):
                 img.anchor_y = 'center'
                 x = self.screen[0] / 2 + self.screen[0] / 7 * (i - 2.75)
                 sprite = Shape(img, scale=scale, position=(x, y), color=self.colors.values()[i - 1], rotation=randrange(0, 365))
+                l = text.Label("%02d" % ids.pop(), font_size=14 * self.ratio,
+                            x=x, y=y, font_name="Monospace", color=label_color,
+                            anchor_x='center', anchor_y='center', batch=self.text_batch.batch)
                 self.batch.add(sprite)
                 if self.scales.index(scale) == 0:
                     yy = self.screen[1] / 2 + self.screen[1] / 5 * (j + .75)
                     l = text.Label("%s" % self.colors.keys()[i - 1].upper(), font_size=36 * self.ratio,
-                                   x=x, y=yy, font_name="Pipe Dream", color=(255, 255, 255, 255),
+                                   x=x, y=yy, font_name="Pipe Dream", color=label_color,
                                    anchor_x='center', anchor_y='center', batch=self.text_batch.batch)
                 i += 1
                 if self.scales.index(scale) == 2:
                     yy = self.screen[1] / 2 + self.screen[1] / 5 * (j - .5)
                     l = text.Label("%s" % shape.upper(), font_size=36 * self.ratio,
-                                   x=x, y=yy, font_name="Pipe Dream", color=(255, 255, 255, 255),
+                                   x=x, y=yy, font_name="Pipe Dream", color=label_color,
                                    anchor_x='center', anchor_y='center', batch=self.text_batch.batch)
                     
             
