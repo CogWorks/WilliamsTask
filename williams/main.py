@@ -29,7 +29,7 @@ from pyglet.media import StaticSource
 from random import choice, randrange, uniform, sample, shuffle
 import string
 
-from primitives import Circle
+from primitives import Circle, Line
 
 import sys
 sys.path.append("/System/Library/Frameworks/Python.framework/Versions/2.7/Extras/lib/python/PyObjC")
@@ -274,7 +274,7 @@ class TutorialLayer(ColorLayer):
             
         label_color = (32, 32, 32, 255)
             
-        ids = range(1,76)
+        ids = range(1, 76)
         shuffle(ids)
             
         j = 1
@@ -305,24 +305,94 @@ class TutorialLayer(ColorLayer):
                                    anchor_x='center', anchor_y='center', batch=self.text_batch.batch)
                 i += 1
                 if self.scales.index(scale) == 2:
-                    yy = self.screen[1] / 2 + self.screen[1] / 5 * (j - .5)
+                    yy = self.screen[1] / 2 + self.screen[1] / 5 * (j - .75)
                     l = text.Label("%s" % shape.upper(), font_size=36 * self.ratio,
                                    x=x, y=yy, font_name="Pipe Dream", color=label_color,
                                    anchor_x='center', anchor_y='center', batch=self.text_batch.batch)
                     
             
             j -= 1
+            
+        self.lines = []
         
     def on_enter(self):
         super(TutorialLayer, self).on_enter()
-        self.token = engine.connect('finished-utterance', self.finished_utterance)
+        self.token_fu = engine.connect('finished-utterance', self.finished_utterance)
+        self.token_su = engine.connect('started-utterance', self.started_utterance)
         
     def on_exit(self):
         super(TutorialLayer, self).on_exit()
-        engine.disconnect(self.token)
+        engine.disconnect(self.token_fu)
+    
+    def draw(self):
+        super(TutorialLayer, self).draw()
+        for line in self.lines:
+            line.render()
+            
+    def get_color_box(self, i):
+        x1 = self.screen[0] / 2 + self.screen[0] / 7 * (i - 3.25)
+        x2 = self.screen[0] / 2 + self.screen[0] / 7 * (i - 2.25)
+        y = self.screen[1] / 5
+        return [Line((x1, 1.25 * y), (x1, 4.5 * y), stroke=2, color=(1, 1, 1, 1)),
+                Line((x2, 1.25 * y), (x2, 4.5 * y), stroke=2, color=(1, 1, 1, 1)),
+                Line((x1, 1.25 * y), (x2, 1.25 * y), stroke=2, color=(1, 1, 1, 1)),
+                Line((x1, 4.5 * y), (x2, 4.5 * y), stroke=2, color=(1, 1, 1, 1))]
+        
+    def get_shape_box(self, i):
+        x1 = self.screen[0] / 2 + self.screen[0] / 7 * (i - 3.25)
+        x2 = self.screen[0] / 2 + self.screen[0] / 7 * (i - 2.25)
+        y = self.screen[1] / 5
+        return [Line((x1, .5 * y), (x1, 4 * y), stroke=2, color=(1, 1, 1, 1)),
+                Line((x2, .5 * y), (x2, 4 * y), stroke=2, color=(1, 1, 1, 1)),
+                Line((x1, .5 * y), (x2, .5 * y), stroke=2, color=(1, 1, 1, 1)),
+                Line((x1, 4 * y), (x2, 4 * y), stroke=2, color=(1, 1, 1, 1))]
+    
+    def get_size_box(self, i):
+        x = self.screen[0] / 7
+        y1 = self.screen[1] / 2 - self.screen[1] / 5 * (i - 1.5)
+        y2 = self.screen[1] / 2 - self.screen[1] / 5 * (i - 2.5)
+        return [
+                Line((x * .25, y1), (x * 6.25, y1), stroke=2, color=(1, 1, 1, 1)),
+                Line((x * .25, y2), (x * 6.25, y2), stroke=2, color=(1, 1, 1, 1)),
+                Line((x * .25, y1), (x * .25, y2), stroke=2, color=(1, 1, 1, 1)),
+                Line((x * 6.25, y1), (x * 6.25, y2), stroke=2, color=(1, 1, 1, 1))
+                ]
+    
+    def started_utterance(self, name):
+        if name == None:
+            self.lines = []
+            
+        elif name == 'blue':
+            self.lines = self.get_color_box(1)
+        elif name == 'purple':
+            self.lines = self.get_color_box(2)
+        elif name == 'green':
+            self.lines = self.get_color_box(3)
+        elif name == 'yellow':
+            self.lines = self.get_color_box(4)
+        elif name == 'red':
+            self.lines = self.get_color_box(5)
+            
+        elif name == 'oval':
+            self.lines = self.get_shape_box(1)
+        elif name == 'diamond':
+            self.lines = self.get_shape_box(2)
+        elif name == 'star':
+            self.lines = self.get_shape_box(3)
+        elif name == 'crescent':
+            self.lines = self.get_shape_box(4)
+        elif name == 'cross':
+            self.lines = self.get_shape_box(5)
+            
+        elif name == 'large':
+            self.lines = self.get_size_box(1)
+        elif name == 'medium':
+            self.lines = self.get_size_box(2)
+        elif name == 'small':
+            self.lines = self.get_size_box(3)
         
     def finished_utterance(self, name, completed):
-        print name, completed
+        self.lines = []
             
     def on_key_press(self, symbol, modifiers):
         if symbol == key.ESCAPE:
@@ -330,14 +400,26 @@ class TutorialLayer(ColorLayer):
         elif symbol == key.SPACE:
             engine.say('In this task your job will be to search for target objects.')
             engine.say('Each object in the search display will have a unique shape, color and size.')
-            engine.say('The 5 colors used in this task are blue, purple, green, yellow and red.')
-            engine.say('The 5 shapes used in this task are oval, diamond, star, crescent and cross.')
-            engine.say('The 3 sizes used in this task are large, medium and small.')
+            engine.say('The 5 colors used in this task are:')
+            engine.say('blue,,,,', 'blue')
+            engine.say('purple,,,,', 'purple')
+            engine.say('green,,,,', 'green')
+            engine.say('yellow,,,,', 'yellow')
+            engine.say('and red.,,,,', 'red')
+            engine.say('The 5 shapes used in this task are:')
+            engine.say('oval,,,,', 'oval')
+            engine.say('diamond,,,,', 'diamond')
+            engine.say('star,,,,', 'star')
+            engine.say('crescent,,,,', 'crescent')
+            engine.say('and cross.,,,,', 'cross')
+            engine.say('The 3 sizes used in this task are:')
+            engine.say('large,,,,', 'large')
+            engine.say('medium,,,,', 'medium')
+            engine.say('and small.,,,,', 'small')
             engine.say('The 5 colors, 5 shapes, and 3 sizes result in 75 unique combinations.')
             engine.say('Note, not all combinations are shown on this screen.')
             engine.say('Each object will also have a randomly assigned numeric I D between 1 and 75.')
             engine.say('Take a moment and study the shapes, colors and sizes.')
-        
         
 class BackgroundLayer(Layer):
     
