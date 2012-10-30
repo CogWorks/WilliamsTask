@@ -271,7 +271,16 @@ class TutorialLayer(ColorLayer):
         self.font = font.load('Cut Outs for 3D FX', 128)
         for shape in self.shapes:
             self.shapes[shape] = self.font.get_glyphs(self.shapes[shape])[0].get_texture(True)
-            
+        
+        self.lines = []
+        
+        self.phase = 0
+        
+    def do_phase1(self):
+        self.phase = 1
+        
+        director.window.set_mouse_visible(False)
+        
         label_color = (32, 32, 32, 255)
             
         ids = range(1, 76)
@@ -280,7 +289,7 @@ class TutorialLayer(ColorLayer):
         j = 1
         for scale in self.scales:
             i = 0
-            y = self.screen[1] / 2 + self.screen[1] / 5 * j
+            y = self.screen[1] / 2 + self.screen[1] / 5 * j + self.screen[1] / 20 
             x = self.screen[0] / 2 + self.screen[0] / 7 * (i - 2.75)
             
             l = text.Label("%s" % self.sizes[self.scales.index(scale)].upper(), font_size=36 * self.ratio,
@@ -299,26 +308,53 @@ class TutorialLayer(ColorLayer):
                             anchor_x='center', anchor_y='center', batch=self.text_batch.batch)
                 self.batch.add(sprite)
                 if self.scales.index(scale) == 0:
-                    yy = self.screen[1] / 2 + self.screen[1] / 5 * (j + .75)
+                    yy = self.screen[1] / 2 + self.screen[1] / 5 * (j + .75) + self.screen[1] / 20
                     l = text.Label("%s" % self.colors.keys()[i - 1].upper(), font_size=36 * self.ratio,
                                    x=x, y=yy, font_name="Pipe Dream", color=label_color,
                                    anchor_x='center', anchor_y='center', batch=self.text_batch.batch)
                 i += 1
                 if self.scales.index(scale) == 2:
-                    yy = self.screen[1] / 2 + self.screen[1] / 5 * (j - .75)
+                    yy = self.screen[1] / 2 + self.screen[1] / 5 * (j - .75) + self.screen[1] / 20
                     l = text.Label("%s" % shape.upper(), font_size=36 * self.ratio,
                                    x=x, y=yy, font_name="Pipe Dream", color=label_color,
                                    anchor_x='center', anchor_y='center', batch=self.text_batch.batch)
                     
             
             j -= 1
-            
-        self.lines = []
         
+        """
+        engine.say(',,,,In this task, your job will be to search for target objects.')
+        engine.say('Each object in the search display will have a unique combination of shape, color and size.,,')
+        engine.say('The 5 colors used in this task are:')
+        engine.say('blue,,,,', 'blue')
+        engine.say('purple,,,,', 'purple')
+        engine.say('green,,,,', 'green')
+        engine.say('yellow,,,,', 'yellow')
+        engine.say('and red.,,,,', 'red')
+        #engine.say('The 5 shapes used in this task are:')
+        engine.say('oval,,,,', 'oval')
+        engine.say('diamond,,,,', 'diamond')
+        engine.say('star,,,,', 'star')
+        engine.say('crescent,,,,', 'crescent')
+        engine.say('and cross.,,,,', 'cross')
+        #engine.say('The 3 sizes used in this task are:')
+        engine.say('large,,,,', 'large')
+        engine.say('medium,,,,', 'medium')
+        engine.say('and small.,,,,', 'small')
+        "engine.say('The 5 colors, 5 shapes, and 3 sizes result in 75 unique combinations.')
+        engine.say(',,,Note,, not all combinations are shown on this screen.')
+        engine.say(',,,Each object will also have a randomly assigned numeric I D between 1 and 75.,,,', 'id')"""
+        engine.say('Take a moment and study the shapes, colors and sizes.,,,,,,', 'phase1-done')
+
+    def do_phase2(self):
+        print "doing phase 2"
+
     def on_enter(self):
         super(TutorialLayer, self).on_enter()
         self.token_fu = engine.connect('finished-utterance', self.finished_utterance)
         self.token_su = engine.connect('started-utterance', self.started_utterance)
+        if self.phase == 0:
+            self.do_phase1()
         
     def on_exit(self):
         super(TutorialLayer, self).on_exit()
@@ -328,29 +364,29 @@ class TutorialLayer(ColorLayer):
         super(TutorialLayer, self).draw()
         for line in self.lines:
             line.render()
-            
+
     def get_color_box(self, i):
         x1 = self.screen[0] / 2 + self.screen[0] / 7 * (i - 3.25)
         x2 = self.screen[0] / 2 + self.screen[0] / 7 * (i - 2.25)
-        y = self.screen[1] / 5
-        return [Line((x1, 1.25 * y), (x1, 4.5 * y), stroke=2, color=(1, 1, 1, 1)),
-                Line((x2, 1.25 * y), (x2, 4.5 * y), stroke=2, color=(1, 1, 1, 1)),
+        y = self.screen[1] / 5 + self.screen[1] / 40
+        return [Line((x1, 1.25 * y), (x1, 4.5 * y - self.screen[1] / 40), stroke=2, color=(1, 1, 1, 1)),
+                Line((x2, 1.25 * y), (x2, 4.5 * y - self.screen[1] / 40), stroke=2, color=(1, 1, 1, 1)),
                 Line((x1, 1.25 * y), (x2, 1.25 * y), stroke=2, color=(1, 1, 1, 1)),
-                Line((x1, 4.5 * y), (x2, 4.5 * y), stroke=2, color=(1, 1, 1, 1))]
+                Line((x1, 4.5 * y - self.screen[1] / 40), (x2, 4.5 * y - self.screen[1] / 40), stroke=2, color=(1, 1, 1, 1))]
         
     def get_shape_box(self, i):
         x1 = self.screen[0] / 2 + self.screen[0] / 7 * (i - 3.25)
         x2 = self.screen[0] / 2 + self.screen[0] / 7 * (i - 2.25)
-        y = self.screen[1] / 5
-        return [Line((x1, .5 * y), (x1, 4 * y), stroke=2, color=(1, 1, 1, 1)),
-                Line((x2, .5 * y), (x2, 4 * y), stroke=2, color=(1, 1, 1, 1)),
+        y = self.screen[1] / 5 + self.screen[1] / 40
+        return [Line((x1, .5 * y), (x1, 4 * y - self.screen[1] / 40), stroke=2, color=(1, 1, 1, 1)),
+                Line((x2, .5 * y), (x2, 4 * y - self.screen[1] / 40), stroke=2, color=(1, 1, 1, 1)),
                 Line((x1, .5 * y), (x2, .5 * y), stroke=2, color=(1, 1, 1, 1)),
-                Line((x1, 4 * y), (x2, 4 * y), stroke=2, color=(1, 1, 1, 1))]
+                Line((x1, 4 * y - self.screen[1] / 40), (x2, 4 * y - self.screen[1] / 40), stroke=2, color=(1, 1, 1, 1))]
     
     def get_size_box(self, i):
         x = self.screen[0] / 7
-        y1 = self.screen[1] / 2 - self.screen[1] / 5 * (i - 1.5)
-        y2 = self.screen[1] / 2 - self.screen[1] / 5 * (i - 2.5)
+        y1 = self.screen[1] / 2 - self.screen[1] / 5 * (i - 1.5) + self.screen[1] / 20
+        y2 = self.screen[1] / 2 - self.screen[1] / 5 * (i - 2.5) + self.screen[1] / 20
         return [
                 Line((x * .25, y1), (x * 6.25, y1), stroke=2, color=(1, 1, 1, 1)),
                 Line((x * .25, y2), (x * 6.25, y2), stroke=2, color=(1, 1, 1, 1)),
@@ -361,6 +397,15 @@ class TutorialLayer(ColorLayer):
     def started_utterance(self, name):
         if name == None:
             self.lines = []
+            
+        elif name == 'id':
+            y = self.screen[1] / 2 - 5
+            x = self.screen[0] / 2 + self.screen[0] / 7 * (3 - 2.75) + 5
+            self.arrow = Sprite("cursor_arrow.png", position=(x, y))
+            rect = self.arrow.get_rect()
+            self.arrow.position = rect.bottomright
+            self.arrow.do(Repeat(Blink(2, 1.5)))
+            self.add(self.arrow)
             
         elif name == 'blue':
             self.lines = self.get_color_box(1)
@@ -390,36 +435,34 @@ class TutorialLayer(ColorLayer):
             self.lines = self.get_size_box(2)
         elif name == 'small':
             self.lines = self.get_size_box(3)
+            
+    def blink_continue(self, delta):
+        if self.continue_label_alpha == 255:
+            self.continue_label_alpha = 0
+        else:
+            self.continue_label_alpha = 255
+        self.continue_label.set_style('color', (96, 96, 96, self.continue_label_alpha))
         
     def finished_utterance(self, name, completed):
         self.lines = []
+        if name == 'id':
+            self.remove(self.arrow)
+        elif name == 'phase1-done':
+            self.continue_label_alpha = 255
+            self.continue_label = text.Label("Press the spacebar to continue", font_size=48 * self.ratio,
+                                            x=self.screen[0] / 2, y=24, font_name="Pipe Dream", color=(96, 96, 96, self.continue_label_alpha),
+                                            anchor_x='center', anchor_y='bottom', batch=self.text_batch.batch)
+            self.schedule_interval(self.blink_continue, .75)
+            
             
     def on_key_press(self, symbol, modifiers):
         if symbol == key.ESCAPE:
             self.parent.switch_to(0)
         elif symbol == key.SPACE:
-            engine.say('In this task your job will be to search for target objects.')
-            engine.say('Each object in the search display will have a unique shape, color and size.')
-            engine.say('The 5 colors used in this task are:')
-            engine.say('blue,,,,', 'blue')
-            engine.say('purple,,,,', 'purple')
-            engine.say('green,,,,', 'green')
-            engine.say('yellow,,,,', 'yellow')
-            engine.say('and red.,,,,', 'red')
-            engine.say('The 5 shapes used in this task are:')
-            engine.say('oval,,,,', 'oval')
-            engine.say('diamond,,,,', 'diamond')
-            engine.say('star,,,,', 'star')
-            engine.say('crescent,,,,', 'crescent')
-            engine.say('and cross.,,,,', 'cross')
-            engine.say('The 3 sizes used in this task are:')
-            engine.say('large,,,,', 'large')
-            engine.say('medium,,,,', 'medium')
-            engine.say('and small.,,,,', 'small')
-            engine.say('The 5 colors, 5 shapes, and 3 sizes result in 75 unique combinations.')
-            engine.say('Note, not all combinations are shown on this screen.')
-            engine.say('Each object will also have a randomly assigned numeric I D between 1 and 75.')
-            engine.say('Take a moment and study the shapes, colors and sizes.')
+            for c in self.get_children(): self.remove(c)
+            self.phase = 2
+            self.do_phase2()
+
         
 class BackgroundLayer(Layer):
     
@@ -517,8 +560,7 @@ class Task(ColorLayer):
         self.bg = bg
         self.screen = director.get_window_size()
         super(Task, self).__init__(168, 168, 168, 255, self.screen[1], self.screen[1])        
-        xmin = (self.screen[0] - self.screen[1]) / 2
-        self.position = (xmin, 0)
+        self.position = ((self.screen[0] - self.screen[1]) / 2, 0)
         self.cm = CollisionManagerBruteForce()
         self.mono = font.load("Mono", 32)
         self.shapes = {"oval":"F",
