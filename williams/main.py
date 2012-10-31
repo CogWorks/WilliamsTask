@@ -5,7 +5,6 @@ from __future__ import division
 import pygletreactor
 pygletreactor.install()
 from twisted.internet import reactor
-from twisted.internet.task import Cooperator
 
 from pyglet import image, font, text, clock
 from pyglet.gl import *
@@ -36,12 +35,8 @@ sys.path.append("/System/Library/Frameworks/Python.framework/Versions/2.7/Extras
 import pyttsx
 engine = pyttsx.init()
 engine.startLoop(False)
-def pyttsx_iterate():
-    while True:
-        engine.iterate()
-        yield
-coop = Cooperator()
-coop.coiterate(pyttsx_iterate())
+def pyttsx_iterate(dt):
+    engine.iterate()
 
 ###
 from util import hsv_to_rgb, get_time
@@ -351,6 +346,7 @@ class TutorialLayer(ColorLayer):
 
     def on_enter(self):
         super(TutorialLayer, self).on_enter()
+        self.schedule(pyttsx_iterate)
         self.token_fu = engine.connect('finished-utterance', self.finished_utterance)
         self.token_su = engine.connect('started-utterance', self.started_utterance)
         if self.transition and self.phase == 0:
@@ -359,7 +355,9 @@ class TutorialLayer(ColorLayer):
         
     def on_exit(self):
         super(TutorialLayer, self).on_exit()
+        self.unschedule(pyttsx_iterate)
         engine.disconnect(self.token_fu)
+        engine.disconnect(self.token_su)
     
     def draw(self):
         super(TutorialLayer, self).draw()
@@ -400,7 +398,7 @@ class TutorialLayer(ColorLayer):
             self.lines = []
             
         elif name == 'id':
-            y = self.screen[1] / 2 - 5
+            y = self.screen[1] / 2 - 5 + self.screen[1] / 20
             x = self.screen[0] / 2 + self.screen[0] / 7 * (3 - 2.75) + 5
             self.arrow = Sprite("cursor_arrow.png", position=(x, y))
             rect = self.arrow.get_rect()
@@ -458,7 +456,7 @@ class TutorialLayer(ColorLayer):
             
     def on_key_press(self, symbol, modifiers):
         if symbol == key.ESCAPE:
-            self.parent.switch_to(0)
+            director.pop()
         elif symbol == key.SPACE:
             for c in self.get_children(): self.remove(c)
             self.phase = 2
