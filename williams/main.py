@@ -867,7 +867,7 @@ def main():
                   visible=False, resizable=True)
 
     if platform.system() != 'Windows':
-        director.window.set_icon()
+        director.window.set_icon(pyglet.resource.image('logo.png'))
         cursor = director.window.get_system_mouse_cursor(director.window.CURSOR_HAND)
         director.window.set_mouse_cursor(cursor)
     
