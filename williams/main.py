@@ -728,7 +728,7 @@ def main():
     director.window.set_icon(pyglet.resource.image('logo.png'))
     
     director.window.set_size(screen.width / 2, screen.height / 2)
-    director.window.set_fullscreen(True, screen)
+    director.window.set_fullscreen(True)
 
     director.window.pop_handlers()
     director.window.push_handlers(DefaultHandler())
