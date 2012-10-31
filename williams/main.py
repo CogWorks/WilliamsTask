@@ -46,6 +46,127 @@ from handler import DefaultHandler
 from menu import BetterMenu, GhostMenuItem
 ###
 
+from pyviewx import iViewXClient, Dispatcher
+
+class CalibrationScene(Scene):
+
+    d = Dispatcher()
+
+    def __init__(self, settings):
+        super(CalibrationScene, self).__init__()
+        self.settings = settings
+        self.client = iViewXClient(self.settings['eyetracker_ip'], int(self.settings['eyetracker_port']))
+        self.client.addDispatcher(self.d)
+        reactor.listenUDP(5555, self.client)
+
+        self.window = director.window.get_size()
+        self.screen = director.get_window_size()
+        self.win_scale = (self.screen[0]/self.window[0], self.screen[1]/self.window[1])
+
+        self.font = font.load('Cut Outs for 3D FX', 32)
+        circle_img = self.font.get_glyphs("E")[0].get_texture(True)
+        circle_img.anchor_x = 'center'
+        circle_img.anchor_y = 'center'
+        self.circle = Sprite(circle_img, color=(255,255,0))
+
+        self.spinner = Sprite(pyglet.resource.image('spinner.png'), position=(self.screen[0]/2, self.screen[1]/2), color=(255,255,255))
+
+        self.reset()
+
+        self.client.setDataFormat('%TS %ET %SX %SY %DX %DY %EX %EY %EZ')
+        self.client.startDataStreaming()
+        self.client.setSizeCalibrationArea(self.window[0], self.window[1])
+        self.client.setCalibrationParam(1, 1)
+        self.client.setCalibrationParam(2, 0)
+        self.client.setCalibrationParam(3, 1)
+        self.client.setCalibrationCheckLevel(3)
+        self.client.startCalibration(9, 0)
+
+    def reset(self):
+        for c in self.get_children():
+            c.stop()
+            self.remove(c)
+        self.calibrating = True
+        self.client.cancelCalibration()
+        self.calibrationPoints = [None] * 9
+        self.calibrationResults = []
+        self.circle.opacity = 0
+        self.add(ColorLayer(0,0,255,255))
+        self.add(self.circle)
+
+    def on_enter(self):
+        super(CalibrationScene, self).on_enter()
+        director.window.push_handlers(self)
+
+    def on_exit(self):
+        super(CalibrationScene, self).on_exit()
+        director.window.remove_handlers(self)
+
+    def on_key_press(self, symbol, modifiers):
+        if symbol == key.SPACE:
+            if self.calibrating and not self.circle.actions:
+                self.client.acceptCalibrationPoint()
+        elif symbol == key.R:
+            self.reset()
+            self.client.startCalibration(9, 0)
+
+    @d.listen('ET_SPL')
+    def iViewXEvent(self, inSender, inEvent, inResponse):
+        pass
+
+    @d.listen('ET_CAL')
+    def iViewXEvent(self, inSender, inEvent, inResponse):
+        pass
+
+    @d.listen('ET_CSZ')
+    def iViewXEvent(self, inSender, inEvent, inResponse):
+        pass
+
+    @d.listen('ET_PNT')
+    def iViewXEvent(self, inSender, inEvent, inResponse):
+        self.calibrationPoints[int(inResponse[0])-1] = (int(inResponse[1]), int(inResponse[2]))
+
+    @d.listen('ET_CHG')
+    def iViewXEvent(self, inSender, inEvent, inResponse):
+        currentPoint = int(inResponse[0]) - 1
+        x = self.calibrationPoints[currentPoint][0] * self.win_scale[0]
+        y = self.calibrationPoints[currentPoint][1] * self.win_scale[1]
+        self.circle.opacity = 255
+        if currentPoint == 0:
+            self.circle.set_position(x,y)
+        else:
+            self.circle.do(MoveTo((x,y), .5))
+
+    @d.listen('ET_VLS')
+    def iViewXEvent(self, inSender, inEvent, inResponse):
+        if not self.calibrating:
+            self.calibrationResults.append(' '.join(inResponse))
+            if len(self.calibrationResults) == 2:
+                self.remove(self.spinner)
+                self.remove(self.label)
+                text = '\n'.join(self.calibrationResults).decode("cp1252")
+                text += "\n\n\nPress 'R' to recalibrate, spres 'Spacebar' to continue..."
+                self.label = Label(text, position=(self.screen[0]/2, self.screen[1]/2),
+                                   align='center', anchor_x='center', anchor_y='center', width=self.screen[0],
+                                   font_size=32, color=(255,255,255,255), font_name="Monospace", multiline=True)
+                self.add(self.label)
+
+    @d.listen('ET_CSP')
+    def iViewXEvent(self, inSender, inEvent, inResponse):
+        pass
+
+    @d.listen('ET_FIN')
+    def iViewXEvent(self, inSender, inEvent, inResponse):
+        self.calibrating = False
+        self.remove(self.circle)
+        self.add(self.spinner)
+        self.spinner.do(Repeat(RotateBy(360, 1)))
+        self.label = Label("CALCULATING CALIBRATION ACCURACY", position=(self.screen[0]/2, self.screen[1]/4*3),
+                           font_size=32, color=(255,255,255,255), font_name="Monospace", anchor_x='center', anchor_y='center')
+        self.add(self.label)
+        self.client.requestCalibrationResults()
+        self.client.validateCalibrationAccuracy()
+
 class OptionsMenu(BetterMenu):
 
     def __init__(self, settings):
@@ -135,11 +256,15 @@ class MainMenu(BetterMenu):
         
         self.items.append(MultipleMenuItem('Mode: ', self.on_mode, self.settings['modes']))
         self.items.append(MenuItem('Tutorial', self.on_tutorial))
+        self.items.append(MenuItem('Calibrate', self.on_calibrate))
         self.items.append(MenuItem('Start', self.on_start))
         self.items.append(MenuItem('Options', self.on_options))
         self.items.append(MenuItem('Quit', self.on_quit))
         
         self.create_menu(self.items, zoom_in(), zoom_out())
+
+    def on_calibrate(self):
+        director.push(CalibrationScene(self.settings))
 
     def on_mode(self, mode):
          self.settings['mode'] = self.settings['modes'][mode]
@@ -474,7 +599,7 @@ class TutorialLayer(ColorLayer):
         if symbol == key.ESCAPE:
             director.pop()
         elif symbol == key.SPACE:
-            for c in self.get_children(): self.remove(c)
+            
             self.phase = 2
             self.do_phase2()
 
@@ -733,7 +858,7 @@ def main():
     
     settings = {'eyetracker': False,
                 'eyetracker_ip': '127.0.0.1',
-                'eyetracker_port': '5555',
+                'eyetracker_port': '4444',
                 'mode': 'Easy',
                 'modes': ['Easy', 'Moderate', 'Hard', 'Insane', 'Experiment']}
     
@@ -742,12 +867,12 @@ def main():
                   visible=False, resizable=True)
 
     if platform.system() != 'Windows':
-        director.window.set_icon(pyglet.resource.image('logo.png'))
+        director.window.set_icon()
         cursor = director.window.get_system_mouse_cursor(director.window.CURSOR_HAND)
         director.window.set_mouse_cursor(cursor)
     
     director.window.set_size(int(screen.width / 2), int(screen.height / 2))
-    director.window.set_fullscreen(True)
+    #director.window.set_fullscreen(True)
 
     director.window.pop_handlers()
     director.window.push_handlers(DefaultHandler())
