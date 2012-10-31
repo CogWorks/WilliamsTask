@@ -683,8 +683,8 @@ class Task(ColorLayer):
         else:
             self.show_shapes()
             window = director.window.get_size()
-            nx = window[0] / 2
-            ny = window[1] / 2 - self.probe.cshape.r * .75 * (window[1] / self.screen[1])
+            nx = int(window[0] / 2)
+            ny = int(window[1] / 2 - self.probe.cshape.r * .75 * (window[1] / self.screen[1]))
             
             director.window.set_mouse_position(nx, ny)
             director.window.set_mouse_visible(True)
@@ -727,7 +727,7 @@ def main():
                   visible=False, resizable=True)
     director.window.set_icon(pyglet.resource.image('logo.png'))
     
-    director.window.set_size(screen.width / 2, screen.height / 2)
+    director.window.set_size(int(screen.width / 2), int(screen.height / 2))
     director.window.set_fullscreen(True)
 
     director.window.pop_handlers()
