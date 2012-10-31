@@ -148,7 +148,7 @@ class MainMenu(BetterMenu):
          self.settings['mode'] = self.settings['modes'][mode]
     
     def on_tutorial(self):
-        self.parent.switch_to(1)
+        director.push(SplitColsTransition(Scene(TutorialLayer(self.settings))))
         
     def on_options(self):
         self.parent.switch_to(2)
@@ -274,6 +274,7 @@ class TutorialLayer(ColorLayer):
         
         self.lines = []
         
+        self.transition = False
         self.phase = 0
         
     def do_phase1(self):
@@ -322,7 +323,6 @@ class TutorialLayer(ColorLayer):
             
             j -= 1
         
-        """
         engine.say(',,,,In this task, your job will be to search for target objects.')
         engine.say('Each object in the search display will have a unique combination of shape, color and size.,,')
         engine.say('The 5 colors used in this task are:')
@@ -341,9 +341,9 @@ class TutorialLayer(ColorLayer):
         engine.say('large,,,,', 'large')
         engine.say('medium,,,,', 'medium')
         engine.say('and small.,,,,', 'small')
-        "engine.say('The 5 colors, 5 shapes, and 3 sizes result in 75 unique combinations.')
+        engine.say('The 5 colors, 5 shapes, and 3 sizes result in 75 unique combinations.')
         engine.say(',,,Note,, not all combinations are shown on this screen.')
-        engine.say(',,,Each object will also have a randomly assigned numeric I D between 1 and 75.,,,', 'id')"""
+        engine.say(',,,Each object will also have a randomly assigned numeric I D between 1 and 75.,,,', 'id')
         engine.say('Take a moment and study the shapes, colors and sizes.,,,,,,', 'phase1-done')
 
     def do_phase2(self):
@@ -353,8 +353,9 @@ class TutorialLayer(ColorLayer):
         super(TutorialLayer, self).on_enter()
         self.token_fu = engine.connect('finished-utterance', self.finished_utterance)
         self.token_su = engine.connect('started-utterance', self.started_utterance)
-        if self.phase == 0:
+        if self.transition and self.phase == 0:
             self.do_phase1()
+        self.transition = True
         
     def on_exit(self):
         super(TutorialLayer, self).on_exit()
@@ -740,7 +741,6 @@ def main():
     scene = Scene()
     scene.add(MultiplexLayer(
                         MainMenu(settings),
-                        TutorialLayer(settings),
                         OptionsMenu(settings),
                         ParticipantMenu(settings),
                     ), z=0)
