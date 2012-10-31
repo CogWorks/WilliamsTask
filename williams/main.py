@@ -223,12 +223,18 @@ class Shape(Sprite):
         super(Shape, self).__init__(image, rotation=rotation, scale=scale, opacity=opacity, color=color)
         self.chunk = chunk
         self.on_enter_action = None
-        rscale = .34
-        if self.chunk:
-            if self.chunk[0]=='cross':
-                rscale = .28
-            elif self.chunk[0]=='diamond':
-                rscale = .31
+        if platform.system() == 'Windows':
+            rscale = .34
+            if self.chunk:
+                if self.chunk[0]=='cross':
+                    rscale = .28
+                elif self.chunk[0]=='diamond':
+                    rscale = .31
+        else:
+            rscale = .55
+            if self.chunk:
+                if self.chunk[0]=='diamond':
+                    rscale = .52
         self.radius = max(self.width, self.height) * rscale
         self.set_position(position[0], position[1])
     
@@ -675,9 +681,9 @@ class Task(ColorLayer):
         self.add(self.batch, z=1)
         self.add(self.id_batch, z=2)
         
-    def draw(self):
-        super(Task, self).draw()
-        for c in self.circles: c.render()
+    #def draw(self):
+    #    super(Task, self).draw()
+    #    for c in self.circles: c.render()
         
     def on_mouse_press(self, x, y, buttons, modifiers):
         if not self.ready:
@@ -741,7 +747,7 @@ def main():
         director.window.set_mouse_cursor(cursor)
     
     director.window.set_size(int(screen.width / 2), int(screen.height / 2))
-    #director.window.set_fullscreen(True)
+    director.window.set_fullscreen(True)
 
     director.window.pop_handlers()
     director.window.push_handlers(DefaultHandler())
