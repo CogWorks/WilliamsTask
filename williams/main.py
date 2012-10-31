@@ -745,7 +745,7 @@ def main():
     
     scene.add(BackgroundLayer(), z= -1)
     
-    cursor = director.window.get_system_mouse_cursor("hand")
+    cursor = director.window.get_system_mouse_cursor(director.window.CURSOR_HAND)
     director.window.set_mouse_cursor(cursor)
     director.window.set_visible(True)
     
