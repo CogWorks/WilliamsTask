@@ -30,6 +30,8 @@ import string
 
 from primitives import Circle, Line
 
+import platform
+
 import sys
 sys.path.append("/System/Library/Frameworks/Python.framework/Versions/2.7/Extras/lib/python/PyObjC")
 import pyttsx
@@ -220,11 +222,19 @@ class Shape(Sprite):
     def __init__(self, image, chunk=None, position=(0, 0), rotation=0, scale=1, opacity=255, color=(255, 255, 255)):
         super(Shape, self).__init__(image, rotation=rotation, scale=scale, opacity=opacity, color=color)
         self.chunk = chunk
-        self.set_position(position[0], position[1])
         self.on_enter_action = None
+        rscale = .34
+        if self.chunk:
+            if self.chunk[0]=='cross':
+                rscale = .28
+            elif self.chunk[0]=='diamond':
+                rscale = .31
+        self.radius = max(self.width, self.height) * rscale
+        self.set_position(position[0], position[1])
     
     def set_position(self, x, y):
-        self.cshape = CircleShape(eu.Vector2(x, y), max(self.width, self.height) * .55)
+
+        self.cshape = CircleShape(eu.Vector2(x, y), self.radius)
         super(Shape, self).set_position(self.cshape.center[0], self.cshape.center[1])
         
     def on_enter(self):
@@ -650,7 +660,7 @@ class Task(ColorLayer):
             img.anchor_x = 'center'
             img.anchor_y = 'center'
             sprite = Shape(img, chunk=c, rotation=randrange(0, 365), color=self.colors[c[1]], scale=self.scales[self.sizes.index(c[2])])
-            pad = max(sprite.width, sprite.height) * .75
+            pad = sprite.radius
             sprite.set_position(uniform(pad, self.screen[1] - pad), uniform(pad, self.screen[1] - pad))
             while self.cm.objs_colliding(sprite):
                 sprite.set_position(uniform(pad, self.screen[1] - pad), uniform(pad, self.screen[1] - pad))
@@ -665,10 +675,9 @@ class Task(ColorLayer):
         self.add(self.batch, z=1)
         self.add(self.id_batch, z=2)
         
-    #def draw(self):
-    #    super(Task, self).draw()
-    #    for c in self.circles:
-    #        c.render()
+    def draw(self):
+        super(Task, self).draw()
+        for c in self.circles: c.render()
         
     def on_mouse_press(self, x, y, buttons, modifiers):
         if not self.ready:
@@ -725,10 +734,14 @@ def main():
     director.init(width=screen.width, height=screen.height,
                   caption="The Williams' Search Task",
                   visible=False, resizable=True)
-    director.window.set_icon(pyglet.resource.image('logo.png'))
+
+    if platform.system() != 'Windows':
+        director.window.set_icon(pyglet.resource.image('logo.png'))
+        cursor = director.window.get_system_mouse_cursor(director.window.CURSOR_HAND)
+        director.window.set_mouse_cursor(cursor)
     
     director.window.set_size(int(screen.width / 2), int(screen.height / 2))
-    director.window.set_fullscreen(True)
+    #director.window.set_fullscreen(True)
 
     director.window.pop_handlers()
     director.window.push_handlers(DefaultHandler())
@@ -745,8 +758,6 @@ def main():
     
     scene.add(BackgroundLayer(), z= -1)
     
-    cursor = director.window.get_system_mouse_cursor(director.window.CURSOR_HAND)
-    director.window.set_mouse_cursor(cursor)
     director.window.set_visible(True)
     
     director.replace(scene)
