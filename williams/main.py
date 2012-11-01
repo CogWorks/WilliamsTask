@@ -46,126 +46,133 @@ from handler import DefaultHandler
 from menu import BetterMenu, GhostMenuItem
 ###
 
-from pyviewx import iViewXClient, Dispatcher
+from odict import OrderedDict
 
-class CalibrationScene(Scene):
+try:
+    from pyviewx.client import iViewXClient, Dispatcher
+    eyetracking = True
+except ImportError:
+    eyetracking = False
 
-    d = Dispatcher()
-
-    def __init__(self, settings):
-        super(CalibrationScene, self).__init__()
-        self.settings = settings
-        self.client = iViewXClient(self.settings['eyetracker_ip'], int(self.settings['eyetracker_port']))
-        self.client.addDispatcher(self.d)
-        reactor.listenUDP(5555, self.client)
-
-        self.window = director.window.get_size()
-        self.screen = director.get_window_size()
-        self.win_scale = (self.screen[0]/self.window[0], self.screen[1]/self.window[1])
-
-        self.font = font.load('Cut Outs for 3D FX', 32)
-        circle_img = self.font.get_glyphs("E")[0].get_texture(True)
-        circle_img.anchor_x = 'center'
-        circle_img.anchor_y = 'center'
-        self.circle = Sprite(circle_img, color=(255,255,0))
-
-        self.spinner = Sprite(pyglet.resource.image('spinner.png'), position=(self.screen[0]/2, self.screen[1]/2), color=(255,255,255))
-
-        self.reset()
-
-        self.client.setDataFormat('%TS %ET %SX %SY %DX %DY %EX %EY %EZ')
-        self.client.startDataStreaming()
-        self.client.setSizeCalibrationArea(self.window[0], self.window[1])
-        self.client.setCalibrationParam(1, 1)
-        self.client.setCalibrationParam(2, 0)
-        self.client.setCalibrationParam(3, 1)
-        self.client.setCalibrationCheckLevel(3)
-        self.client.startCalibration(9, 0)
-
-    def reset(self):
-        for c in self.get_children():
-            c.stop()
-            self.remove(c)
-        self.calibrating = True
-        self.client.cancelCalibration()
-        self.calibrationPoints = [None] * 9
-        self.calibrationResults = []
-        self.circle.opacity = 0
-        self.add(ColorLayer(0,0,255,255))
-        self.add(self.circle)
-
-    def on_enter(self):
-        super(CalibrationScene, self).on_enter()
-        director.window.push_handlers(self)
-
-    def on_exit(self):
-        super(CalibrationScene, self).on_exit()
-        director.window.remove_handlers(self)
-
-    def on_key_press(self, symbol, modifiers):
-        if symbol == key.SPACE:
-            if self.calibrating and not self.circle.actions:
-                self.client.acceptCalibrationPoint()
-        elif symbol == key.R:
+if eyetracking:
+    class CalibrationScene(Scene):
+    
+        d = Dispatcher()
+    
+        def __init__(self, settings):
+            super(CalibrationScene, self).__init__()
+            self.settings = settings
+            self.client = iViewXClient(self.settings['eyetracker_ip'], int(self.settings['eyetracker_port']))
+            self.client.addDispatcher(self.d)
+            reactor.listenUDP(5555, self.client)
+    
+            self.window = director.window.get_size()
+            self.screen = director.get_window_size()
+            self.win_scale = (self.screen[0]/self.window[0], self.screen[1]/self.window[1])
+    
+            self.font = font.load('Cut Outs for 3D FX', 32)
+            circle_img = self.font.get_glyphs("E")[0].get_texture(True)
+            circle_img.anchor_x = 'center'
+            circle_img.anchor_y = 'center'
+            self.circle = Sprite(circle_img, color=(255,255,0))
+    
+            self.spinner = Sprite(pyglet.resource.image('spinner.png'), position=(self.screen[0]/2, self.screen[1]/2), color=(255,255,255))
+    
             self.reset()
+    
+            self.client.setDataFormat('%TS %ET %SX %SY %DX %DY %EX %EY %EZ')
+            self.client.startDataStreaming()
+            self.client.setSizeCalibrationArea(self.window[0], self.window[1])
+            self.client.setCalibrationParam(1, 1)
+            self.client.setCalibrationParam(2, 0)
+            self.client.setCalibrationParam(3, 1)
+            self.client.setCalibrationCheckLevel(3)
             self.client.startCalibration(9, 0)
-
-    @d.listen('ET_SPL')
-    def iViewXEvent(self, inSender, inEvent, inResponse):
-        pass
-
-    @d.listen('ET_CAL')
-    def iViewXEvent(self, inSender, inEvent, inResponse):
-        pass
-
-    @d.listen('ET_CSZ')
-    def iViewXEvent(self, inSender, inEvent, inResponse):
-        pass
-
-    @d.listen('ET_PNT')
-    def iViewXEvent(self, inSender, inEvent, inResponse):
-        self.calibrationPoints[int(inResponse[0])-1] = (int(inResponse[1]), int(inResponse[2]))
-
-    @d.listen('ET_CHG')
-    def iViewXEvent(self, inSender, inEvent, inResponse):
-        currentPoint = int(inResponse[0]) - 1
-        x = self.calibrationPoints[currentPoint][0] * self.win_scale[0]
-        y = self.calibrationPoints[currentPoint][1] * self.win_scale[1]
-        self.circle.opacity = 255
-        if currentPoint == 0:
-            self.circle.set_position(x,y)
-        else:
-            self.circle.do(MoveTo((x,y), .5))
-
-    @d.listen('ET_VLS')
-    def iViewXEvent(self, inSender, inEvent, inResponse):
-        if not self.calibrating:
-            self.calibrationResults.append(' '.join(inResponse))
-            if len(self.calibrationResults) == 2:
-                self.remove(self.spinner)
-                self.remove(self.label)
-                text = '\n'.join(self.calibrationResults).decode("cp1252")
-                text += "\n\n\nPress 'R' to recalibrate, spres 'Spacebar' to continue..."
-                self.label = Label(text, position=(self.screen[0]/2, self.screen[1]/2),
-                                   align='center', anchor_x='center', anchor_y='center', width=self.screen[0],
-                                   font_size=32, color=(255,255,255,255), font_name="Monospace", multiline=True)
-                self.add(self.label)
-
-    @d.listen('ET_CSP')
-    def iViewXEvent(self, inSender, inEvent, inResponse):
-        pass
-
-    @d.listen('ET_FIN')
-    def iViewXEvent(self, inSender, inEvent, inResponse):
-        self.calibrating = False
-        self.remove(self.circle)
-        self.add(self.spinner)
-        self.spinner.do(Repeat(RotateBy(360, 1)))
-        self.label = Label("CALCULATING CALIBRATION ACCURACY", position=(self.screen[0]/2, self.screen[1]/4*3),
-                           font_size=32, color=(255,255,255,255), font_name="Monospace", anchor_x='center', anchor_y='center')
-        self.add(self.label)
-        self.client.requestCalibrationResults()
-        self.client.validateCalibrationAccuracy()
+    
+        def reset(self):
+            for c in self.get_children():
+                c.stop()
+                self.remove(c)
+            self.calibrating = True
+            self.client.cancelCalibration()
+            self.calibrationPoints = [None] * 9
+            self.calibrationResults = []
+            self.circle.opacity = 0
+            self.add(ColorLayer(0,0,255,255))
+            self.add(self.circle)
+    
+        def on_enter(self):
+            super(CalibrationScene, self).on_enter()
+            director.window.push_handlers(self)
+    
+        def on_exit(self):
+            super(CalibrationScene, self).on_exit()
+            director.window.remove_handlers(self)
+    
+        def on_key_press(self, symbol, modifiers):
+            if symbol == key.SPACE:
+                if self.calibrating and not self.circle.actions:
+                    self.client.acceptCalibrationPoint()
+            elif symbol == key.R:
+                self.reset()
+                self.client.startCalibration(9, 0)
+    
+        @d.listen('ET_SPL')
+        def iViewXEvent(self, inResponse):
+            pass
+    
+        @d.listen('ET_CAL')
+        def iViewXEvent(self, inResponse):
+            pass
+    
+        @d.listen('ET_CSZ')
+        def iViewXEvent(self, inResponse):
+            pass
+    
+        @d.listen('ET_PNT')
+        def iViewXEvent(self, inResponse):
+            self.calibrationPoints[int(inResponse[0])-1] = (int(inResponse[1]), int(inResponse[2]))
+    
+        @d.listen('ET_CHG')
+        def iViewXEvent(self, inResponse):
+            currentPoint = int(inResponse[0]) - 1
+            x = self.calibrationPoints[currentPoint][0] * self.win_scale[0]
+            y = self.calibrationPoints[currentPoint][1] * self.win_scale[1]
+            self.circle.opacity = 255
+            if currentPoint == 0:
+                self.circle.set_position(x,y)
+            else:
+                self.circle.do(MoveTo((x,y), .5))
+    
+        @d.listen('ET_VLS')
+        def iViewXEvent(self, inResponse):
+            if not self.calibrating:
+                self.calibrationResults.append(' '.join(inResponse))
+                if len(self.calibrationResults) == 2:
+                    self.remove(self.spinner)
+                    self.remove(self.label)
+                    text = '\n'.join(self.calibrationResults).decode("cp1252")
+                    text += "\n\n\nPress 'R' to recalibrate, spres 'Spacebar' to continue..."
+                    self.label = Label(text, position=(self.screen[0]/2, self.screen[1]/2),
+                                       align='center', anchor_x='center', anchor_y='center', width=self.screen[0],
+                                       font_size=32, color=(255,255,255,255), font_name="Monospace", multiline=True)
+                    self.add(self.label)
+    
+        @d.listen('ET_CSP')
+        def iViewXEvent(self, inResponse):
+            pass
+    
+        @d.listen('ET_FIN')
+        def iViewXEvent(self, inResponse):
+            self.calibrating = False
+            self.remove(self.circle)
+            self.add(self.spinner)
+            self.spinner.do(Repeat(RotateBy(360, 1)))
+            self.label = Label("CALCULATING CALIBRATION ACCURACY", position=(self.screen[0]/2, self.screen[1]/4*3),
+                               font_size=32, color=(255,255,255,255), font_name="Monospace", anchor_x='center', anchor_y='center')
+            self.add(self.label)
+            self.client.requestCalibrationResults()
+            self.client.validateCalibrationAccuracy()
 
 class OptionsMenu(BetterMenu):
 
@@ -189,16 +196,17 @@ class OptionsMenu(BetterMenu):
         self.font_item_selected['color'] = (0, 0, 255, 255)
         self.font_item_selected['font_size'] = self.screen[1] / 16 * ratio
         
-        self.items = []
+        self.items = OrderedDict()
         
-        self.items.append(ToggleMenuItem('Show FPS:', self.on_show_fps, director.show_FPS))
-        self.items.append(ToggleMenuItem('Fullscreen:', self.on_fullscreen, director.window.fullscreen))
-        self.items.append(ToggleMenuItem("EyeTracker:", self.on_eyetracker, self.settings['eyetracker']))
-        self.items.append(EntryMenuItem('EyeTracker IP:', self.on_eyetracker_ip, self.settings['eyetracker_ip']))
-        self.items.append(EntryMenuItem('EyeTracker Port:', self.on_eyetracker_port, self.settings['eyetracker_port']))
-        self.set_eyetracker_extras(self.settings['eyetracker'])
+        self.items['fps'] = ToggleMenuItem('Show FPS:', self.on_show_fps, director.show_FPS)
+        self.items['fullscreen'] = ToggleMenuItem('Fullscreen:', self.on_fullscreen, director.window.fullscreen)
+        if eyetracking:
+            self.items['eyetracker'] = ToggleMenuItem("EyeTracker:", self.on_eyetracker, self.settings['eyetracker'])
+            self.items['eyetracker_ip'] = EntryMenuItem('EyeTracker IP:', self.on_eyetracker_ip, self.settings['eyetracker_ip'])
+            self.items['eyetracker_port'] = EntryMenuItem('EyeTracker Port:', self.on_eyetracker_port, self.settings['eyetracker_port'])
+            self.set_eyetracker_extras(self.settings['eyetracker'])
         
-        self.create_menu(self.items, zoom_in(), zoom_out())
+        self.create_menu(self.items.values(), zoom_in(), zoom_out())
         
     def on_show_fps(self, value):
         director.show_FPS = value
@@ -210,19 +218,21 @@ class OptionsMenu(BetterMenu):
     def on_experiment(self, value):
         self.settings['experiment'] = value
     
-    def set_eyetracker_extras(self, value):
-        self.items[3].visible = value
-        self.items[4].visible = value
-        
-    def on_eyetracker(self, value):
-        self.settings['eyetracker'] = value
-        self.set_eyetracker_extras(value)
-        
-    def on_eyetracker_ip(self, ip):
-        self.settings['eyetracker_ip'] = ip
+    if eyetracking:
     
-    def on_eyetracker_port(self, port):
-        self.settings['eyetracker_port'] = port
+        def set_eyetracker_extras(self, value):
+            self.items['eyetracker_ip'].visible = value
+            self.items['eyetracker_port'].visible = value
+            
+        def on_eyetracker(self, value):
+            self.settings['eyetracker'] = value
+            self.set_eyetracker_extras(value)
+            
+        def on_eyetracker_ip(self, ip):
+            self.settings['eyetracker_ip'] = ip
+        
+        def on_eyetracker_port(self, port):
+            self.settings['eyetracker_port'] = port
             
     def on_quit(self):
         self.parent.switch_to(0)
@@ -252,19 +262,21 @@ class MainMenu(BetterMenu):
         self.menu_anchor_y = 'center'
         self.menu_anchor_x = 'center'
 
-        self.items = []
+        self.items = OrderedDict()
         
-        self.items.append(MultipleMenuItem('Mode: ', self.on_mode, self.settings['modes']))
-        self.items.append(MenuItem('Tutorial', self.on_tutorial))
-        self.items.append(MenuItem('Calibrate', self.on_calibrate))
-        self.items.append(MenuItem('Start', self.on_start))
-        self.items.append(MenuItem('Options', self.on_options))
-        self.items.append(MenuItem('Quit', self.on_quit))
+        self.items['mode'] = MultipleMenuItem('Mode: ', self.on_mode, self.settings['modes'])
+        self.items['tutorial'] = MenuItem('Tutorial', self.on_tutorial)
+        if eyetracking:
+            self.items['calibrate'] = MenuItem('Calibrate', self.on_calibrate)
+        self.items['start'] = MenuItem('Start', self.on_start)
+        self.items['options'] = MenuItem('Options', self.on_options)
+        self.items['quit'] = MenuItem('Quit', self.on_quit)
         
-        self.create_menu(self.items, zoom_in(), zoom_out())
+        self.create_menu(self.items.values(), zoom_in(), zoom_out())
 
-    def on_calibrate(self):
-        director.push(CalibrationScene(self.settings))
+    if eyetracking:
+        def on_calibrate(self):
+            director.push(CalibrationScene(self.settings))
 
     def on_mode(self, mode):
          self.settings['mode'] = self.settings['modes'][mode]
@@ -273,11 +285,11 @@ class MainMenu(BetterMenu):
         director.push(SplitColsTransition(Scene(TutorialLayer(self.settings))))
         
     def on_options(self):
-        self.parent.switch_to(2)
+        self.parent.switch_to(1)
         
     def on_start(self):
         if self.settings['mode'] == "Experiment":
-            self.parent.switch_to(3)
+            self.parent.switch_to(2)
         else:
             scene = Scene()
             scene.add(Task(self.settings), z=1)
@@ -311,14 +323,13 @@ class ParticipantMenu(BetterMenu):
         self.menu_anchor_y = 'center'
         self.menu_anchor_x = 'center'
 
-        self.items = []
+        self.items = OrderedDict()
         
-        self.items.append(EntryMenuItem('Full Name:', self.on_name, ""))
-        self.items.append(EntryMenuItem('RIN:', self.on_rin, "", max_length=9))
-        self.items.append(MenuItem('Start', self.on_start))
-    
+        self.items['name'] = EntryMenuItem('Full Name:', self.on_name, "")
+        self.items['rin'] = EntryMenuItem('RIN:', self.on_rin, "", max_length=9)
+        self.items['start'] = MenuItem('Start', self.on_start)
         
-        self.create_menu(self.items, zoom_in(), zoom_out())
+        self.create_menu(self.items.values(), zoom_in(), zoom_out())
         
     def on_name(self, name):
         print "on_name", name
