@@ -246,18 +246,17 @@ class Shape(Sprite):
     def __init__(self, image, chunk=None, position=(0, 0), rotation=0, scale=1, opacity=255, color=(255, 255, 255)):
         super(Shape, self).__init__(image, rotation=rotation, scale=scale, opacity=opacity, color=color)
         self.chunk = chunk
-        self.on_enter_action = None
         if platform.system() == 'Windows':
             rscale = .34
             if self.chunk:
-                if self.chunk[0]=='cross':
+                if self.chunk[0] == 'cross':
                     rscale = .28
-                elif self.chunk[0]=='diamond':
+                elif self.chunk[0] == 'diamond':
                     rscale = .31
         else:
             rscale = .55
             if self.chunk:
-                if self.chunk[0]=='diamond':
+                if self.chunk[0] == 'diamond':
                     rscale = .52
         self.radius = max(self.width, self.height) * rscale
         self.set_position(position[0], position[1])
@@ -266,10 +265,6 @@ class Shape(Sprite):
 
         self.cshape = CircleShape(eu.Vector2(x, y), self.radius)
         super(Shape, self).set_position(self.cshape.center[0], self.cshape.center[1])
-        
-    def on_enter(self):
-        super(Shape, self).on_enter()
-        if self.on_enter_action: self.do(self.on_enter_action)
 
 class TutorialLayer(ColorLayer):
     
@@ -536,9 +531,9 @@ class BackgroundLayer(Layer):
                             position=(randrange(0, self.screen[0]), randrange(0, self.screen[1])),
                             opacity=o, color=(randrange(0, 256), randrange(0, 256), randrange(0, 256)))
             if o == max_o:
-                sprite.on_enter_action = Repeat(FadeTo(0, speed) + FadeTo(max_o, speed))
+                sprite.do(Repeat(FadeTo(0, speed) + FadeTo(max_o, speed)))
             else:
-                sprite.on_enter_action = Repeat(FadeTo(max_o, speed) + FadeTo(0, speed))
+                sprite.do(Repeat(FadeTo(max_o, speed) + FadeTo(0, speed)))
             self.batch.add(sprite)
 
 class Probe(Label):
