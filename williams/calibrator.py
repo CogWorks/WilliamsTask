@@ -5,7 +5,9 @@ from cocos.scene import Scene
 from cocos.sprite import Sprite
 from cocos.text import Label
 from cocos.layer import ColorLayer
-from cocos.actions.interval_actions import MoveTo
+from cocos.actions.interval_actions import MoveTo, RotateBy
+from cocos.actions.base_actions import Repeat
+
 
 from pyglet import font, resource
 from pyglet.window import key
@@ -14,6 +16,7 @@ class CalibrationScene(Scene):
     
     d = Dispatcher()
     
+    STATE_REFUSED = -1
     STATE_INIT = 0
     STATE_CALIBRATE = 1
     STATE_VALIDATE = 2
@@ -39,7 +42,7 @@ class CalibrationScene(Scene):
 
         self.spinner = Sprite(resource.image('spinner.png'), position=(self.screen[0]/2, self.screen[1]/2), color=(255,255,255))
         
-        self.client = iViewXClient(self.host, self.port, self.on_connection_made, self.on_connection_refused)
+        self.client = iViewXClient(self.host, self.port, self.on_connection_refused)
         self.client.addDispatcher(self.d)
 
         self.init()
@@ -48,13 +51,10 @@ class CalibrationScene(Scene):
         super(CalibrationScene, self).on_enter()
         director.window.push_handlers(self)
         self.listener = self.reactor.listenUDP(5555, self.client)
-        self.reset()
-        
-    def on_connection_made(self):
-        self.state = self.STATE_CALIBRATE
         self.start()
         
     def on_connection_refused(self):
+        self.state = self.STATE_REFUSED
         self.label = Label("Connection to iViewX server refused!", position=(self.screen[0]/2, self.screen[1]/2),
                            align='center', anchor_x='center', anchor_y='center', width=self.screen[0],
                            font_size=32, color=(255,255,255,255), font_name="Monospace", multiline=True)
@@ -78,18 +78,21 @@ class CalibrationScene(Scene):
         self.state = self.STATE_INIT
         
     def reset(self):
-        self.client.cancelCalibration()
-        self.init()
+        if self.state > self.STATE_REFUSED:
+            self.client.cancelCalibration()
+            self.init()
         
     def start(self):
-        self.client.setDataFormat('%TS %ET %SX %SY %DX %DY %EX %EY %EZ')
-        self.client.startDataStreaming()
-        self.client.setSizeCalibrationArea(self.window[0], self.window[1])
-        self.client.setCalibrationParam(1, 1)
-        self.client.setCalibrationParam(2, 0)
-        self.client.setCalibrationParam(3, 1)
-        self.client.setCalibrationCheckLevel(3)
-        self.client.startCalibration(9, 0)
+        if self.state > self.STATE_REFUSED:
+            self.state = self.STATE_CALIBRATE
+            self.client.setDataFormat('%TS %ET %SX %SY %DX %DY %EX %EY %EZ')
+            self.client.startDataStreaming()
+            self.client.setSizeCalibrationArea(self.window[0], self.window[1])
+            self.client.setCalibrationParam(1, 1)
+            self.client.setCalibrationParam(2, 0)
+            self.client.setCalibrationParam(3, 1)
+            self.client.setCalibrationCheckLevel(3)
+            self.client.startCalibration(9, 0)
 
     def on_key_press(self, symbol, modifiers):
         if symbol == key.SPACE:
