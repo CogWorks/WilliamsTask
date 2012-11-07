@@ -70,6 +70,8 @@ class CalibrationScene(Scene):
         for c in self.get_children():
             c.stop()
             self.remove(c)
+        self.ts = -1
+        self.eye_position = None
         self.calibrationPoints = [None] * 9
         self.calibrationResults = []
         self.circle.opacity = 0
@@ -108,7 +110,8 @@ class CalibrationScene(Scene):
 
     @d.listen('ET_SPL')
     def iViewXEvent(self, inResponse):
-        pass
+        self.ts = int(inResponse[0])
+        self.eye_position = map(float, inResponse[10:])
 
     @d.listen('ET_CAL')
     def iViewXEvent(self, inResponse):
