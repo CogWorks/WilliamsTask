@@ -50,7 +50,7 @@ from odict import OrderedDict
 
 try:
     from pyviewx.client import iViewXClient, Dispatcher
-    from calibrator import CalibrationScene
+    from calibrator import CalibrationLayer, HeadPositionLayer
     eyetracking = True
 except ImportError:
     eyetracking = False
@@ -168,9 +168,7 @@ class MainMenu(BetterMenu):
         if self.settings['mode'] == "Experiment":
             self.parent.switch_to(2)
         else:
-            scene = Scene()
-            scene.add(Task(self.settings), z=1)
-            director.push(SplitRowsTransition(scene))
+            director.push(SplitRowsTransition(TaskScene(self.settings)))
 
     def on_quit(self):
         reactor.callFromThread(reactor.stop)
@@ -226,17 +224,8 @@ class ParticipantMenu(BetterMenu):
             self.items[1].value = rin[:-1]
         
     def on_start(self):
-        scene = Scene()
-        tb = TaskBackground()
-        t = Task(self.settings, tb)
-        scene.add(tb, z=0)
-        scene.add(t, z=1)
         self.parent.switch_to(0)
-        
-        if eyetracking and self.settings['eyetracker']:
-            director.push(CalibrationScene(reactor, self.settings['eyetracker_ip'], int(self.settings['eyetracker_port']), lambda: director.replace(SplitRowsTransition(scene)), lambda: director.pop()))
-        else:
-            director.push(SplitRowsTransition(scene))
+        director.push(SplitRowsTransition(TaskScene(self.settings)))
 
     def on_quit(self):
         self.parent.switch_to(0)
@@ -608,6 +597,44 @@ class Probe(Label):
                                     color=(64, 64, 64, 255), font_name="Monospace", font_size=font_size)
         self.cshape = CircleShape(eu.Vector2(position[0], position[1]), width * .6)
 
+class TaskScene(Scene):
+    
+    def __init__(self, settings):
+        super(TaskScene, self).__init__()
+        self.settings = settings
+        
+        self.listener = None
+        if eyetracking and self.settings['eyetracker']:
+            self.client = iViewXClient(self.settings['eyetracker_ip'], int(self.settings['eyetracker_port']))
+            self.cbl = CalibrationLayer(self.client, None)
+            self.add(self.cbl, z=2)
+            self.hpl = HeadPositionLayer(self.client)
+            self.add(self.hpl, z=3)
+        else:
+            self.client = None
+            self.hpl = None
+            self.cbl = None
+            
+        self.tb = TaskBackground()
+        self.add(self.tb, z=0)
+        
+        self.t = Task(self.settings, self.tb, self.client, self.cbl, self.hpl)
+        self.add(self.t, z=1)
+        
+    def on_enter(self):
+        super(TaskScene, self).on_enter()
+        if self.client and not self.listener:
+            self.listener = reactor.listenUDP(5555, self.client)
+        
+    def on_exit(self):
+        super(TaskScene, self).on_exit()
+        if self.listener:
+            d = self.listener.stopListening()
+            print d
+            d = yield d
+            print d
+        
+
 class TaskBackground(Layer):
     
     def __init__(self):
@@ -621,18 +648,36 @@ class TaskBackground(Layer):
 
 class Task(ColorLayer):
     
-    STATE_WAIT = "WAIT"
-    STATE_STUDY = "STUDY"
-    STATE_SEARCH = "SEARCH"
-    STATE_RESULTS = "RESULTS"
+    d = Dispatcher()
+    
+    states = ["INIT","CALIBRATE","WAIT","STUDY","SEARCH","RESULTS"]
+    STATE_INIT = 0
+    STATE_CALIBRATE = 1
+    STATE_WAIT = 2
+    STATE_STUDY = 3
+    STATE_SEARCH = 4
+    STATE_RESULTS = 5
     
     is_event_handler = True
     
-    def __init__(self, settings, bg=None):
+    def __init__(self, settings, bg=None, client=None, cbl=None, hpl=None):
+        
+        self.settings = settings
         
         header = ["system_time", "mode", "trial", "event_source", "event_type",
               "event_id", "mouse_x", "mouse_y", "study_time", "search_time",
               "probe_id", "probe_color", "probe_shape", "probe_size"]
+        
+        self.client = client
+        self.cbl = cbl
+        self.hpl = hpl
+        if self.client:
+            self.smi_spl_header = ["smi_time", "smi_type",
+                                   "smi_sxl", "smi_sxr", "smi_syl", "smi_syr",
+                                   "smi_dxl", "smi_dxr", "smi_dyl", "smi_dyr",
+                                   "smi_exl", "smi_exr", "smi_eyl", "smi_eyr", "smi_ezl", "smi_ezr"]
+            header += self.smi_spl_header
+        
         for i in range(1, 76):
             header.append("shape%02d_color" % i)
             header.append("shape%02d_shape" % i)
@@ -641,9 +686,8 @@ class Task(ColorLayer):
             header.append("shape%02d_x" % i)
             header.append("shape%02d_y" % i)
             
-        self.logger = Logger(header)
+        self.logger = Logger(header, file="../test.dat")
 
-        self.settings = settings
         self.bg = bg
         self.screen = director.get_window_size()
         super(Task, self).__init__(168, 168, 168, 255, self.screen[1], self.screen[1])        
@@ -658,7 +702,6 @@ class Task(ColorLayer):
         self.font = font.load('Cut Outs for 3D FX', 128)
         for shape in self.shapes:
             self.shapes[shape] = self.font.get_glyphs(self.shapes[shape])[0].get_texture(True)
-        self.shapes_visible = False
         s = 50
         v = 100
         self.colors = {"red": hsv_to_rgb(0, s, v),
@@ -670,37 +713,37 @@ class Task(ColorLayer):
         self.ratio = self.side / 128
         self.scales = [self.ratio * 1.5, self.ratio, self.ratio * .5]
         self.sizes = ["large", "medium", "small"]
-        self.current_trial = 1
+        self.current_trial = 0
+        self.ready_label = Label("Click mouse when ready!",
+                                 position=(self.width / 2, self.height / 2),
+                                 font_name='Pipe Dream', font_size=24,
+                                 color=(0, 0, 0, 255), anchor_x='center', anchor_y='center')
         self.gen_trials()
-        self.gen_combos()
-        self.batch = BatchNode()
-        self.id_batch = BatchNode()
-        director.window.set_mouse_visible(False)
-        self.circles = []
+        self.state = self.STATE_INIT
+    
+    def next_trial(self):
         self.search_time = -1
         self.study_time = -1
-        self.ready_label = Label("Click mouse when ready!", position=(self.width / 2, self.height / 2), font_name='Pipe Dream', font_size=24, color=(0, 0, 0, 255), anchor_x='center', anchor_y='center')
-        self.add(self.ready_label)
+        director.window.set_mouse_visible(False)
+        self.clear_shapes()
+        self.log_extra = {}
         self.state = self.STATE_WAIT
+        self.current_trial += 1
+        self.gen_combos()
+        self.add(self.ready_label)
         self.logger.write(system_time=get_time(), mode=self.settings['mode'], trial=self.current_trial,
-                          event_source="TASK", event_type=self.state, event_id="START")
-        
+                          event_source="TASK", event_type=self.states[self.state], event_id="START")
+    
     def trial_done(self):
         t = get_time()
         self.search_time = t - self.start_time
         self.logger.write(system_time=t, mode=self.settings['mode'], trial=self.current_trial,
-                          event_source="TASK", event_type=self.state, event_id="END", **self.log_extra)
+                          event_source="TASK", event_type=self.states[self.state], event_id="END", **self.log_extra)
         self.state = self.STATE_RESULTS
         self.logger.write(system_time=t, mode=self.settings['mode'], trial=self.current_trial,
-                          event_source="TASK", event_type=self.state, study_time=self.study_time, search_time=self.search_time, **self.log_extra)
-        director.window.set_mouse_visible(False)
-        self.clear_shapes()
-        t = get_time()
-        self.log_extra = {}
-        self.state = self.STATE_WAIT
-        self.current_trial += 1
-        self.logger.write(system_time=t, mode=self.settings['mode'], trial=self.current_trial,
-                          event_source="TASK", event_type=self.state, event_id="START")
+                          event_source="TASK", event_type=self.states[self.state], study_time=self.study_time, search_time=self.search_time, **self.log_extra)
+        self.client.removeDispatcher(self.d)
+        self.next_trial()
         
     def gen_trials(self):
         self.trials = []
@@ -738,14 +781,10 @@ class Task(ColorLayer):
             self.remove(c)
         self.batch = BatchNode()
         self.id_batch = BatchNode()
-        self.gen_combos()
-        self.add(self.ready_label)
     
     def show_shapes(self):
         self.cm.add(self.probe)
         ratio = self.side / 128
-        sprites = 0
-        resets = 0
         self.circles = []
         self.shape_log = {}
         for c in self.combos:
@@ -757,10 +796,10 @@ class Task(ColorLayer):
             sprite.set_position(uniform(pad, self.screen[1] - pad), uniform(pad, self.screen[1] - pad))
             while self.cm.objs_colliding(sprite):
                 sprite.set_position(uniform(pad, self.screen[1] - pad), uniform(pad, self.screen[1] - pad))
-            l = text.Label("%02d" % c[3], font_size=14 * ratio,
-                            x=sprite.position[0], y=sprite.position[1],
-                            font_name="Monospace", color=(32, 32, 32, 255),
-                            anchor_x='center', anchor_y='center', batch=self.id_batch.batch)
+            text.Label("%02d" % c[3], font_size=14 * ratio,
+                       x=sprite.position[0], y=sprite.position[1],
+                       font_name="Monospace", color=(32, 32, 32, 255),
+                       anchor_x='center', anchor_y='center', batch=self.id_batch.batch)
             self.shape_log["shape%02d_color" % c[3]] = c[1]
             self.shape_log["shape%02d_shape" % c[3]] = c[0]
             self.shape_log["shape%02d_size" % c[3]] = c[2]
@@ -774,58 +813,76 @@ class Task(ColorLayer):
         self.add(self.batch, z=1)
         self.add(self.id_batch, z=2)
         self.log_extra.update(self.shape_log)
+    
+    if eyetracking:
+        @d.listen('ET_SPL')
+        def iViewXEvent(self, inResponse):
+            eyedata = {}
+            for i, _ in enumerate(self.smi_spl_header):
+                eyedata[self.smi_spl_header[i]] = inResponse[i]
+            #eyedata.update(self.log_extra)
+            self.logger.write(system_time=get_time(), mode=self.settings['mode'], trial=self.current_trial, event_source="SMI", **eyedata)
         
-    #def draw(self):
+    # def draw(self):
     #    super(Task, self).draw()
     #    for c in self.circles: c.render()
         
     def on_mouse_press(self, x, y, buttons, modifiers):
-        if self.state == self.STATE_WAIT:
-            self.logger.write(system_time=get_time(), mode=self.settings['mode'], trial=self.current_trial,
-                              event_source="TASK", event_type=self.state, event_id="END")
-            self.gen_probe()
-            self.state = self.STATE_STUDY
-            self.logger.write(system_time=get_time(), mode=self.settings['mode'], trial=self.current_trial,
-                              event_source="TASK", event_type=self.state, event_id="START", **self.log_extra)
-        elif self.state == self.STATE_SEARCH:
-            x, y = director.get_virtual_coordinates(x, y)
-            for obj in self.cm.objs_touching_point(x - (self.screen[0] - self.screen[1]) / 2, y):
-                if obj.chunk == self.probe.chunk:
-                    self.trial_done()
-        else:
-            t = get_time()
-            self.study_time = t - self.start_time
-            self.logger.write(system_time=t, mode=self.settings['mode'], trial=self.current_trial,
-                              event_source="TASK", event_type=self.state, event_id="END", **self.log_extra)
-            self.show_shapes()
-            window = director.window.get_size()
-            nx = int(window[0] / 2)
-            ny = int(window[1] / 2 - self.probe.cshape.r * .75 * (window[1] / self.screen[1]))
-            t = get_time()
-            self.start_time = t
-            self.state = self.STATE_SEARCH
-            self.logger.write(system_time=t, mode=self.settings['mode'], trial=self.current_trial,
-                              event_source="TASK", event_type=self.state, event_id="START", **self.log_extra)
-            self.logger.write(system_time=t, mode=self.settings['mode'], trial=self.current_trial,
-                              event_source="TASK", event_type=self.state, event_id="MOUSE_RESET", mouse_x=nx, mouse_y=ny, **self.log_extra)
-            director.window.set_mouse_position(nx, ny)
-            director.window.set_mouse_visible(True)
+        if self.state != self.STATE_CALIBRATE:
+            if self.state == self.STATE_WAIT:
+                self.logger.write(system_time=get_time(), mode=self.settings['mode'], trial=self.current_trial,
+                                  event_source="TASK", event_type=self.states[self.state], event_id="END")
+                self.gen_probe()
+                self.state = self.STATE_STUDY
+                t = get_time()
+                self.start_time = t
+                self.logger.write(system_time=t, mode=self.settings['mode'], trial=self.current_trial,
+                                  event_source="TASK", event_type=self.states[self.state], event_id="START", **self.log_extra)
+                self.client.addDispatcher(self.d)
+            elif self.state == self.STATE_SEARCH:
+                x, y = director.get_virtual_coordinates(x, y)
+                for obj in self.cm.objs_touching_point(x - (self.screen[0] - self.screen[1]) / 2, y):
+                    if obj.chunk == self.probe.chunk:
+                        self.trial_done()
+            else:
+                t = get_time()
+                self.study_time = t - self.start_time
+                self.logger.write(system_time=t, mode=self.settings['mode'], trial=self.current_trial,
+                                  event_source="TASK", event_type=self.states[self.state], event_id="END", **self.log_extra)
+                self.show_shapes()
+                window = director.window.get_size()
+                nx = int(window[0] / 2)
+                ny = int(window[1] / 2 - self.probe.cshape.r * .75 * (window[1] / self.screen[1]))
+                t = get_time()
+                self.start_time = t
+                self.state = self.STATE_SEARCH
+                self.logger.write(system_time=t, mode=self.settings['mode'], trial=self.current_trial,
+                                  event_source="TASK", event_type=self.states[self.state], event_id="START", **self.log_extra)
+                self.logger.write(system_time=t, mode=self.settings['mode'], trial=self.current_trial,
+                                  event_source="TASK", event_type=self.states[self.state], event_id="MOUSE_RESET", mouse_x=nx, mouse_y=ny, **self.log_extra)
+                director.window.set_mouse_position(nx, ny)
+                director.window.set_mouse_visible(True)
 
     def on_mouse_motion(self, x, y, dx, dy):
         if self.state == self.STATE_SEARCH:
             self.logger.write(system_time=get_time(), mode=self.settings['mode'], trial=self.current_trial,
-                              event_source="USER", event_type=self.state, event_id="MOUSE_MOTION", mouse_x=x, mouse_y=y, **self.log_extra)
+                              event_source="USER", event_type=self.states[self.state], event_id="MOUSE_MOTION", mouse_x=x, mouse_y=y, **self.log_extra)
         
     def on_key_press(self, symbol, modifiers):
-        if symbol == key.D:
-            print director.scene_stack, director.scene, director.next_scene
-        elif symbol == key.P:
+        if symbol == key.ESCAPE:
             director.pop()
+            True
             
     def on_enter(self):
         super(Task, self).on_enter()
-        self.start_time = get_time()
-        
+        if self.state == self.STATE_INIT:
+            if self.client:
+                self.state = self.STATE_CALIBRATE
+                self.cbl.on_success = self.next_trial
+                self.cbl.on_failure = director.pop
+                self.add(self.cbl)
+            else:
+                self.next_trial()    
                  
 def main():
     engine = pyttsx.init()
@@ -854,7 +911,7 @@ def main():
         director.window.set_mouse_cursor(cursor)
     
     director.window.set_size(int(screen.width / 2), int(screen.height / 2))
-    #director.window.set_fullscreen(True)
+    # director.window.set_fullscreen(True)
 
     director.window.pop_handlers()
     director.window.push_handlers(DefaultHandler())

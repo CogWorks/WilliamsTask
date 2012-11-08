@@ -8,7 +8,6 @@ from cocos.layer import ColorLayer, Layer
 from cocos.actions.interval_actions import MoveTo, RotateBy
 from cocos.actions.base_actions import Repeat
 
-
 from pyglet import font, resource
 from pyglet.window import key
 
@@ -55,63 +54,66 @@ class HeadPositionLayer(Layer):
         
     @d.listen('ET_SPL')
     def iViewXEvent(self, inResponse):
-        eye_position = map(float, inResponse[10:])
-        hx = clamp(round((eye_position[0] + eye_position[1]) / 2 / 99.999, 2), -1.0, 1.0)
-        hy = clamp(round((eye_position[2] + eye_position[3]) / 2 / 99.999, 2), -1.0, 1.0)
-        hz = clamp(round(((eye_position[4] + eye_position[5]) / 2 - 700) / 150.0, 2), -1.0, 1.0)
-        
-        self.head = (hx, hy, hz)
-        
-        if hy >= -.5 and hy <= .5:
-            self.arrows[0].opacity = 0
-            self.arrows[1].opacity = 0
-        elif hy > .5:
-            hy = (abs(hy) - .5) / .5
-            self.arrows[0].opacity = 0
-            self.arrows[1].opacity = 192
-            yellow = (1 - hy) * 255
-            self.arrows[1].color = (255, yellow, 0)
-        elif hy < -.5:
-            hy = (abs(hy) - .5) / .5
-            self.arrows[0].opacity = 192
-            self.arrows[1].opacity = 0
-            yellow = (1 - hy) * 255
-            self.arrows[0].color = (255, yellow, 0)
+        if len(inResponse) == 16:
+            eye_position = map(float, inResponse[10:])
+            hx = clamp(round((eye_position[0] + eye_position[1]) / 2 / 99.999, 2), -1.0, 1.0)
+            hy = clamp(round((eye_position[2] + eye_position[3]) / 2 / 99.999, 2), -1.0, 1.0)
+            hz = clamp(round(((eye_position[4] + eye_position[5]) / 2 - 700) / 150.0, 2), -1.0, 1.0)
             
-        if hx >= -.5 and hx <= .5:
-            self.arrows[2].opacity = 0
-            self.arrows[3].opacity = 0
-        elif hx > .5:
-            hx = (abs(hx) - .5) / .5
-            self.arrows[2].opacity = 0
-            self.arrows[3].opacity = 192
-            yellow = (1 - hx) * 255
-            self.arrows[3].color = (255, yellow, 0)
-        elif hx < -.5:
-            hx = (abs(hx) - .5) / .5
-            self.arrows[2].opacity = 192
-            self.arrows[3].opacity = 0
-            yellow = (1 - hx) * 255
-            self.arrows[2].color = (255, yellow, 0)
+            self.head = (hx, hy, hz)
+            
+            if hy >= -.5 and hy <= .5:
+                self.arrows[0].opacity = 0
+                self.arrows[1].opacity = 0
+            elif hy > .5:
+                hy = (abs(hy) - .5) / .5
+                self.arrows[0].opacity = 0
+                self.arrows[1].opacity = 192
+                yellow = (1 - hy) * 255
+                self.arrows[1].color = (255, yellow, 0)
+            elif hy < -.5:
+                hy = (abs(hy) - .5) / .5
+                self.arrows[0].opacity = 192
+                self.arrows[1].opacity = 0
+                yellow = (1 - hy) * 255
+                self.arrows[0].color = (255, yellow, 0)
+                
+            if hx >= -.5 and hx <= .5:
+                self.arrows[2].opacity = 0
+                self.arrows[3].opacity = 0
+            elif hx > .5:
+                hx = (abs(hx) - .5) / .5
+                self.arrows[2].opacity = 0
+                self.arrows[3].opacity = 192
+                yellow = (1 - hx) * 255
+                self.arrows[3].color = (255, yellow, 0)
+            elif hx < -.5:
+                hx = (abs(hx) - .5) / .5
+                self.arrows[2].opacity = 192
+                self.arrows[3].opacity = 0
+                yellow = (1 - hx) * 255
+                self.arrows[2].color = (255, yellow, 0)
+            
+            if eye_position[4] != 0 and eye_position[5] != 0:
+                if hz >= -.5 and hz <= .5:
+                    self.arrows[4].opacity = 0
+                    self.arrows[5].opacity = 0
+                elif hz > .5:
+                    hz = (abs(hz) - .5) / .5
+                    self.arrows[4].opacity = 0
+                    self.arrows[5].opacity = 192
+                    yellow = (1 - hz) * 255
+                    self.arrows[5].color = (255, yellow, 0)
+                elif hz < -.5:
+                    hz = (abs(hz) - .5) / .5
+                    self.arrows[4].opacity = 192
+                    self.arrows[5].opacity = 0
+                    yellow = (1 - hz) * 255
+                    self.arrows[4].color = (255, yellow, 0)
         
-        if eye_position[4] != 0 and eye_position[5] != 0:
-            if hz >= -.5 and hz <= .5:
-                self.arrows[4].opacity = 0
-                self.arrows[5].opacity = 0
-            elif hz > .5:
-                hz = (abs(hz) - .5) / .5
-                self.arrows[4].opacity = 0
-                self.arrows[5].opacity = 192
-                yellow = (1 - hz) * 255
-                self.arrows[5].color = (255, yellow, 0)
-            elif hz < -.5:
-                hz = (abs(hz) - .5) / .5
-                self.arrows[4].opacity = 192
-                self.arrows[5].opacity = 0
-                yellow = (1 - hz) * 255
-                self.arrows[4].color = (255, yellow, 0)
-        
-class CalibrationScene(Scene):
+class CalibrationLayer(Layer):
+    
+    is_event_handler = True
     
     d = Dispatcher()
     
@@ -121,11 +123,9 @@ class CalibrationScene(Scene):
     STATE_VALIDATE = 2
     STATE_DONE = 3
 
-    def __init__(self, reactor, host, port, on_success, on_failure):
-        super(CalibrationScene, self).__init__()
-        self.reactor = reactor
-        self.host = host
-        self.port = port
+    def __init__(self, client, on_success=None, on_failure=None):
+        super(CalibrationLayer, self).__init__()
+        self.client = client
         self.on_success = on_success
         self.on_failure = on_failure
 
@@ -143,9 +143,6 @@ class CalibrationScene(Scene):
         self.circle = Sprite(circle_img, color=(255, 255, 0), scale=1)
 
         self.spinner = Sprite(resource.image('spinner.png'), position=(self.screen[0] / 2, self.screen[1] / 2), color=(255, 255, 255))
-                
-        self.client = iViewXClient(self.host, self.port, self.on_connection_refused)
-        self.client.addDispatcher(self.d)
         
         self.hpl = HeadPositionLayer(self.client)
 
@@ -154,25 +151,14 @@ class CalibrationScene(Scene):
         director.window.set_mouse_visible(False)
         
     def on_enter(self):
-        super(CalibrationScene, self).on_enter()
-        director.window.push_handlers(self)
-        self.listener = self.reactor.listenUDP(5555, self.client)
-        self.start()
+        super(CalibrationLayer, self).on_enter()
+        self.client.addDispatcher(self.d)
+        if self.state == self.STATE_INIT and self.client.transport:
+            self.start()
         
-    def on_connection_refused(self):
-        self.state = self.STATE_REFUSED
-        self.label = Label("Connection to iViewX server refused!", position=(self.screen[0] / 2, self.screen[1] / 2),
-                           align='center', anchor_x='center', anchor_y='center', width=self.screen[0],
-                           font_size=32, color=(255, 255, 255, 255), font_name="Monospace", multiline=True)
-        self.add(self.label)
-
-    def cleanup(self):
-        self.reset()
-        self.listener.stopListening()
-
     def on_exit(self):
-        super(CalibrationScene, self).on_exit()
-        director.window.remove_handlers(self)
+        super(CalibrationLayer, self).on_exit()
+        self.client.removeDispatcher(self.d)
 
     def init(self):
         for c in self.get_children():
@@ -184,8 +170,8 @@ class CalibrationScene(Scene):
         self.calibrationResults = []
         self.circle.opacity = 0
         self.add(ColorLayer(0, 0, 255, 255))
-        self.add(self.circle)
-        self.add(self.hpl)
+        self.add(self.circle, z=1)
+        self.add(self.hpl, z=2)
         self.state = self.STATE_INIT
         
     def reset(self):
@@ -209,15 +195,27 @@ class CalibrationScene(Scene):
         if symbol == key.SPACE:
             if self.state == self.STATE_CALIBRATE and not self.circle.actions:
                 self.client.acceptCalibrationPoint()
+                return True
             elif self.state == self.STATE_DONE:
-                self.cleanup()
+                self.reset()
                 self.on_success()
+                return True
         elif symbol == key.R:
             self.reset()
             self.start()
+            return True
         elif symbol == key.ESCAPE:
-            self.cleanup()
+            self.reset()
             self.on_failure()
+            return True
+            
+    @d.listen('CONNECTION_REFUSED')
+    def iViewXEvent(self, inResponse):
+        self.state = self.STATE_REFUSED
+        self.label = Label("Connection to iViewX server refused!", position=(self.screen[0] / 2, self.screen[1] / 2),
+                           align='center', anchor_x='center', anchor_y='center', width=self.screen[0],
+                           font_size=32, color=(255, 255, 255, 255), font_name="Monospace", multiline=True)
+        self.add(self.label, z=1)
 
     @d.listen('ET_CAL')
     def iViewXEvent(self, inResponse):
@@ -263,13 +261,14 @@ class CalibrationScene(Scene):
 
     @d.listen('ET_FIN')
     def iViewXEvent(self, inResponse):
-        self.state = self.STATE_VALIDATE
-        self.remove(self.hpl)
-        self.remove(self.circle)
-        self.add(self.spinner)
-        self.spinner.do(Repeat(RotateBy(360, 1)))
-        self.label = Label("CALCULATING CALIBRATION ACCURACY", position=(self.screen[0] / 2, self.screen[1] / 4 * 3),
-                           font_size=32, color=(255, 255, 255, 255), font_name="Monospace", anchor_x='center', anchor_y='center')
-        self.add(self.label)
-        self.client.requestCalibrationResults()
-        self.client.validateCalibrationAccuracy()
+        if self.state != self.STATE_VALIDATE:
+            self.state = self.STATE_VALIDATE
+            self.remove(self.hpl)
+            self.remove(self.circle)
+            self.add(self.spinner)
+            self.spinner.do(Repeat(RotateBy(360, 1)))
+            self.label = Label("CALCULATING CALIBRATION ACCURACY", position=(self.screen[0] / 2, self.screen[1] / 4 * 3),
+                               font_size=32, color=(255, 255, 255, 255), font_name="Monospace", anchor_x='center', anchor_y='center')
+            self.add(self.label)
+            self.client.requestCalibrationResults()
+            self.client.validateCalibrationAccuracy()
