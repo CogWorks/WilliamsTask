@@ -4,7 +4,7 @@ from cocos.director import director
 from cocos.scene import Scene
 from cocos.sprite import Sprite
 from cocos.text import Label
-from cocos.layer import ColorLayer
+from cocos.layer import ColorLayer, Layer
 from cocos.actions.interval_actions import MoveTo, RotateBy
 from cocos.actions.base_actions import Repeat
 
@@ -15,6 +15,102 @@ from pyglet.window import key
 def clamp(n, minn, maxn):
     return max(min(maxn, n), minn)
 
+class HeadPositionLayer(Layer):
+    
+    d = Dispatcher()
+    
+    def __init__(self, client):
+        super(HeadPositionLayer, self).__init__()
+        self.client = client
+        
+        self.screen = director.get_window_size()
+        
+        self.font = font.load('Cut Outs for 3D FX', 384)
+        arrow1_img = self.font.get_glyphs("I")[0].get_texture(True)
+        arrow1_img.anchor_x = 'center'
+        arrow1_img.anchor_y = 'center'
+        arrow2_img = self.font.get_glyphs("J")[0].get_texture(True)
+        arrow2_img.anchor_x = 'center'
+        arrow2_img.anchor_y = 'center'
+        
+        self.arrows = [Sprite(arrow1_img, position=(self.screen[0] / 2, self.screen[1] / 8 * 7), color=(255, 0, 0), opacity=0, scale=.75, rotation=270),
+                       Sprite(arrow1_img, position=(self.screen[0] / 2, self.screen[1] / 8 * 7), color=(255, 0, 0), opacity=0, scale=.75, rotation=90),
+                       Sprite(arrow1_img, position=(self.screen[0] / 8, self.screen[1] / 2), color=(255, 0, 0), opacity=0, scale=.75, rotation=0),
+                       Sprite(arrow1_img, position=(self.screen[0] / 8 * 7, self.screen[1] / 2), color=(255, 0, 0), opacity=0, scale=.75, rotation=180),
+                       Sprite(arrow2_img, position=(self.screen[0] / 2, self.screen[1] / 8), color=(255, 0, 0), opacity=0, scale=.75, rotation=90),
+                       Sprite(arrow2_img, position=(self.screen[0] / 2, self.screen[1] / 8), color=(255, 0, 0), opacity=0, scale=.75, rotation=270)]
+        
+        for arrow in self.arrows:
+            self.add(arrow)
+            
+        self.head = (0,0,0)
+        
+    def on_enter(self):
+        super(HeadPositionLayer, self).on_enter()
+        self.client.addDispatcher(self.d)
+        
+    def on_exit(self):
+        super(HeadPositionLayer, self).on_exit()
+        self.client.removeDispatcher(self.d)
+        
+    @d.listen('ET_SPL')
+    def iViewXEvent(self, inResponse):
+        eye_position = map(float, inResponse[10:])
+        hx = clamp(round((eye_position[0] + eye_position[1]) / 2 / 99.999, 2), -1.0, 1.0)
+        hy = clamp(round((eye_position[2] + eye_position[3]) / 2 / 99.999, 2), -1.0, 1.0)
+        hz = clamp(round(((eye_position[4] + eye_position[5]) / 2 - 700) / 150.0, 2), -1.0, 1.0)
+        
+        self.head = (hx, hy, hz)
+        
+        if hy >= -.5 and hy <= .5:
+            self.arrows[0].opacity = 0
+            self.arrows[1].opacity = 0
+        elif hy > .5:
+            hy = (abs(hy) - .5) / .5
+            self.arrows[0].opacity = 0
+            self.arrows[1].opacity = 192
+            yellow = (1 - hy) * 255
+            self.arrows[1].color = (255, yellow, 0)
+        elif hy < -.5:
+            hy = (abs(hy) - .5) / .5
+            self.arrows[0].opacity = 192
+            self.arrows[1].opacity = 0
+            yellow = (1 - hy) * 255
+            self.arrows[0].color = (255, yellow, 0)
+            
+        if hx >= -.5 and hx <= .5:
+            self.arrows[2].opacity = 0
+            self.arrows[3].opacity = 0
+        elif hx > .5:
+            hx = (abs(hx) - .5) / .5
+            self.arrows[2].opacity = 0
+            self.arrows[3].opacity = 192
+            yellow = (1 - hx) * 255
+            self.arrows[3].color = (255, yellow, 0)
+        elif hx < -.5:
+            hx = (abs(hx) - .5) / .5
+            self.arrows[2].opacity = 192
+            self.arrows[3].opacity = 0
+            yellow = (1 - hx) * 255
+            self.arrows[2].color = (255, yellow, 0)
+        
+        if eye_position[4] != 0 and eye_position[5] != 0:
+            if hz >= -.5 and hz <= .5:
+                self.arrows[4].opacity = 0
+                self.arrows[5].opacity = 0
+            elif hz > .5:
+                hz = (abs(hz) - .5) / .5
+                self.arrows[4].opacity = 0
+                self.arrows[5].opacity = 192
+                yellow = (1 - hz) * 255
+                self.arrows[5].color = (255, yellow, 0)
+            elif hz < -.5:
+                hz = (abs(hz) - .5) / .5
+                self.arrows[4].opacity = 192
+                self.arrows[5].opacity = 0
+                yellow = (1 - hz) * 255
+                self.arrows[4].color = (255, yellow, 0)
+        
 class CalibrationScene(Scene):
     
     d = Dispatcher()
@@ -44,32 +140,14 @@ class CalibrationScene(Scene):
         circle_img.anchor_x = 'center'
         circle_img.anchor_y = 'center'
         
-        self.font = font.load('Cut Outs for 3D FX', 128)
-        oval_img = self.font.get_glyphs("F")[0].get_texture(True)
-        oval_img.anchor_x = 'center'
-        oval_img.anchor_y = 'center'
-        
-        self.font = font.load('Cut Outs for 3D FX', 384)
-        arrow1_img = self.font.get_glyphs("I")[0].get_texture(True)
-        arrow1_img.anchor_x = 'center'
-        arrow1_img.anchor_y = 'center'
-        arrow2_img = self.font.get_glyphs("J")[0].get_texture(True)
-        arrow2_img.anchor_x = 'center'
-        arrow2_img.anchor_y = 'center'
-        
         self.circle = Sprite(circle_img, color=(255, 255, 0), scale=1)
 
         self.spinner = Sprite(resource.image('spinner.png'), position=(self.screen[0] / 2, self.screen[1] / 2), color=(255, 255, 255))
-        
-        self.arrows = [Sprite(arrow1_img, position=(self.screen[0] / 2, self.screen[1] / 8 * 7), color=(255, 0, 0), opacity=0, scale=.75, rotation=270),
-                       Sprite(arrow1_img, position=(self.screen[0] / 2, self.screen[1] / 8 * 7), color=(255, 0, 0), opacity=0, scale=.75, rotation=90),
-                       Sprite(arrow1_img, position=(self.screen[0] / 8, self.screen[1] / 2), color=(255, 0, 0), opacity=0, scale=.75, rotation=0),
-                       Sprite(arrow1_img, position=(self.screen[0] / 8 * 7, self.screen[1] / 2), color=(255, 0, 0), opacity=0, scale=.75, rotation=180),
-                       Sprite(arrow2_img, position=(self.screen[0] / 2, self.screen[1] / 8), color=(255, 0, 0), opacity=0, scale=.75, rotation=90),
-                       Sprite(arrow2_img, position=(self.screen[0] / 2, self.screen[1] / 8), color=(255, 0, 0), opacity=0, scale=.75, rotation=270)]
                 
         self.client = iViewXClient(self.host, self.port, self.on_connection_refused)
         self.client.addDispatcher(self.d)
+        
+        self.hpl = HeadPositionLayer(self.client)
 
         self.init()
         
@@ -107,8 +185,7 @@ class CalibrationScene(Scene):
         self.circle.opacity = 0
         self.add(ColorLayer(0, 0, 255, 255))
         self.add(self.circle)
-        for arrow in self.arrows:
-            self.add(arrow)
+        self.add(self.hpl)
         self.state = self.STATE_INIT
         
     def reset(self):
@@ -141,65 +218,6 @@ class CalibrationScene(Scene):
         elif symbol == key.ESCAPE:
             self.cleanup()
             self.on_failure()
-
-    @d.listen('ET_SPL')
-    def iViewXEvent(self, inResponse):
-        self.ts = int(inResponse[0])
-        self.eye_position = map(float, inResponse[10:])
-        hx = clamp(round((self.eye_position[0] + self.eye_position[1]) / 2 / 99.999, 2), -1.0, 1.0)
-        hy = clamp(round((self.eye_position[2] + self.eye_position[3]) / 2 / 99.999, 2), -1.0, 1.0)
-        hz = clamp(round(((self.eye_position[4] + self.eye_position[5]) / 2 - 700) / 150.0, 2), -1.0, 1.0)
-        
-        if hy >= -.5 and hy <= .5:
-            self.arrows[0].opacity = 0
-            self.arrows[1].opacity = 0
-        elif hy > .5:
-            hy = (abs(hy) - .5) / .5
-            self.arrows[0].opacity = 0
-            self.arrows[1].opacity = 192
-            yellow = (1 - hy) * 255
-            self.arrows[1].color = (255, yellow, 0)
-        elif hy < -.5:
-            hy = (abs(hy) - .5) / .5
-            self.arrows[0].opacity = 192
-            self.arrows[1].opacity = 0
-            yellow = (1 - hy) * 255
-            self.arrows[0].color = (255, yellow, 0)
-            
-        if hx >= -.5 and hx <= .5:
-            self.arrows[2].opacity = 0
-            self.arrows[3].opacity = 0
-        elif hx > .5:
-            hx = (abs(hx) - .5) / .5
-            self.arrows[2].opacity = 0
-            self.arrows[3].opacity = 192
-            yellow = (1 - hx) * 255
-            self.arrows[3].color = (255, yellow, 0)
-        elif hx < -.5:
-            hx = (abs(hx) - .5) / .5
-            self.arrows[2].opacity = 192
-            self.arrows[3].opacity = 0
-            yellow = (1 - hx) * 255
-            self.arrows[2].color = (255, yellow, 0)
-        
-        if self.eye_position[4] != 0 and self.eye_position[5] != 0:
-            if hz >= -.5 and hz <= .5:
-                self.arrows[4].opacity = 0
-                self.arrows[5].opacity = 0
-            elif hz > .5:
-                hz = (abs(hz) - .5) / .5
-                self.arrows[4].opacity = 0
-                self.arrows[5].opacity = 192
-                yellow = (1 - hz) * 255
-                self.arrows[5].color = (255, yellow, 0)
-            elif hz < -.5:
-                hz = (abs(hz) - .5) / .5
-                self.arrows[4].opacity = 192
-                self.arrows[5].opacity = 0
-                yellow = (1 - hz) * 255
-                self.arrows[4].color = (255, yellow, 0)
-            
-        
 
     @d.listen('ET_CAL')
     def iViewXEvent(self, inResponse):
@@ -246,6 +264,7 @@ class CalibrationScene(Scene):
     @d.listen('ET_FIN')
     def iViewXEvent(self, inResponse):
         self.state = self.STATE_VALIDATE
+        self.remove(self.hpl)
         self.remove(self.circle)
         self.add(self.spinner)
         self.spinner.do(Repeat(RotateBy(360, 1)))
