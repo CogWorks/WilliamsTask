@@ -41,7 +41,7 @@ def pyttsx_iterate(dt):
     engine.iterate()
 
 ###
-from util import hsv_to_rgb, get_time
+from util import hsv_to_rgb
 from handler import DefaultHandler
 from menu import BetterMenu, GhostMenuItem
 ###
@@ -54,6 +54,8 @@ try:
     eyetracking = True
 except ImportError:
     eyetracking = False
+    
+from pycogworks.logging import get_time, Logger
 
 class OptionsMenu(BetterMenu):
 
@@ -540,11 +542,10 @@ class Probe(Label):
     
     def __init__(self, app, mode, width, position, font_size):
         
-        s = 3
+        s = 0
         
         if mode == 'Experiment':
             trial = app.trials.pop()
-            app.current_trial += 1
             if app.bg: app.bg.update(app.current_trial, app.total_trials)
             for c in app.combos:
                 if c[0] == trial[0] and c[1] == trial[1] and c[2] == trial[2]:
@@ -561,31 +562,47 @@ class Probe(Label):
 
         if mode != 'Experiment':
             if mode == 'Moderate':
-                s = choice([2, 3])
+                s = choice(range(0, 4))
             elif mode == 'Hard':
-                s = choice([1, 2, 3])
+                s = choice(range(0, 7))
             elif mode == 'Insane':
-                s = choice([0, 1, 2, 3])
-            cues = sample([color, shape, size], s)
-        else:
-            if s == 0:
-                cues = []
-            elif s == 1:
-                cues = [color]
-            elif s == 2:
-                cues = [shape]
-            elif s == 3:
-                cues = [size]
-            elif s == 4:
-                cues = [color, shape]
-            elif s == 5:
-                cues = [color, size]
-            elif s == 6:
-                cues = [shape, size]
-            elif s == 7:
-                cues = [color, shape, size]
-            shuffle(cues)
+                s = choice(range(0, 8))
+
+        self.color_visible = False
+        self.shape_visible = False
+        self.size_visible = False
+        
+        if s == 7:
+            cues = []
+        elif s == 6:
+            cues = [color]
+            self.color_visible = True
+        elif s == 5:
+            cues = [shape]
+            self.shape_visible = True
+        elif s == 4:
+            cues = [size]
+            self.size_visible = True
+        elif s == 3:
+            cues = [color, shape]
+            self.color_visible = True
+            self.shape_visible = True
+        elif s == 2:
+            cues = [color, size]
+            self.color_visible = True
+            self.size_visible = True
+        elif s == 1:
+            cues = [shape, size]
+            self.shape_visible = True
+            self.size_visible = True
+        elif s == 0:
+            cues = [color, shape, size]
+            self.color_visible = True
+            self.shape_visible = True
+            self.size_visible = True
+        shuffle(cues)
         cues = tuple(cues + [id])
+        
         template = '\n'.join(["%s"] * len(cues))
         html = template % (cues)
         super(Probe, self).__init__(html, position=position, multiline=True, width=width,
@@ -606,9 +623,28 @@ class TaskBackground(Layer):
 
 class Task(ColorLayer):
     
+    STATE_WAIT = "WAIT"
+    STATE_STUDY = "STUDY"
+    STATE_SEARCH = "SEARCH"
+    STATE_RESULTS = "RESULTS"
+    
     is_event_handler = True
     
     def __init__(self, settings, bg=None):
+        
+        header = ["system_time", "mode", "trial", "event_source", "event_type",
+              "event_id", "mouse_x", "mouse_y", "study_time", "search_time",
+              "probe_id", "probe_color", "probe_shape", "probe_size"]
+        for i in range(1, 76):
+            header.append("shape%02d_color" % i)
+            header.append("shape%02d_shape" % i)
+            header.append("shape%02d_size" % i)
+            header.append("shape%02d_radius" % i)
+            header.append("shape%02d_x" % i)
+            header.append("shape%02d_y" % i)
+            
+        self.logger = Logger(header)
+
         self.settings = settings
         self.bg = bg
         self.screen = director.get_window_size()
@@ -636,6 +672,7 @@ class Task(ColorLayer):
         self.ratio = self.side / 128
         self.scales = [self.ratio * 1.5, self.ratio, self.ratio * .5]
         self.sizes = ["large", "medium", "small"]
+        self.current_trial = 1
         self.gen_trials()
         self.gen_combos()
         self.batch = BatchNode()
@@ -644,15 +681,28 @@ class Task(ColorLayer):
         self.circles = []
         self.search_time = -1
         self.study_time = -1
-        self.ready = False
         self.ready_label = Label("Click mouse when ready!", position=(self.width / 2, self.height / 2), font_name='Pipe Dream', font_size=24, color=(0, 0, 0, 255), anchor_x='center', anchor_y='center')
         self.add(self.ready_label)
+        self.state = self.STATE_WAIT
+        self.logger.write(system_time=get_time(), mode=self.settings['mode'], trial=self.current_trial,
+                          event_source="TASK", event_type=self.state, event_id="START")
         
     def trial_done(self):
-        self.search_time = get_time() - self.start_time
-        print "Study Time: %f\tSearch Time: %f" % (self.study_time, self.search_time)
+        t = get_time()
+        self.search_time = t - self.start_time
+        self.logger.write(system_time=t, mode=self.settings['mode'], trial=self.current_trial,
+                          event_source="TASK", event_type=self.state, event_id="END", **self.log_extra)
+        self.state = self.STATE_RESULTS
+        self.logger.write(system_time=t, mode=self.settings['mode'], trial=self.current_trial,
+                          event_source="TASK", event_type=self.state, study_time=self.study_time, search_time=self.search_time, **self.log_extra)
         director.window.set_mouse_visible(False)
         self.clear_shapes()
+        t = get_time()
+        self.log_extra = {}
+        self.state = self.STATE_WAIT
+        self.current_trial += 1
+        self.logger.write(system_time=t, mode=self.settings['mode'], trial=self.current_trial,
+                          event_source="TASK", event_type=self.state, event_id="START")
         
     def gen_trials(self):
         self.trials = []
@@ -662,7 +712,6 @@ class Task(ColorLayer):
                     for c in range(0, 8):
                         self.trials.append([shape, color, scale, c])
         self.total_trials = len(self.trials)
-        self.current_trial = 0
         shuffle(self.trials)
         
     def gen_combos(self):
@@ -679,6 +728,10 @@ class Task(ColorLayer):
             self.remove(c)
         self.probe = Probe(self, self.settings['mode'], self.side, (self.screen[1] / 2, self.screen[1] / 2), 14 * self.ratio)
         self.add(self.probe)
+        self.log_extra = {"probe_id": self.probe.chunk[3],
+                     "probe_color": self.probe.color_visible,
+                     "probe_shape": self.probe.shape_visible,
+                     "probe_size": self.probe.size_visible}
         
     def clear_shapes(self):
         self.circles = []
@@ -687,18 +740,16 @@ class Task(ColorLayer):
             self.remove(c)
         self.batch = BatchNode()
         self.id_batch = BatchNode()
-        self.shapes_visible = False
         self.gen_combos()
-        self.ready = False
         self.add(self.ready_label)
     
     def show_shapes(self):
         self.cm.add(self.probe)
-        self.shapes_visible = True
         ratio = self.side / 128
         sprites = 0
         resets = 0
         self.circles = []
+        self.shape_log = {}
         for c in self.combos:
             img = self.shapes[c[0]]
             img.anchor_x = 'center'
@@ -712,40 +763,60 @@ class Task(ColorLayer):
                             x=sprite.position[0], y=sprite.position[1],
                             font_name="Monospace", color=(32, 32, 32, 255),
                             anchor_x='center', anchor_y='center', batch=self.id_batch.batch)
+            self.shape_log["shape%02d_color" % c[3]] = c[1]
+            self.shape_log["shape%02d_shape" % c[3]] = c[0]
+            self.shape_log["shape%02d_size" % c[3]] = c[2]
+            self.shape_log["shape%02d_radius" % c[3]] = sprite.cshape.r
+            self.shape_log["shape%02d_x" % c[3]] = sprite.position[0]
+            self.shape_log["shape%02d_y" % c[3]] = sprite.position[1]
             self.circles.append(Circle(sprite.position[0] + (self.screen[0] - self.screen[1]) / 2, sprite.position[1], width=2 * sprite.cshape.r))
             self.cm.add(sprite)
             self.batch.add(sprite)
         self.circles.append(Circle(self.probe.position[0] + (self.screen[0] - self.screen[1]) / 2, self.probe.position[1], width=2 * self.probe.cshape.r))
         self.add(self.batch, z=1)
         self.add(self.id_batch, z=2)
+        self.log_extra.update(self.shape_log)
         
     #def draw(self):
     #    super(Task, self).draw()
     #    for c in self.circles: c.render()
         
     def on_mouse_press(self, x, y, buttons, modifiers):
-        if not self.ready:
-            self.ready = True
+        if self.state == self.STATE_WAIT:
+            self.logger.write(system_time=get_time(), mode=self.settings['mode'], trial=self.current_trial,
+                              event_source="TASK", event_type=self.state, event_id="END")
             self.gen_probe()
-            self.start_time = get_time()
-        elif self.shapes_visible:
+            self.state = self.STATE_STUDY
+            self.logger.write(system_time=get_time(), mode=self.settings['mode'], trial=self.current_trial,
+                              event_source="TASK", event_type=self.state, event_id="START", **self.log_extra)
+        elif self.state == self.STATE_SEARCH:
             x, y = director.get_virtual_coordinates(x, y)
             for obj in self.cm.objs_touching_point(x - (self.screen[0] - self.screen[1]) / 2, y):
                 if obj.chunk == self.probe.chunk:
                     self.trial_done()
         else:
+            t = get_time()
+            self.study_time = t - self.start_time
+            self.logger.write(system_time=t, mode=self.settings['mode'], trial=self.current_trial,
+                              event_source="TASK", event_type=self.state, event_id="END", **self.log_extra)
             self.show_shapes()
             window = director.window.get_size()
             nx = int(window[0] / 2)
             ny = int(window[1] / 2 - self.probe.cshape.r * .75 * (window[1] / self.screen[1]))
-            
+            t = get_time()
+            self.start_time = t
+            self.state = self.STATE_SEARCH
+            self.logger.write(system_time=t, mode=self.settings['mode'], trial=self.current_trial,
+                              event_source="TASK", event_type=self.state, event_id="START", **self.log_extra)
+            self.logger.write(system_time=t, mode=self.settings['mode'], trial=self.current_trial,
+                              event_source="TASK", event_type=self.state, event_id="MOUSE_RESET", mouse_x=nx, mouse_y=ny, **self.log_extra)
             director.window.set_mouse_position(nx, ny)
             director.window.set_mouse_visible(True)
-            self.study_time = get_time() - self.start_time
-            self.start_time = get_time()
 
     def on_mouse_motion(self, x, y, dx, dy):
-        pass
+        if self.state == self.STATE_SEARCH:
+            self.logger.write(system_time=get_time(), mode=self.settings['mode'], trial=self.current_trial,
+                              event_source="USER", event_type=self.state, event_id="MOUSE_MOTION", mouse_x=x, mouse_y=y, **self.log_extra)
         
     def on_key_press(self, symbol, modifiers):
         if symbol == key.D:
