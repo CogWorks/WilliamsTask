@@ -559,14 +559,33 @@ class Probe(Label):
         shape = self.chunk[0].upper()
         size = self.chunk[2].upper()        
 
-        if mode == 'Moderate':
-            s = choice([2, 3])
-        elif mode == 'Hard':
-            s = choice([1, 2, 3])
-        elif mode == 'Insane':
-            s = choice([0, 1, 2, 3])
-        
-        cues = tuple(sample([color, shape, size], s) + [id])
+        if mode != 'Experiment':
+            if mode == 'Moderate':
+                s = choice([2, 3])
+            elif mode == 'Hard':
+                s = choice([1, 2, 3])
+            elif mode == 'Insane':
+                s = choice([0, 1, 2, 3])
+            cues = sample([color, shape, size], s)
+        else:
+            if s == 0:
+                cues = []
+            elif s == 1:
+                cues = [color]
+            elif s == 2:
+                cues = [shape]
+            elif s == 3:
+                cues = [size]
+            elif s == 4:
+                cues = [color, shape]
+            elif s == 5:
+                cues = [color, size]
+            elif s == 6:
+                cues = [shape, size]
+            elif s == 7:
+                cues = [color, shape, size]
+            shuffle(cues)
+        cues = tuple(cues + [id])
         template = '\n'.join(["%s"] * len(cues))
         html = template % (cues)
         super(Probe, self).__init__(html, position=position, multiline=True, width=width,
@@ -640,7 +659,7 @@ class Task(ColorLayer):
         for scale in self.sizes:
             for color in self.colors:
                 for shape in self.shapes:
-                    for c in [0, 1, 2, 3]:
+                    for c in range(0, 8):
                         self.trials.append([shape, color, scale, c])
         self.total_trials = len(self.trials)
         self.current_trial = 0
