@@ -207,8 +207,6 @@ class ParticipantMenu(BetterMenu):
         
         self.items['name'] = EntryMenuItem('Full Name:', self.on_name, "")
         self.items['rin'] = EntryMenuItem('RIN:', self.on_rin, "", max_length=9)
-        if eyetracking and self.settings['eyetracker']:
-            self.items['calibrate'] = MenuItem('Calibrate', self.on_calibrate)
         self.items['start'] = MenuItem('Start', self.on_start)
         
         self.create_menu(self.items.values(), zoom_in(), zoom_out())
@@ -216,11 +214,7 @@ class ParticipantMenu(BetterMenu):
     def on_exit(self):
         super(ParticipantMenu, self).on_exit()
         for c in self.get_children(): self.remove(c)
-        
-    if eyetracking:
-        def on_calibrate(self):
-            director.push(CalibrationScene(reactor, self.settings['eyetracker_ip'], int(self.settings['eyetracker_port']), None, lambda: director.pop()))
-        
+                
     def on_name(self, name):
         print "on_name", name
         
@@ -238,7 +232,11 @@ class ParticipantMenu(BetterMenu):
         scene.add(tb, z=0)
         scene.add(t, z=1)
         self.parent.switch_to(0)
-        director.push(SplitRowsTransition(scene))
+        
+        if eyetracking and self.settings['eyetracker']:
+            director.push(CalibrationScene(reactor, self.settings['eyetracker_ip'], int(self.settings['eyetracker_port']), lambda: director.replace(SplitRowsTransition(scene)), lambda: director.pop()))
+        else:
+            director.push(SplitRowsTransition(scene))
 
     def on_quit(self):
         self.parent.switch_to(0)

@@ -88,11 +88,13 @@ class CalibrationScene(Scene):
                            font_size=32, color=(255, 255, 255, 255), font_name="Monospace", multiline=True)
         self.add(self.label)
 
+    def cleanup(self):
+        self.reset()
+        self.listener.stopListening()
+
     def on_exit(self):
         super(CalibrationScene, self).on_exit()
         director.window.remove_handlers(self)
-        self.reset()
-        self.listener.stopListening()
 
     def init(self):
         for c in self.get_children():
@@ -131,11 +133,13 @@ class CalibrationScene(Scene):
             if self.state == self.STATE_CALIBRATE and not self.circle.actions:
                 self.client.acceptCalibrationPoint()
             elif self.state == self.STATE_DONE:
+                self.cleanup()
                 self.on_success()
         elif symbol == key.R:
             self.reset()
             self.start()
         elif symbol == key.ESCAPE:
+            self.cleanup()
             self.on_failure()
 
     @d.listen('ET_SPL')
@@ -233,6 +237,7 @@ class CalibrationScene(Scene):
                                    align='center', anchor_x='center', anchor_y='center', width=self.screen[0],
                                    font_size=32, color=(255, 255, 255, 255), font_name="Monospace", multiline=True)
                 self.add(self.label)
+                self.state = self.STATE_DONE
 
     @d.listen('ET_CSP')
     def iViewXEvent(self, inResponse):
