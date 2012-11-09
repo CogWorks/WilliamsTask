@@ -8,7 +8,7 @@ from cocos.layer import ColorLayer, Layer
 from cocos.actions.interval_actions import MoveTo, RotateBy
 from cocos.actions.base_actions import Repeat
 
-from pyglet import font, resource
+from pyglet import font
 from pyglet.window import key
 
 def clamp(n, minn, maxn):
@@ -115,7 +115,7 @@ class HeadPositionLayer(Layer):
                     yellow = (1 - hz) * 255
                     self.arrows[4].color = (255, yellow, 0)
         
-class CalibrationLayer(Layer):
+class CalibrationLayer(ColorLayer):
     
     is_event_handler = True
     
@@ -128,7 +128,8 @@ class CalibrationLayer(Layer):
     STATE_DONE = 3
 
     def __init__(self, client, on_success=None, on_failure=None):
-        super(CalibrationLayer, self).__init__()
+        super(CalibrationLayer, self).__init__(0, 0, 255, 255)
+        """
         self.client = client
         self.on_success = on_success
         self.on_failure = on_failure
@@ -149,40 +150,39 @@ class CalibrationLayer(Layer):
         self.spinner = Sprite(resource.image('spinner.png'), position=(self.screen[0] / 2, self.screen[1] / 2), color=(255, 255, 255))
         
         self.hpl = HeadPositionLayer(self.client)
-
-        self.init()
         
         director.window.set_mouse_visible(False)
+        """
         
-    def on_enter(self):
-        super(CalibrationLayer, self).on_enter()
-        self.client.addDispatcher(self.d)
-        if director.scene == self.parent:
-            if self.state == self.STATE_INIT:
-                self.start()
+    #def on_enter(self):
+    #    super(CalibrationLayer, self).on_enter()
+        #if director.scene == self.parent:
+        #    self.client.addDispatcher(self.d)
+        #    self.reset()
+        #    self.start()
         
-    def on_exit(self):
-        super(CalibrationLayer, self).on_exit()
-        self.client.removeDispatcher(self.d)
+    #def on_exit(self):
+    #    super(CalibrationLayer, self).on_exit()
+        #if director.scene == self.parent:
+            #self.reset()
+        #    self.client.removeDispatcher(self.d)
+            
 
     def init(self):
-        for c in self.get_children():
-            c.stop()
-            self.remove(c)
         self.ts = -1
         self.eye_position = None
         self.calibrationPoints = [None] * 9
         self.calibrationResults = []
-        self.circle.opacity = 0
-        self.add(ColorLayer(0, 0, 255, 255))
         self.add(self.circle, z=1)
         self.add(self.hpl, z=2)
         self.state = self.STATE_INIT
         
     def reset(self):
-        if self.state > self.STATE_REFUSED:
-            self.client.cancelCalibration()
-            self.init()
+        self.client.cancelCalibration()
+        for c in self.get_children():
+            c.stop()
+            self.remove(c)
+        self.init()
         
     def start(self):
         if self.state > self.STATE_REFUSED:
@@ -197,7 +197,6 @@ class CalibrationLayer(Layer):
             self.client.startCalibration(9, 0)
 
     def on_key_press(self, symbol, modifiers):
-        print self.client.transport
         if symbol == key.SPACE:
             print self.client.transport
             if self.state == self.STATE_CALIBRATE and not self.circle.actions:
@@ -212,7 +211,7 @@ class CalibrationLayer(Layer):
             self.start()
             return True
         elif symbol == key.ESCAPE:
-            self.reset()
+            #self.reset()
             self.on_failure()
             return True
             

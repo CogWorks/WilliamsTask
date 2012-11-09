@@ -12,7 +12,6 @@ from pyglet.window import key
 
 from cocos.director import *
 from cocos.layer import *
-from cocos.scene import *
 from cocos.sprite import *
 from cocos.menu import *
 from cocos.text import *
@@ -44,6 +43,7 @@ def pyttsx_iterate(dt):
 from util import hsv_to_rgb
 from handler import DefaultHandler
 from menu import BetterMenu, GhostMenuItem
+from scene import Scene
 ###
 
 from odict import OrderedDict
@@ -59,10 +59,9 @@ from pycogworks.logging import get_time, Logger
 
 class OptionsMenu(BetterMenu):
 
-    def __init__(self, settings):
+    def __init__(self):
         super(OptionsMenu, self).__init__('Options')
         self.screen = director.get_window_size()
-        self.settings = settings
         
         ratio = self.screen[1] / self.screen[0]
         
@@ -84,10 +83,10 @@ class OptionsMenu(BetterMenu):
         self.items['fps'] = ToggleMenuItem('Show FPS:', self.on_show_fps, director.show_FPS)
         self.items['fullscreen'] = ToggleMenuItem('Fullscreen:', self.on_fullscreen, director.window.fullscreen)
         if eyetracking:
-            self.items['eyetracker'] = ToggleMenuItem("EyeTracker:", self.on_eyetracker, self.settings['eyetracker'])
-            self.items['eyetracker_ip'] = EntryMenuItem('EyeTracker IP:', self.on_eyetracker_ip, self.settings['eyetracker_ip'])
-            self.items['eyetracker_port'] = EntryMenuItem('EyeTracker Port:', self.on_eyetracker_port, self.settings['eyetracker_port'])
-            self.set_eyetracker_extras(self.settings['eyetracker'])
+            self.items['eyetracker'] = ToggleMenuItem("EyeTracker:", self.on_eyetracker, director.settings['eyetracker'])
+            self.items['eyetracker_ip'] = EntryMenuItem('EyeTracker IP:', self.on_eyetracker_ip, director.settings['eyetracker_ip'])
+            self.items['eyetracker_port'] = EntryMenuItem('EyeTracker Port:', self.on_eyetracker_port, director.settings['eyetracker_port'])
+            self.set_eyetracker_extras(director.settings['eyetracker'])
         
         self.create_menu(self.items.values(), zoom_in(), zoom_out())
         
@@ -99,7 +98,7 @@ class OptionsMenu(BetterMenu):
         director.window.set_fullscreen(value, screen)
     
     def on_experiment(self, value):
-        self.settings['experiment'] = value
+        director.settings['experiment'] = value
     
     if eyetracking:
     
@@ -108,24 +107,23 @@ class OptionsMenu(BetterMenu):
             self.items['eyetracker_port'].visible = value
             
         def on_eyetracker(self, value):
-            self.settings['eyetracker'] = value
+            director.settings['eyetracker'] = value
             self.set_eyetracker_extras(value)
             
         def on_eyetracker_ip(self, ip):
-            self.settings['eyetracker_ip'] = ip
+            director.settings['eyetracker_ip'] = ip
         
         def on_eyetracker_port(self, port):
-            self.settings['eyetracker_port'] = port
+            director.settings['eyetracker_port'] = port
             
     def on_quit(self):
         self.parent.switch_to(0)
 
 class MainMenu(BetterMenu):
 
-    def __init__(self, settings):
+    def __init__(self):
         super(MainMenu, self).__init__("The Williams' Search Task")
         self.screen = director.get_window_size()
-        self.settings = settings
         
         ratio = self.screen[1] / self.screen[0]
                 
@@ -147,7 +145,7 @@ class MainMenu(BetterMenu):
 
         self.items = OrderedDict()
         
-        self.items['mode'] = MultipleMenuItem('Mode: ', self.on_mode, self.settings['modes'], self.settings['modes'].index(self.settings['mode']))
+        self.items['mode'] = MultipleMenuItem('Mode: ',self.on_mode, director.settings['modes'], director.settings['modes'].index(director.settings['mode']))
         self.items['tutorial'] = MenuItem('Tutorial', self.on_tutorial)
         self.items['start'] = MenuItem('Start', self.on_start)
         self.items['options'] = MenuItem('Options', self.on_options)
@@ -156,29 +154,25 @@ class MainMenu(BetterMenu):
         self.create_menu(self.items.values(), zoom_in(), zoom_out())
 
     def on_mode(self, mode):
-         self.settings['mode'] = self.settings['modes'][mode]
+        director.settings['mode'] = director.settings['modes'][mode]
     
     def on_tutorial(self):
-        director.push(SplitColsTransition(Scene(TutorialLayer(self.settings))))
+        director.push(SplitColsTransition(Scene(TutorialLayer())))
         
     def on_options(self):
         self.parent.switch_to(1)
         
     def on_start(self):
-        if self.settings['mode'] == "Experiment":
-            self.parent.switch_to(2)
-        else:
-            director.push(SplitRowsTransition(TaskScene(self.settings)))
+        director.scene.dispatch_event('start_task')
 
     def on_quit(self):
         reactor.callFromThread(reactor.stop)
-        
+                
 class ParticipantMenu(BetterMenu):
 
-    def __init__(self, settings):
+    def __init__(self):
         super(ParticipantMenu, self).__init__("Participant Information")
         self.screen = director.get_window_size()
-        self.settings = settings
         
         ratio = self.screen[1] / self.screen[0]
                 
@@ -221,8 +215,7 @@ class ParticipantMenu(BetterMenu):
             self.items[1].value = rin[:-1]
         
     def on_start(self):
-        self.parent.switch_to(0)
-        director.push(SplitRowsTransition(TaskScene(self.settings)))
+        director.scene.dispatch_event('start_task')
 
     def on_quit(self):
         self.parent.switch_to(0)
@@ -256,8 +249,7 @@ class TutorialLayer(ColorLayer):
     
     is_event_handler = True
     
-    def __init__(self, settings):
-        self.settings = settings
+    def __init__(self):
         self.screen = director.get_window_size()
         super(TutorialLayer, self).__init__(168, 168, 168, 255, self.screen[0], self.screen[1])
         
@@ -517,33 +509,14 @@ class BackgroundLayer(Layer):
 
 class Probe(Label):
     
-    def __init__(self, app, mode, width, position, font_size):
+    def __init__(self, chunk, s, width, position, font_size):
         
-        s = 0
+        self.chunk = chunk
         
-        if mode == 'Experiment':
-            trial = app.trials.pop()
-            if app.bg: app.bg.update(app.current_trial, app.total_trials)
-            for c in app.combos:
-                if c[0] == trial[0] and c[1] == trial[1] and c[2] == trial[2]:
-                    self.chunk = c
-                    s = trial[3]
-                    break
-        else:
-            self.chunk = choice(app.combos)
-        
-        id = "%02d" % self.chunk[3]
+        cid = "%02d" % self.chunk[3]
         color = self.chunk[1].upper()
         shape = self.chunk[0].upper()
         size = self.chunk[2].upper()        
-
-        if mode != 'Experiment':
-            if mode == 'Moderate':
-                s = choice(range(0, 4))
-            elif mode == 'Hard':
-                s = choice(range(0, 7))
-            elif mode == 'Insane':
-                s = choice(range(0, 8))
 
         self.color_visible = False
         self.shape_visible = False
@@ -578,7 +551,7 @@ class Probe(Label):
             self.shape_visible = True
             self.size_visible = True
         shuffle(cues)
-        cues = tuple(cues + [id])
+        cues = tuple(cues + [cid])
         
         template = '\n'.join(["%s"] * len(cues))
         html = template % (cues)
@@ -589,44 +562,46 @@ class Probe(Label):
 
 class TaskScene(Scene):
     
-    def __init__(self, settings):
+    def __init__(self):
         super(TaskScene, self).__init__()
-        self.settings = settings
         
+        """       
         self.listener = None
-        if eyetracking and self.settings['eyetracker']:
-            self.client = iViewXClient(self.settings['eyetracker_ip'], int(self.settings['eyetracker_port']))
+        if eyetracking and director.settings['eyetracker']:
+            self.client = iViewXClient(director.settings['eyetracker_ip'], int(director.settings['eyetracker_port']))
             self.cbl = CalibrationLayer(self.client, None)
             self.hpl = HeadPositionLayer(self.client)
+            #self.listener = reactor.listenUDP(5555, self.client)
+            self.add(self.cbl, z=2)
+            self.add(self.hpl, z=3)
         else:
             self.client = None
             self.hpl = None
             self.cbl = None
             
         self.tb = TaskBackground()        
-        self.t = Task(self.settings, self.tb, self.client, self.cbl, self.hpl)
+        self.t = Task(director.settings, self.tb, self.client, self.cbl, self.hpl)
+        self.add(self.tb, z=0)
+        self.add(self.t, z=1)
+        """
+        
+
 
         
-    def on_enter(self):
-        super(TaskScene, self).on_enter()
-        if director.scene == self:
-            self.add(self.tb, z=0)
-            self.add(self.t, z=1)
-            if self.client:
-                self.listener = reactor.listenUDP(5555, self.client)
-                while self.client.transport == None:
-                    reactor.iterate()
-                self.add(self.cbl, z=2)
-                self.add(self.hpl, z=3)
+    #def on_enter(self):
+        #if director.scene == self:
+        #    super(TaskScene, self).on_enter()
+        #    
+        #    if self.client:
+        #        
         
-    def on_exit(self):
-        super(TaskScene, self).on_exit()
-        if director.scene == self:
-            for c in self.get_children():
-                self.remove(c)
-            if self.listener:
-                self.listener.stopListening()
-        
+    #def on_exit(self):
+        #if director.scene == self:
+        #    for c in self.get_children():
+        #        self.remove(c)
+        #    if self.listener:
+        #        self.listener.stopListening()
+            #super(TaskScene, self).on_exit()
 
 class TaskBackground(Layer):
     
@@ -639,7 +614,7 @@ class TaskBackground(Layer):
         self.trial_display = Label("%d of %d" % (current_trial, total_trials), position=(self.screen[0] - 10, 10), font_name='', font_size=18, bold=True, color=(128, 128, 128, 128), anchor_x='right')
         self.add(self.trial_display)
 
-class Task(ColorLayer):
+class Task(ColorLayer, pyglet.event.EventDispatcher):
     
     d = Dispatcher()
     
@@ -653,14 +628,17 @@ class Task(ColorLayer):
     
     is_event_handler = True
     
-    def __init__(self, settings, bg=None, client=None, cbl=None, hpl=None):
+    def __init__(self):
         
-        self.settings = settings
-        
+        self.screen = director.get_window_size()
+        super(Task, self).__init__(168, 168, 168, 255, self.screen[1], self.screen[1])
+                
         header = ["system_time", "mode", "trial", "event_source", "event_type",
               "event_id", "mouse_x", "mouse_y", "study_time", "search_time",
               "probe_id", "probe_color", "probe_shape", "probe_size"]
         
+        """
+        self.bg = bg
         self.client = client
         self.cbl = cbl
         self.hpl = hpl
@@ -670,6 +648,7 @@ class Task(ColorLayer):
                                    "smi_dxl", "smi_dxr", "smi_dyl", "smi_dyr",
                                    "smi_exl", "smi_exr", "smi_eyl", "smi_eyr", "smi_ezl", "smi_ezr"]
             header += self.smi_spl_header
+        """
         
         for i in range(1, 76):
             header.append("shape%02d_color" % i)
@@ -680,10 +659,7 @@ class Task(ColorLayer):
             header.append("shape%02d_y" % i)
             
         self.logger = Logger(header, file="../test.dat")
-
-        self.bg = bg
-        self.screen = director.get_window_size()
-        super(Task, self).__init__(168, 168, 168, 255, self.screen[1], self.screen[1])        
+              
         self.position = ((self.screen[0] - self.screen[1]) / 2, 0)
         self.cm = CollisionManagerBruteForce()
         self.mono = font.load("Mono", 32)
@@ -724,19 +700,19 @@ class Task(ColorLayer):
         self.current_trial += 1
         self.gen_combos()
         self.add(self.ready_label)
-        self.logger.write(system_time=get_time(), mode=self.settings['mode'], trial=self.current_trial,
+        self.logger.write(system_time=get_time(), mode=director.settings['mode'], trial=self.current_trial,
                           event_source="TASK", event_type=self.states[self.state], event_id="START")
     
     def trial_done(self):
         t = get_time()
         self.search_time = t - self.start_time
-        self.logger.write(system_time=t, mode=self.settings['mode'], trial=self.current_trial,
+        self.logger.write(system_time=t, mode=director.settings['mode'], trial=self.current_trial,
                           event_source="TASK", event_type=self.states[self.state], event_id="END", **self.log_extra)
         self.state = self.STATE_RESULTS
-        self.logger.write(system_time=t, mode=self.settings['mode'], trial=self.current_trial,
+        self.logger.write(system_time=t, mode=director.settings['mode'], trial=self.current_trial,
                           event_source="TASK", event_type=self.states[self.state], study_time=self.study_time, search_time=self.search_time, **self.log_extra)
-        if self.client:
-            self.client.removeDispatcher(self.d)
+        #if self.client:
+        #    self.client.removeDispatcher(self.d)
         self.next_trial()
         
     def gen_trials(self):
@@ -761,7 +737,23 @@ class Task(ColorLayer):
     def gen_probe(self):
         for c in self.get_children():
             self.remove(c)
-        self.probe = Probe(self, self.settings['mode'], self.side, (self.screen[1] / 2, self.screen[1] / 2), 14 * self.ratio)
+        s = 0
+        if director.settings['mode'] == 'Experiment':
+            trial = self.trials.pop()
+            for c in self.combos:
+                if c[0] == trial[0] and c[1] == trial[1] and c[2] == trial[2]:
+                    chunk = c
+                    s = trial[3]
+                    break
+        else:
+            if director.settings['mode'] == 'Moderate':
+                s = choice(range(0, 4))
+            elif director.settings['mode'] == 'Hard':
+                s = choice(range(0, 7))
+            elif director.settings['mode'] == 'Insane':
+                s = choice(range(0, 8))
+            chunk = choice(self.combos)
+        self.probe = Probe(chunk, s, self.side, (self.screen[1] / 2, self.screen[1] / 2), 14 * self.ratio)
         self.add(self.probe)
         self.log_extra = {"probe_id": self.probe.chunk[3],
                      "probe_color": self.probe.color_visible,
@@ -815,7 +807,7 @@ class Task(ColorLayer):
             for i, _ in enumerate(self.smi_spl_header):
                 eyedata[self.smi_spl_header[i]] = inResponse[i]
             #eyedata.update(self.log_extra)
-            self.logger.write(system_time=get_time(), mode=self.settings['mode'], trial=self.current_trial, event_source="SMI", **eyedata)
+            self.logger.write(system_time=get_time(), mode=director.settings['mode'], trial=self.current_trial, event_source="SMI", **eyedata)
         
     # def draw(self):
     #    super(Task, self).draw()
@@ -824,16 +816,16 @@ class Task(ColorLayer):
     def on_mouse_press(self, x, y, buttons, modifiers):
         if self.state != self.STATE_CALIBRATE:
             if self.state == self.STATE_WAIT:
-                self.logger.write(system_time=get_time(), mode=self.settings['mode'], trial=self.current_trial,
+                self.logger.write(system_time=get_time(), mode=director.settings['mode'], trial=self.current_trial,
                                   event_source="TASK", event_type=self.states[self.state], event_id="END")
                 self.gen_probe()
                 self.state = self.STATE_STUDY
                 t = get_time()
                 self.start_time = t
-                self.logger.write(system_time=t, mode=self.settings['mode'], trial=self.current_trial,
+                self.logger.write(system_time=t, mode=director.settings['mode'], trial=self.current_trial,
                                   event_source="TASK", event_type=self.states[self.state], event_id="START", **self.log_extra)
-                if self.client:
-                    self.client.addDispatcher(self.d)
+                #if self.client:
+                #    self.client.addDispatcher(self.d)
             elif self.state == self.STATE_SEARCH:
                 x, y = director.get_virtual_coordinates(x, y)
                 for obj in self.cm.objs_touching_point(x - (self.screen[0] - self.screen[1]) / 2, y):
@@ -842,7 +834,7 @@ class Task(ColorLayer):
             else:
                 t = get_time()
                 self.study_time = t - self.start_time
-                self.logger.write(system_time=t, mode=self.settings['mode'], trial=self.current_trial,
+                self.logger.write(system_time=t, mode=director.settings['mode'], trial=self.current_trial,
                                   event_source="TASK", event_type=self.states[self.state], event_id="END", **self.log_extra)
                 self.show_shapes()
                 window = director.window.get_size()
@@ -851,80 +843,107 @@ class Task(ColorLayer):
                 t = get_time()
                 self.start_time = t
                 self.state = self.STATE_SEARCH
-                self.logger.write(system_time=t, mode=self.settings['mode'], trial=self.current_trial,
+                self.logger.write(system_time=t, mode=director.settings['mode'], trial=self.current_trial,
                                   event_source="TASK", event_type=self.states[self.state], event_id="START", **self.log_extra)
-                self.logger.write(system_time=t, mode=self.settings['mode'], trial=self.current_trial,
+                self.logger.write(system_time=t, mode=director.settings['mode'], trial=self.current_trial,
                                   event_source="TASK", event_type=self.states[self.state], event_id="MOUSE_RESET", mouse_x=nx, mouse_y=ny, **self.log_extra)
                 director.window.set_mouse_position(nx, ny)
                 director.window.set_mouse_visible(True)
 
     def on_mouse_motion(self, x, y, dx, dy):
         if self.state == self.STATE_SEARCH:
-            self.logger.write(system_time=get_time(), mode=self.settings['mode'], trial=self.current_trial,
+            self.logger.write(system_time=get_time(), mode=director.settings['mode'], trial=self.current_trial,
                               event_source="USER", event_type=self.states[self.state], event_id="MOUSE_MOTION", mouse_x=x, mouse_y=y, **self.log_extra)
         
     def on_key_press(self, symbol, modifiers):
         if symbol == key.ESCAPE:
-            director.pop()
+            director.scene.dispatch_event("show_intro_scene")
             True
             
     def on_enter(self):
         super(Task, self).on_enter()
         if self.state == self.STATE_INIT:
-            if self.client:
-                self.state = self.STATE_CALIBRATE
-                self.cbl.on_success = self.next_trial
-                self.cbl.on_failure = director.pop
-                self.add(self.cbl)
-            else:
-                self.next_trial()    
+            #if self.client:
+            #    self.state = self.STATE_CALIBRATE
+            #    self.cbl.on_success = self.next_trial
+            #    self.cbl.on_failure = director.pop
+            #    self.add(self.cbl)
+            #else:
+            self.next_trial()
+
+class WilliamsEnvironment(object):
+    
+    title = "The Williams' Search Task"
+        
+    def __init__(self):
+        
+        pyglet.resource.path.append('resources')
+        pyglet.resource.reindex()
+        pyglet.resource.add_font('Pipe_Dream.ttf')
+        pyglet.resource.add_font('cutouts.ttf')
+        
+        p = pyglet.window.get_platform()
+        d = p.get_default_display()
+        s = d.get_default_screen()
+        
+        director.init(width=s.width, height=s.height,
+                  caption=self.title, visible=False, resizable=True)
+        director.window.set_size(int(s.width / 2), int(s.height / 2))
+        
+        director.window.pop_handlers()
+        director.window.push_handlers(DefaultHandler())
+        
+        director.fps_display = clock.ClockDisplay(font=font.load('', 18, bold=True))
+        director.set_show_FPS(True)
+        
+        if platform.system() != 'Windows':
+            director.window.set_icon(pyglet.resource.image('logo.png'))
+            cursor = director.window.get_system_mouse_cursor(director.window.CURSOR_HAND)
+            director.window.set_mouse_cursor(cursor)
+            
+        director.settings = {'eyetracker': True,
+                             'eyetracker_ip': '127.0.0.1',
+                             'eyetracker_port': '4444',
+                             'mode': 'Experiment',
+                             'modes': ['Easy', 'Moderate', 'Hard', 'Insane', 'Experiment']}
+
+        # Intro scene and its layers        
+        self.introScene = Scene()
+                    
+        self.mainMenu = MainMenu()
+        self.optionsMenu = OptionsMenu()
+        self.participantMenu = ParticipantMenu()
+        
+        self.introScene.add(BackgroundLayer())
+        self.introScene.add(MultiplexLayer(self.mainMenu, self.optionsMenu, self.participantMenu), 1)
+        
+        self.introScene.register_event_type('start_task')
+        self.introScene.push_handlers(self)
+        
+        # Task scene and its layers
+        self.taskScene = Scene()
+        
+        self.taskBackgroundLayer = TaskBackground()
+        self.taskLayer = Task()
+        
+        self.taskLayer.register_event_type('new_trial')
+        self.taskLayer.push_handlers(self.taskBackgroundLayer)
+        
+        self.taskScene.add(self.taskBackgroundLayer)
+        self.taskScene.add(self.taskLayer, 1)
+        
+        self.taskScene.register_event_type('show_intro_scene')
+        self.taskScene.push_handlers(self)
+            
+        director.window.set_visible(True)
+        
+    def show_intro_scene(self):
+        director.replace(self.introScene)
+        
+    def start_task(self):
+        director.replace(SplitRowsTransition(self.taskScene))
                  
 def main():
-    engine = pyttsx.init()
-    
-    screen = pyglet.window.get_platform().get_default_display().get_default_screen()
-    
-    pyglet.resource.path.append('resources')
-    pyglet.resource.reindex()
-    
-    pyglet.resource.add_font('Pipe_Dream.ttf')
-    pyglet.resource.add_font('cutouts.ttf')
-    
-    settings = {'eyetracker': True,
-                'eyetracker_ip': '127.0.0.1',
-                'eyetracker_port': '4444',
-                'mode': 'Experiment',
-                'modes': ['Easy', 'Moderate', 'Hard', 'Insane', 'Experiment']}
-    
-    director.init(width=screen.width, height=screen.height,
-                  caption="The Williams' Search Task",
-                  visible=False, resizable=True)
-
-    if platform.system() != 'Windows':
-        director.window.set_icon(pyglet.resource.image('logo.png'))
-        cursor = director.window.get_system_mouse_cursor(director.window.CURSOR_HAND)
-        director.window.set_mouse_cursor(cursor)
-    
-    director.window.set_size(int(screen.width / 2), int(screen.height / 2))
-    # director.window.set_fullscreen(True)
-
-    director.window.pop_handlers()
-    director.window.push_handlers(DefaultHandler())
-    
-    director.fps_display = clock.ClockDisplay(font=font.load('', 18, bold=True))
-    director.set_show_FPS(True)
-    
-    scene = Scene()
-    scene.add(MultiplexLayer(
-                        MainMenu(settings),
-                        OptionsMenu(settings),
-                        ParticipantMenu(settings),
-                    ), z=0)
-    
-    scene.add(BackgroundLayer(), z= -1)
-    
-    director.window.set_visible(True)
-    
-    director.replace(scene)
-    
+    williams = WilliamsEnvironment()
+    williams.show_intro_scene()
     reactor.run()
