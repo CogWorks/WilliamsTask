@@ -623,16 +623,15 @@ class TaskScene(Scene):
         
     def on_enter(self):
         super(TaskScene, self).on_enter()
-        if self.client and not self.listener:
-            self.listener = reactor.listenUDP(5555, self.client)
+        if director.scene == self:
+            if self.client and not self.listener:
+                self.listener = reactor.listenUDP(5555, self.client)
         
     def on_exit(self):
         super(TaskScene, self).on_exit()
-        if self.listener:
-            d = self.listener.stopListening()
-            print d
-            d = yield d
-            print d
+        if director.scene == self:
+            if self.listener:
+                self.listener.stopListening()
         
 
 class TaskBackground(Layer):
