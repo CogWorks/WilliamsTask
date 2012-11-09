@@ -200,13 +200,10 @@ class ParticipantMenu(BetterMenu):
         
     def on_enter(self):
         super(ParticipantMenu, self).on_enter()
-        
         self.items = OrderedDict()
-        
         self.items['name'] = EntryMenuItem('Full Name:', self.on_name, "")
         self.items['rin'] = EntryMenuItem('RIN:', self.on_rin, "", max_length=9)
         self.items['start'] = MenuItem('Start', self.on_start)
-        
         self.create_menu(self.items.values(), zoom_in(), zoom_out())
         
     def on_exit(self):
@@ -293,12 +290,7 @@ class TutorialLayer(ColorLayer):
         
         self.lines = []
         
-        self.transition = False
-        self.phase = 0
-        
     def do_phase1(self):
-        self.phase = 1
-        
         director.window.set_mouse_visible(False)
         
         label_color = (32, 32, 32, 255)
@@ -369,19 +361,19 @@ class TutorialLayer(ColorLayer):
         print "doing phase 2"
 
     def on_enter(self):
-        super(TutorialLayer, self).on_enter()
-        self.schedule(pyttsx_iterate)
-        self.token_fu = engine.connect('finished-utterance', self.finished_utterance)
-        self.token_su = engine.connect('started-utterance', self.started_utterance)
-        if self.transition and self.phase == 0:
+        if director.scene == self:
+            super(TutorialLayer, self).on_enter()
+            self.schedule(pyttsx_iterate)
+            self.token_fu = engine.connect('finished-utterance', self.finished_utterance)
+            self.token_su = engine.connect('started-utterance', self.started_utterance)
             self.do_phase1()
-        self.transition = True
         
     def on_exit(self):
-        super(TutorialLayer, self).on_exit()
-        self.unschedule(pyttsx_iterate)
-        engine.disconnect(self.token_fu)
-        engine.disconnect(self.token_su)
+        if director.scene == self:
+            super(TutorialLayer, self).on_exit()
+            self.unschedule(pyttsx_iterate)
+            engine.disconnect(self.token_fu)
+            engine.disconnect(self.token_su)
     
     def draw(self):
         super(TutorialLayer, self).draw()
@@ -482,8 +474,6 @@ class TutorialLayer(ColorLayer):
         if symbol == key.ESCAPE:
             director.pop()
         elif symbol == key.SPACE:
-            
-            self.phase = 2
             self.do_phase2()
 
         
@@ -607,29 +597,33 @@ class TaskScene(Scene):
         if eyetracking and self.settings['eyetracker']:
             self.client = iViewXClient(self.settings['eyetracker_ip'], int(self.settings['eyetracker_port']))
             self.cbl = CalibrationLayer(self.client, None)
-            self.add(self.cbl, z=2)
             self.hpl = HeadPositionLayer(self.client)
-            self.add(self.hpl, z=3)
         else:
             self.client = None
             self.hpl = None
             self.cbl = None
             
-        self.tb = TaskBackground()
-        self.add(self.tb, z=0)
-        
+        self.tb = TaskBackground()        
         self.t = Task(self.settings, self.tb, self.client, self.cbl, self.hpl)
-        self.add(self.t, z=1)
+
         
     def on_enter(self):
         super(TaskScene, self).on_enter()
         if director.scene == self:
-            if self.client and not self.listener:
+            self.add(self.tb, z=0)
+            self.add(self.t, z=1)
+            if self.client:
                 self.listener = reactor.listenUDP(5555, self.client)
+                while self.client.transport == None:
+                    reactor.iterate()
+                self.add(self.cbl, z=2)
+                self.add(self.hpl, z=3)
         
     def on_exit(self):
         super(TaskScene, self).on_exit()
         if director.scene == self:
+            for c in self.get_children():
+                self.remove(c)
             if self.listener:
                 self.listener.stopListening()
         

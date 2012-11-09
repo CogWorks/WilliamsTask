@@ -45,12 +45,16 @@ class HeadPositionLayer(Layer):
         self.head = (0,0,0)
         
     def on_enter(self):
-        super(HeadPositionLayer, self).on_enter()
-        self.client.addDispatcher(self.d)
+        if director.scene == self:
+            super(HeadPositionLayer, self).on_enter()
+            if self.client:
+                self.client.addDispatcher(self.d)
         
     def on_exit(self):
-        super(HeadPositionLayer, self).on_exit()
-        self.client.removeDispatcher(self.d)
+        if director.scene == self:
+            super(HeadPositionLayer, self).on_exit()
+            if self.client:
+                self.client.removeDispatcher(self.d)
         
     @d.listen('ET_SPL')
     def iViewXEvent(self, inResponse):
@@ -153,8 +157,9 @@ class CalibrationLayer(Layer):
     def on_enter(self):
         super(CalibrationLayer, self).on_enter()
         self.client.addDispatcher(self.d)
-        if self.state == self.STATE_INIT and self.client.transport:
-            self.start()
+        if director.scene == self.parent:
+            if self.state == self.STATE_INIT:
+                self.start()
         
     def on_exit(self):
         super(CalibrationLayer, self).on_exit()
@@ -192,7 +197,9 @@ class CalibrationLayer(Layer):
             self.client.startCalibration(9, 0)
 
     def on_key_press(self, symbol, modifiers):
+        print self.client.transport
         if symbol == key.SPACE:
+            print self.client.transport
             if self.state == self.STATE_CALIBRATE and not self.circle.actions:
                 self.client.acceptCalibrationPoint()
                 return True
