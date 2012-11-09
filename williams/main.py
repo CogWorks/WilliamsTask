@@ -742,7 +742,8 @@ class Task(ColorLayer):
         self.state = self.STATE_RESULTS
         self.logger.write(system_time=t, mode=self.settings['mode'], trial=self.current_trial,
                           event_source="TASK", event_type=self.states[self.state], study_time=self.study_time, search_time=self.search_time, **self.log_extra)
-        self.client.removeDispatcher(self.d)
+        if self.client:
+            self.client.removeDispatcher(self.d)
         self.next_trial()
         
     def gen_trials(self):
@@ -838,7 +839,8 @@ class Task(ColorLayer):
                 self.start_time = t
                 self.logger.write(system_time=t, mode=self.settings['mode'], trial=self.current_trial,
                                   event_source="TASK", event_type=self.states[self.state], event_id="START", **self.log_extra)
-                self.client.addDispatcher(self.d)
+                if self.client:
+                    self.client.addDispatcher(self.d)
             elif self.state == self.STATE_SEARCH:
                 x, y = director.get_virtual_coordinates(x, y)
                 for obj in self.cm.objs_touching_point(x - (self.screen[0] - self.screen[1]) / 2, y):
