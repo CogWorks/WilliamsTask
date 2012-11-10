@@ -610,7 +610,7 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
         super(Task, self).__init__(168, 168, 168, 255, self.screen[1], self.screen[1])
         self.state = self.STATE_INIT
         self.client = client
-        self.calibration_interval = 3
+        self.calibration_interval = 10
         
     def on_enter(self):
         if isinstance(director.scene, TransitionScene): return
@@ -634,7 +634,7 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
             header.append("shape%02d_x" % i)
             header.append("shape%02d_y" % i)
             
-        self.logger = Logger(header, file="../test.dat")
+        self.logger = Logger(header, filename="../test.dat", compresslevel=9)
               
         self.position = ((self.screen[0] - self.screen[1]) / 2, 0)
         self.cm = CollisionManagerBruteForce()
