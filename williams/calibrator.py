@@ -7,8 +7,9 @@ from cocos.text import Label
 from cocos.layer import ColorLayer, Layer
 from cocos.actions.interval_actions import MoveTo, RotateBy
 from cocos.actions.base_actions import Repeat
+from cocos.scenes.transitions import TransitionScene
 
-from pyglet import font
+from pyglet import font, resource, event
 from pyglet.window import key
 
 def clamp(n, minn, maxn):
@@ -45,16 +46,14 @@ class HeadPositionLayer(Layer):
         self.head = (0,0,0)
         
     def on_enter(self):
-        if director.scene == self:
-            super(HeadPositionLayer, self).on_enter()
-            if self.client:
-                self.client.addDispatcher(self.d)
+        super(HeadPositionLayer, self).on_enter()
+        if isinstance(director.scene, TransitionScene): return
+        self.client.addDispatcher(self.d)
         
     def on_exit(self):
-        if director.scene == self:
-            super(HeadPositionLayer, self).on_exit()
-            if self.client:
-                self.client.removeDispatcher(self.d)
+        super(HeadPositionLayer, self).on_exit()
+        if isinstance(director.scene, TransitionScene): return
+        self.client.removeDispatcher(self.d)
         
     @d.listen('ET_SPL')
     def iViewXEvent(self, inResponse):
@@ -115,7 +114,7 @@ class HeadPositionLayer(Layer):
                     yellow = (1 - hz) * 255
                     self.arrows[4].color = (255, yellow, 0)
         
-class CalibrationLayer(ColorLayer):
+class CalibrationLayer(ColorLayer, event.EventDispatcher):
     
     is_event_handler = True
     
@@ -127,13 +126,12 @@ class CalibrationLayer(ColorLayer):
     STATE_VALIDATE = 2
     STATE_DONE = 3
 
-    def __init__(self, client, on_success=None, on_failure=None):
+    def __init__(self, client):
         super(CalibrationLayer, self).__init__(0, 0, 255, 255)
-        """
         self.client = client
-        self.on_success = on_success
-        self.on_failure = on_failure
-
+        self.on_success = None
+        self.on_failure = None
+        
         self.window = director.window.get_size()
         self.screen = director.get_window_size()
         self.center_x = self.screen[0] / 2
@@ -145,28 +143,23 @@ class CalibrationLayer(ColorLayer):
         circle_img.anchor_x = 'center'
         circle_img.anchor_y = 'center'
         
-        self.circle = Sprite(circle_img, color=(255, 255, 0), scale=1)
-
+        self.circle = Sprite(circle_img, color=(255, 255, 0), scale=1, opacity=0)
         self.spinner = Sprite(resource.image('spinner.png'), position=(self.screen[0] / 2, self.screen[1] / 2), color=(255, 255, 255))
+
         
-        self.hpl = HeadPositionLayer(self.client)
-        
+    def on_enter(self):
+        super(CalibrationLayer, self).on_enter()
+        if isinstance(director.scene, TransitionScene): return
         director.window.set_mouse_visible(False)
-        """
+        self.client.addDispatcher(self.d)
+        self.reset()
+        self.start()
         
-    #def on_enter(self):
-    #    super(CalibrationLayer, self).on_enter()
-        #if director.scene == self.parent:
-        #    self.client.addDispatcher(self.d)
-        #    self.reset()
-        #    self.start()
-        
-    #def on_exit(self):
-    #    super(CalibrationLayer, self).on_exit()
-        #if director.scene == self.parent:
-            #self.reset()
-        #    self.client.removeDispatcher(self.d)
-            
+    def on_exit(self):
+        super(CalibrationLayer, self).on_exit()
+        if isinstance(director.scene, TransitionScene): return
+        self.reset()
+        self.client.removeDispatcher(self.d)  
 
     def init(self):
         self.ts = -1
@@ -174,7 +167,6 @@ class CalibrationLayer(ColorLayer):
         self.calibrationPoints = [None] * 9
         self.calibrationResults = []
         self.add(self.circle, z=1)
-        self.add(self.hpl, z=2)
         self.state = self.STATE_INIT
         
     def reset(self):
@@ -186,6 +178,7 @@ class CalibrationLayer(ColorLayer):
         
     def start(self):
         if self.state > self.STATE_REFUSED:
+            self.dispatch_event("show_headposition")
             self.state = self.STATE_CALIBRATE
             self.client.setDataFormat('%TS %ET %SX %SY %DX %DY %EX %EY %EZ')
             self.client.startDataStreaming()
@@ -198,7 +191,6 @@ class CalibrationLayer(ColorLayer):
 
     def on_key_press(self, symbol, modifiers):
         if symbol == key.SPACE:
-            print self.client.transport
             if self.state == self.STATE_CALIBRATE and not self.circle.actions:
                 self.client.acceptCalibrationPoint()
                 return True
@@ -214,7 +206,7 @@ class CalibrationLayer(ColorLayer):
             #self.reset()
             self.on_failure()
             return True
-            
+    
     @d.listen('CONNECTION_REFUSED')
     def iViewXEvent(self, inResponse):
         self.state = self.STATE_REFUSED
@@ -268,8 +260,8 @@ class CalibrationLayer(ColorLayer):
     @d.listen('ET_FIN')
     def iViewXEvent(self, inResponse):
         if self.state != self.STATE_VALIDATE:
+            self.dispatch_event("hide_headposition")
             self.state = self.STATE_VALIDATE
-            self.remove(self.hpl)
             self.remove(self.circle)
             self.add(self.spinner)
             self.spinner.do(Repeat(RotateBy(360, 1)))

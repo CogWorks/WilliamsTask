@@ -653,11 +653,13 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
     def __init__(self, client):
         self.screen = director.get_window_size()
         super(Task, self).__init__(168, 168, 168, 255, self.screen[1], self.screen[1])
+        self.state = self.STATE_INIT
         self.client = client
+        self.calibration_interval = 3
         
     def on_enter(self):
+        if isinstance(director.scene, TransitionScene): return
         super(Task, self).on_enter()
-                
         header = ["system_time", "mode", "trial", "event_source", "event_type",
               "event_id", "mouse_x", "mouse_y", "study_time", "search_time",
               "probe_id", "probe_color", "probe_shape", "probe_size"]
@@ -708,12 +710,22 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
                                  color=(0, 0, 0, 255), anchor_x='center', anchor_y='center')
         if director.settings['mode'] == 'Experiment':
             self.gen_trials()
+            self.state = self.STATE_CALIBRATE
+            self.dispatch_event("start_calibration", self.calibration_ok, self.calibration_bad)
         else:
             self.total_trials = None
-        self.state = self.STATE_INIT
+            self.next_trial()
+            
+    def calibration_ok(self):
+        self.dispatch_event("stop_calibration")
         self.next_trial()
         
+    def calibration_bad(self):
+        self.dispatch_event("stop_calibration")
+        director.scene.dispatch_event("show_intro_scene")
+        
     def on_exit(self):
+        if isinstance(director.scene, TransitionScene): return
         super(Task, self).on_exit()
         self.logger.close()
         for c in self.get_children():
@@ -732,6 +744,8 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
         self.logger.write(system_time=get_time(), mode=director.settings['mode'], trial=self.current_trial,
                           event_source="TASK", event_type=self.states[self.state], event_id="START")
         self.dispatch_event("new_trial", self.current_trial, self.total_trials)
+        if self.client:
+            self.dispatch_event("show_headposition")
     
     def trial_done(self):
         t = get_time()
@@ -743,7 +757,11 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
                           event_source="TASK", event_type=self.states[self.state], study_time=self.study_time, search_time=self.search_time, **self.log_extra)
         #if self.client:
         #    self.client.removeDispatcher(self.d)
-        self.next_trial()
+        if self.current_trial % self.calibration_interval == 0:
+            self.state = self.STATE_CALIBRATE
+            self.dispatch_event("start_calibration", self.calibration_ok, self.calibration_bad)
+        else:
+            self.next_trial()
         
     def gen_trials(self):
         self.trials = []
@@ -844,48 +862,51 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
     #    for c in self.circles: c.render()
         
     def on_mouse_press(self, x, y, buttons, modifiers):
-        if self.state != self.STATE_CALIBRATE:
-            if self.state == self.STATE_WAIT:
-                self.logger.write(system_time=get_time(), mode=director.settings['mode'], trial=self.current_trial,
-                                  event_source="TASK", event_type=self.states[self.state], event_id="END")
-                self.gen_probe()
-                self.state = self.STATE_STUDY
-                t = get_time()
-                self.start_time = t
-                self.logger.write(system_time=t, mode=director.settings['mode'], trial=self.current_trial,
-                                  event_source="TASK", event_type=self.states[self.state], event_id="START", **self.log_extra)
-                #if self.client:
-                #    self.client.addDispatcher(self.d)
-            elif self.state == self.STATE_SEARCH:
-                x, y = director.get_virtual_coordinates(x, y)
-                for obj in self.cm.objs_touching_point(x - (self.screen[0] - self.screen[1]) / 2, y):
-                    if obj.chunk == self.probe.chunk:
-                        self.trial_done()
-            else:
-                t = get_time()
-                self.study_time = t - self.start_time
-                self.logger.write(system_time=t, mode=director.settings['mode'], trial=self.current_trial,
-                                  event_source="TASK", event_type=self.states[self.state], event_id="END", **self.log_extra)
-                self.show_shapes()
-                window = director.window.get_size()
-                nx = int(window[0] / 2)
-                ny = int(window[1] / 2 - self.probe.cshape.r * .75 * (window[1] / self.screen[1]))
-                t = get_time()
-                self.start_time = t
-                self.state = self.STATE_SEARCH
-                self.logger.write(system_time=t, mode=director.settings['mode'], trial=self.current_trial,
-                                  event_source="TASK", event_type=self.states[self.state], event_id="START", **self.log_extra)
-                self.logger.write(system_time=t, mode=director.settings['mode'], trial=self.current_trial,
-                                  event_source="TASK", event_type=self.states[self.state], event_id="MOUSE_RESET", mouse_x=nx, mouse_y=ny, **self.log_extra)
-                director.window.set_mouse_position(nx, ny)
-                director.window.set_mouse_visible(True)
+        if self.state == self.STATE_CALIBRATE: return
+        if self.state == self.STATE_WAIT:
+            self.logger.write(system_time=get_time(), mode=director.settings['mode'], trial=self.current_trial,
+                              event_source="TASK", event_type=self.states[self.state], event_id="END")
+            self.gen_probe()
+            self.state = self.STATE_STUDY
+            t = get_time()
+            self.start_time = t
+            self.logger.write(system_time=t, mode=director.settings['mode'], trial=self.current_trial,
+                              event_source="TASK", event_type=self.states[self.state], event_id="START", **self.log_extra)
+            if self.client:
+                self.dispatch_event("hide_headposition")
+            #    self.client.addDispatcher(self.d)
+        elif self.state == self.STATE_SEARCH:
+            x, y = director.get_virtual_coordinates(x, y)
+            for obj in self.cm.objs_touching_point(x - (self.screen[0] - self.screen[1]) / 2, y):
+                if obj.chunk == self.probe.chunk:
+                    self.trial_done()
+        else:
+            t = get_time()
+            self.study_time = t - self.start_time
+            self.logger.write(system_time=t, mode=director.settings['mode'], trial=self.current_trial,
+                              event_source="TASK", event_type=self.states[self.state], event_id="END", **self.log_extra)
+            self.show_shapes()
+            window = director.window.get_size()
+            nx = int(window[0] / 2)
+            ny = int(window[1] / 2 - self.probe.cshape.r * .75 * (window[1] / self.screen[1]))
+            t = get_time()
+            self.start_time = t
+            self.state = self.STATE_SEARCH
+            self.logger.write(system_time=t, mode=director.settings['mode'], trial=self.current_trial,
+                              event_source="TASK", event_type=self.states[self.state], event_id="START", **self.log_extra)
+            self.logger.write(system_time=t, mode=director.settings['mode'], trial=self.current_trial,
+                              event_source="TASK", event_type=self.states[self.state], event_id="MOUSE_RESET", mouse_x=nx, mouse_y=ny, **self.log_extra)
+            director.window.set_mouse_position(nx, ny)
+            director.window.set_mouse_visible(True)
 
     def on_mouse_motion(self, x, y, dx, dy):
+        if self.state == self.STATE_CALIBRATE: return
         if self.state == self.STATE_SEARCH:
             self.logger.write(system_time=get_time(), mode=director.settings['mode'], trial=self.current_trial,
                               event_source="USER", event_type=self.states[self.state], event_id="MOUSE_MOTION", mouse_x=x, mouse_y=y, **self.log_extra)
         
     def on_key_press(self, symbol, modifiers):
+        if self.state == self.STATE_CALIBRATE: return
         if symbol == key.ESCAPE:
             director.scene.dispatch_event("show_intro_scene")
             True
@@ -975,14 +996,17 @@ class WilliamsEnvironment(object):
         self.taskLayer = Task(self.client)
         if self.client:
             self.calibrationLayer = CalibrationLayer(self.client)
+            self.calibrationLayer.register_event_type('show_headposition')
+            self.calibrationLayer.register_event_type('hide_headposition')
+            self.calibrationLayer.push_handlers(self)
             self.headpositionLayer = HeadPositionLayer(self.client)
         
         self.taskLayer.register_event_type('new_trial')
+        self.taskLayer.push_handlers(self.taskBackgroundLayer)
         self.taskLayer.register_event_type('start_calibration')
         self.taskLayer.register_event_type('stop_calibration')
         self.taskLayer.register_event_type('show_headposition')
         self.taskLayer.register_event_type('hide_headposition')
-        self.taskLayer.push_handlers(self.taskBackgroundLayer)
         self.taskLayer.push_handlers(self)
         
         self.taskScene.add(self.taskBackgroundLayer)
@@ -993,7 +1017,9 @@ class WilliamsEnvironment(object):
             
         director.window.set_visible(True)
         
-    def start_calibration(self):
+    def start_calibration(self, on_success, on_failure):
+        self.calibrationLayer.on_success = on_success
+        self.calibrationLayer.on_failure = on_failure
         self.taskScene.add(self.calibrationLayer, 2)
         
     def stop_calibration(self):
