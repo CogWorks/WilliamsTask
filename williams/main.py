@@ -663,12 +663,15 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
                                  position=(self.width / 2, self.height / 2),
                                  font_name='Pipe Dream', font_size=24,
                                  color=(0, 0, 0, 255), anchor_x='center', anchor_y='center')
+        
+        self.total_trials = None
         if director.settings['mode'] == 'Experiment':
             self.gen_trials()
+            
+        if director.settings['eyetracker']:
             self.state = self.STATE_CALIBRATE
             self.dispatch_event("start_calibration", self.calibration_ok, self.calibration_bad)
         else:
-            self.total_trials = None
             self.next_trial()
             
     def calibration_ok(self):
@@ -710,12 +713,12 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
         self.state = self.STATE_RESULTS
         self.logger.write(system_time=t, mode=director.settings['mode'], trial=self.current_trial,
                           event_source="TASK", event_type=self.states[self.state], study_time=self.study_time, search_time=self.search_time, **self.log_extra)
-        if self.client:
+        if director.settings['eyetracker'] and self.client:
             self.client.removeDispatcher(self.d)
             self.client.stopFixationProcessing()
-        if self.current_trial % self.calibration_interval == 0:
-            self.state = self.STATE_CALIBRATE
-            self.dispatch_event("start_calibration", self.calibration_ok, self.calibration_bad)
+            if self.calibration_interval and self.current_trial % self.calibration_interval == 0:
+                self.state = self.STATE_CALIBRATE
+                self.dispatch_event("start_calibration", self.calibration_ok, self.calibration_bad)
         else:
             self.next_trial()
         
@@ -838,7 +841,7 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
             self.start_time = t
             self.logger.write(system_time=t, mode=director.settings['mode'], trial=self.current_trial,
                               event_source="TASK", event_type=self.states[self.state], event_id="START", **self.log_extra)
-            if self.client:
+            if director.settings['eyetracker'] and self.client:
                 self.dispatch_event("hide_headposition")
                 self.client.addDispatcher(self.d)
                 self.client.startFixationProcessing()
