@@ -85,10 +85,25 @@ class OptionsMenu(BetterMenu):
         if eyetracking:
             self.items['eyetracker'] = ToggleMenuItem("EyeTracker:", self.on_eyetracker, director.settings['eyetracker'])
             self.items['eyetracker_ip'] = EntryMenuItem('EyeTracker IP:', self.on_eyetracker_ip, director.settings['eyetracker_ip'])
-            self.items['eyetracker_port'] = EntryMenuItem('EyeTracker Port:', self.on_eyetracker_port, director.settings['eyetracker_port'])
+            self.items['eyetracker_in_port'] = EntryMenuItem('EyeTracker In Port:', self.on_eyetracker_in_port, director.settings['eyetracker_in_port'])
+            self.items['eyetracker_out_port'] = EntryMenuItem('EyeTracker Out Port:', self.on_eyetracker_out_port, director.settings['eyetracker_out_port'])
             self.set_eyetracker_extras(director.settings['eyetracker'])
         
         self.create_menu(self.items.values(), zoom_in(), zoom_out())
+        
+    def on_enter(self):
+        super(OptionsMenu, self).on_enter()
+        self.orig_values = (director.settings['eyetracker_ip'],
+                            director.settings['eyetracker_in_port'],
+                            director.settings['eyetracker_out_port'])
+    
+    def on_exit(self):
+        super(OptionsMenu, self).on_exit()
+        new_values = (director.settings['eyetracker_ip'],
+                            director.settings['eyetracker_in_port'],
+                            director.settings['eyetracker_out_port'])
+        if new_values != self.orig_values:
+            director.scene.dispatch_event("eyetracker_info_changed")
         
     def on_show_fps(self, value):
         director.show_FPS = value
@@ -104,7 +119,8 @@ class OptionsMenu(BetterMenu):
     
         def set_eyetracker_extras(self, value):
             self.items['eyetracker_ip'].visible = value
-            self.items['eyetracker_port'].visible = value
+            self.items['eyetracker_in_port'].visible = value
+            self.items['eyetracker_out_port'].visible = value
             
         def on_eyetracker(self, value):
             director.settings['eyetracker'] = value
@@ -113,8 +129,11 @@ class OptionsMenu(BetterMenu):
         def on_eyetracker_ip(self, ip):
             director.settings['eyetracker_ip'] = ip
         
-        def on_eyetracker_port(self, port):
-            director.settings['eyetracker_port'] = port
+        def on_eyetracker_in_port(self, port):
+            director.settings['eyetracker_in_port'] = port
+        
+        def on_eyetracker_out_port(self, port):
+            director.settings['eyetracker_out_port'] = port
             
     def on_quit(self):
         self.parent.switch_to(0)
@@ -145,7 +164,7 @@ class MainMenu(BetterMenu):
 
         self.items = OrderedDict()
         
-        self.items['mode'] = MultipleMenuItem('Mode: ',self.on_mode, director.settings['modes'], director.settings['modes'].index(director.settings['mode']))
+        self.items['mode'] = MultipleMenuItem('Mode: ', self.on_mode, director.settings['modes'], director.settings['modes'].index(director.settings['mode']))
         self.items['tutorial'] = MenuItem('Tutorial', self.on_tutorial)
         self.items['start'] = MenuItem('Start', self.on_start)
         self.items['options'] = MenuItem('Options', self.on_options)
@@ -609,16 +628,19 @@ class TaskBackground(Layer):
         super(TaskBackground, self).__init__()
         self.screen = director.get_window_size()
         
-    def update(self, current_trial, total_trials):
+    def new_trial(self, current_trial, total_trials):
         for c in self.get_children(): self.remove(c)
-        self.trial_display = Label("%d of %d" % (current_trial, total_trials), position=(self.screen[0] - 10, 10), font_name='', font_size=18, bold=True, color=(128, 128, 128, 128), anchor_x='right')
+        if total_trials:
+            self.trial_display = Label("%d of %d" % (current_trial, total_trials), position=(self.screen[0] - 10, 10), font_name='', font_size=18, bold=True, color=(128, 128, 128, 128), anchor_x='right')
+        else:
+            self.trial_display = Label("%d" % (current_trial), position=(self.screen[0] - 10, 10), font_name='', font_size=18, bold=True, color=(128, 128, 128, 128), anchor_x='right')
         self.add(self.trial_display)
 
 class Task(ColorLayer, pyglet.event.EventDispatcher):
     
     d = Dispatcher()
     
-    states = ["INIT","CALIBRATE","WAIT","STUDY","SEARCH","RESULTS"]
+    states = ["INIT", "CALIBRATE", "WAIT", "STUDY", "SEARCH", "RESULTS"]
     STATE_INIT = 0
     STATE_CALIBRATE = 1
     STATE_WAIT = 2
@@ -628,10 +650,13 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
     
     is_event_handler = True
     
-    def __init__(self):
-        
+    def __init__(self, client):
         self.screen = director.get_window_size()
         super(Task, self).__init__(168, 168, 168, 255, self.screen[1], self.screen[1])
+        self.client = client
+        
+    def on_enter(self):
+        super(Task, self).on_enter()
                 
         header = ["system_time", "mode", "trial", "event_source", "event_type",
               "event_id", "mouse_x", "mouse_y", "study_time", "search_time",
@@ -687,8 +712,17 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
                                  position=(self.width / 2, self.height / 2),
                                  font_name='Pipe Dream', font_size=24,
                                  color=(0, 0, 0, 255), anchor_x='center', anchor_y='center')
-        self.gen_trials()
+        if director.settings['mode'] == 'Experiment':
+            self.gen_trials()
+        else:
+            self.total_trials = None
         self.state = self.STATE_INIT
+        self.next_trial()
+        
+    def on_exit(self):
+        super(Task, self).on_exit()
+        for c in self.get_children():
+            self.remove(c)
     
     def next_trial(self):
         self.search_time = -1
@@ -702,6 +736,7 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
         self.add(self.ready_label)
         self.logger.write(system_time=get_time(), mode=director.settings['mode'], trial=self.current_trial,
                           event_source="TASK", event_type=self.states[self.state], event_id="START")
+        self.dispatch_event("new_trial", self.current_trial, self.total_trials)
     
     def trial_done(self):
         t = get_time()
@@ -860,16 +895,24 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
             director.scene.dispatch_event("show_intro_scene")
             True
             
-    def on_enter(self):
-        super(Task, self).on_enter()
-        if self.state == self.STATE_INIT:
+    #def on_enter(self):
+    #    super(Task, self).on_enter()
+    #    if self.state == self.STATE_INIT:
             #if self.client:
             #    self.state = self.STATE_CALIBRATE
             #    self.cbl.on_success = self.next_trial
             #    self.cbl.on_failure = director.pop
             #    self.add(self.cbl)
             #else:
-            self.next_trial()
+    #        self.next_trial()
+            
+class EyetrackerScrim(ColorLayer):
+    
+    def __init__(self):
+        self.screen = director.get_window_size()
+        super(EyetrackerScrim, self).__init__(0, 0, 0, 224, self.screen[0], self.screen[1])
+        l = Label("Reconnecting to eyetracker...", position=(self.screen[0] / 2, self.screen[1] / 2), font_name='', font_size=32, bold=True, color=(255, 255, 255, 255), anchor_x='center', anchor_y='center')
+        self.add(l)
 
 class WilliamsEnvironment(object):
     
@@ -903,31 +946,49 @@ class WilliamsEnvironment(object):
             
         director.settings = {'eyetracker': True,
                              'eyetracker_ip': '127.0.0.1',
-                             'eyetracker_port': '4444',
+                             'eyetracker_out_port': '4444',
+                             'eyetracker_in_port': '5555',
                              'mode': 'Experiment',
                              'modes': ['Easy', 'Moderate', 'Hard', 'Insane', 'Experiment']}
 
+        if eyetracking:
+            self.client = iViewXClient(director.settings['eyetracker_ip'], int(director.settings['eyetracker_out_port']))
+            self.listener = reactor.listenUDP(int(director.settings['eyetracker_in_port']), self.client)
+        else:
+            self.client = None
+        
         # Intro scene and its layers        
         self.introScene = Scene()
                     
         self.mainMenu = MainMenu()
         self.optionsMenu = OptionsMenu()
         self.participantMenu = ParticipantMenu()
+        self.introBackground = BackgroundLayer()
+        self.eyetrackerScrim = EyetrackerScrim()
         
-        self.introScene.add(BackgroundLayer())
+        self.introScene.add(self.introBackground)
         self.introScene.add(MultiplexLayer(self.mainMenu, self.optionsMenu, self.participantMenu), 1)
         
         self.introScene.register_event_type('start_task')
+        self.introScene.register_event_type('eyetracker_info_changed')
         self.introScene.push_handlers(self)
         
         # Task scene and its layers
         self.taskScene = Scene()
         
         self.taskBackgroundLayer = TaskBackground()
-        self.taskLayer = Task()
+        self.taskLayer = Task(self.client)
+        if self.client:
+            self.calibrationLayer = CalibrationLayer(self.client)
+            self.headpositionLayer = HeadPositionLayer(self.client)
         
         self.taskLayer.register_event_type('new_trial')
+        self.taskLayer.register_event_type('start_calibration')
+        self.taskLayer.register_event_type('stop_calibration')
+        self.taskLayer.register_event_type('show_headposition')
+        self.taskLayer.register_event_type('hide_headposition')
         self.taskLayer.push_handlers(self.taskBackgroundLayer)
+        self.taskLayer.push_handlers(self)
         
         self.taskScene.add(self.taskBackgroundLayer)
         self.taskScene.add(self.taskLayer, 1)
@@ -936,6 +997,34 @@ class WilliamsEnvironment(object):
         self.taskScene.push_handlers(self)
             
         director.window.set_visible(True)
+        
+    def start_calibration(self):
+        self.taskScene.add(self.calibrationLayer, 2)
+        
+    def stop_calibration(self):
+        self.taskScene.remove(self.calibrationLayer)
+    
+    def show_headposition(self):
+        self.taskScene.add(self.headpositionLayer, 3)
+        
+    def hide_headposition(self):
+        self.taskScene.remove(self.headpositionLayer)
+        
+    def eyetracker_listen(self, _):
+        self.listener = reactor.listenUDP(int(director.settings['eyetracker_in_port']), self.client)
+        self.introScene.remove(self.eyetrackerScrim)
+        self.introScene.enable_handlers(True)
+        
+    def eyetracker_info_changed(self):
+        if self.client.remoteHost != director.settings['eyetracker_ip'] or \
+        self.client.remotePort != int(director.settings['eyetracker_out_port']):
+            self.client.remoteHost = director.settings['eyetracker_ip']
+            self.client.remotePort = int(director.settings['eyetracker_out_port'])
+        else:
+            self.introScene.add(self.eyetrackerScrim, 2)
+            self.introScene.enable_handlers(False)
+            d = self.listener.stopListening()
+            d.addCallback(self.eyetracker_listen)
         
     def show_intro_scene(self):
         director.window.set_mouse_visible(True)
