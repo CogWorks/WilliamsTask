@@ -938,9 +938,11 @@ class WilliamsEnvironment(object):
         director.window.set_visible(True)
         
     def show_intro_scene(self):
+        director.window.set_mouse_visible(True)
         director.replace(self.introScene)
         
     def start_task(self):
+        director.window.set_mouse_visible(False)
         director.replace(SplitRowsTransition(self.taskScene))
                  
 def main():
