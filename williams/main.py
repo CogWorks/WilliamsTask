@@ -180,7 +180,10 @@ class MainMenu(BetterMenu):
         self.parent.switch_to(1)
         
     def on_start(self):
-        director.scene.dispatch_event('start_task')
+        if director.settings['mode'] == 'Experiment':
+            self.parent.switch_to(2)
+        else:
+            director.scene.dispatch_event('start_task')
 
     def on_quit(self):
         reactor.callFromThread(reactor.stop)
@@ -232,6 +235,7 @@ class ParticipantMenu(BetterMenu):
             self.items[1].value = rin[:-1]
         
     def on_start(self):
+        self.parent.switch_to(0)
         director.scene.dispatch_event('start_task')
 
     def on_quit(self):
@@ -619,7 +623,7 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
               "event_id", "mouse_x", "mouse_y", "study_time", "search_time",
               "probe_id", "probe_color", "probe_shape", "probe_size"]
         
-        if self.client:
+        if director.settings['eyetracker'] and self.client:
             self.smi_spl_header = ["smi_time", "smi_type",
                                    "smi_sxl", "smi_sxr", "smi_syl", "smi_syr",
                                    "smi_dxl", "smi_dxr", "smi_dyl", "smi_dyr",
