@@ -662,18 +662,12 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
               "event_id", "mouse_x", "mouse_y", "study_time", "search_time",
               "probe_id", "probe_color", "probe_shape", "probe_size"]
         
-        """
-        self.bg = bg
-        self.client = client
-        self.cbl = cbl
-        self.hpl = hpl
         if self.client:
             self.smi_spl_header = ["smi_time", "smi_type",
                                    "smi_sxl", "smi_sxr", "smi_syl", "smi_syr",
                                    "smi_dxl", "smi_dxr", "smi_dyl", "smi_dyr",
                                    "smi_exl", "smi_exr", "smi_eyl", "smi_eyr", "smi_ezl", "smi_ezr"]
             header += self.smi_spl_header
-        """
         
         for i in range(1, 76):
             header.append("shape%02d_color" % i)
@@ -721,6 +715,7 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
         
     def on_exit(self):
         super(Task, self).on_exit()
+        self.logger.close()
         for c in self.get_children():
             self.remove(c)
     
