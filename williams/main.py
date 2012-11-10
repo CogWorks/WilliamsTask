@@ -39,12 +39,10 @@ engine.startLoop(False)
 def pyttsx_iterate(dt):
     engine.iterate()
 
-###
 from util import hsv_to_rgb
 from handler import DefaultHandler
 from menu import BetterMenu, GhostMenuItem
 from scene import Scene
-###
 
 from odict import OrderedDict
 
@@ -579,49 +577,6 @@ class Probe(Label):
                                     color=(64, 64, 64, 255), font_name="Monospace", font_size=font_size)
         self.cshape = CircleShape(eu.Vector2(position[0], position[1]), width * .6)
 
-class TaskScene(Scene):
-    
-    def __init__(self):
-        super(TaskScene, self).__init__()
-        
-        """       
-        self.listener = None
-        if eyetracking and director.settings['eyetracker']:
-            self.client = iViewXClient(director.settings['eyetracker_ip'], int(director.settings['eyetracker_port']))
-            self.cbl = CalibrationLayer(self.client, None)
-            self.hpl = HeadPositionLayer(self.client)
-            #self.listener = reactor.listenUDP(5555, self.client)
-            self.add(self.cbl, z=2)
-            self.add(self.hpl, z=3)
-        else:
-            self.client = None
-            self.hpl = None
-            self.cbl = None
-            
-        self.tb = TaskBackground()        
-        self.t = Task(director.settings, self.tb, self.client, self.cbl, self.hpl)
-        self.add(self.tb, z=0)
-        self.add(self.t, z=1)
-        """
-        
-
-
-        
-    #def on_enter(self):
-        #if director.scene == self:
-        #    super(TaskScene, self).on_enter()
-        #    
-        #    if self.client:
-        #        
-        
-    #def on_exit(self):
-        #if director.scene == self:
-        #    for c in self.get_children():
-        #        self.remove(c)
-        #    if self.listener:
-        #        self.listener.stopListening()
-            #super(TaskScene, self).on_exit()
-
 class TaskBackground(Layer):
     
     def __init__(self):
@@ -669,7 +624,7 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
                                    "smi_sxl", "smi_sxr", "smi_syl", "smi_syr",
                                    "smi_dxl", "smi_dxr", "smi_dyl", "smi_dyr",
                                    "smi_exl", "smi_exr", "smi_eyl", "smi_eyr", "smi_ezl", "smi_ezr"]
-            header += self.smi_spl_header
+            header += self.smi_spl_header + ["smi_fx", "smi_fy"]
         
         for i in range(1, 76):
             header.append("shape%02d_color" % i)
@@ -755,8 +710,9 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
         self.state = self.STATE_RESULTS
         self.logger.write(system_time=t, mode=director.settings['mode'], trial=self.current_trial,
                           event_source="TASK", event_type=self.states[self.state], study_time=self.study_time, search_time=self.search_time, **self.log_extra)
-        #if self.client:
-        #    self.client.removeDispatcher(self.d)
+        if self.client:
+            self.client.removeDispatcher(self.d)
+            self.client.stopFixationProcessing()
         if self.current_trial % self.calibration_interval == 0:
             self.state = self.STATE_CALIBRATE
             self.dispatch_event("start_calibration", self.calibration_ok, self.calibration_bad)
@@ -849,13 +805,23 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
         self.log_extra.update(self.shape_log)
     
     if eyetracking:
+        @d.listen('ET_FIX')
+        def iViewXEvent(self, inResponse):
+            eyedata = {}
+            eyedata["smi_type"] = inResponse[0]
+            eyedata["smi_time"] = inResponse[1]
+            eyedata["smi_fx"] = inResponse[2]
+            eyedata["smi_fy"] = inResponse[3]
+            self.logger.write(system_time=get_time(), mode=director.settings['mode'], trial=self.current_trial, 
+                              event_source="SMI", event_type="ET_FIX", **eyedata)
+            
         @d.listen('ET_SPL')
         def iViewXEvent(self, inResponse):
             eyedata = {}
             for i, _ in enumerate(self.smi_spl_header):
                 eyedata[self.smi_spl_header[i]] = inResponse[i]
-            #eyedata.update(self.log_extra)
-            self.logger.write(system_time=get_time(), mode=director.settings['mode'], trial=self.current_trial, event_source="SMI", **eyedata)
+            self.logger.write(system_time=get_time(), mode=director.settings['mode'], trial=self.current_trial,
+                              event_source="SMI", event_type="ET_SPL", **eyedata)
         
     # def draw(self):
     #    super(Task, self).draw()
@@ -874,7 +840,8 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
                               event_source="TASK", event_type=self.states[self.state], event_id="START", **self.log_extra)
             if self.client:
                 self.dispatch_event("hide_headposition")
-            #    self.client.addDispatcher(self.d)
+                self.client.addDispatcher(self.d)
+                self.client.startFixationProcessing()
         elif self.state == self.STATE_SEARCH:
             x, y = director.get_virtual_coordinates(x, y)
             for obj in self.cm.objs_touching_point(x - (self.screen[0] - self.screen[1]) / 2, y):
@@ -910,17 +877,6 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
         if symbol == key.ESCAPE:
             director.scene.dispatch_event("show_intro_scene")
             True
-            
-    #def on_enter(self):
-    #    super(Task, self).on_enter()
-    #    if self.state == self.STATE_INIT:
-            #if self.client:
-            #    self.state = self.STATE_CALIBRATE
-            #    self.cbl.on_success = self.next_trial
-            #    self.cbl.on_failure = director.pop
-            #    self.add(self.cbl)
-            #else:
-    #        self.next_trial()
             
 class EyetrackerScrim(ColorLayer):
     
