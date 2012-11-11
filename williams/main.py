@@ -53,7 +53,8 @@ try:
 except ImportError:
     eyetracking = False
     
-from pycogworks.logging import get_time, Logger
+from pycogworks.logging import get_time, Logger, writeHistoryFile, getDateTimeStamp
+from pycogworks.crypto import rin2id
 from cStringIO import StringIO
 import tarfile
 
@@ -185,6 +186,8 @@ class MainMenu(BetterMenu):
         if director.settings['mode'] == 'Experiment':
             self.parent.switch_to(2)
         else:
+            filebase = "WilliamsSearch_%s" % (getDateTimeStamp())
+            director.settings['filebase'] = filebase
             director.scene.dispatch_event('start_task')
 
     def on_quit(self):
@@ -242,6 +245,15 @@ class ParticipantMenu(BetterMenu):
         self.check_info()
         
     def on_start(self):
+        si = {}
+        si['name'] = ''.join(self.items['name']._value).strip()
+        si['rin'] = ''.join(self.items['rin']._value)
+        si['encrypted_rin'], si['cipher'] = rin2id(si['rin'])
+        si['timestamp'] = getDateTimeStamp()
+        director.settings['si'] = si
+        filebase = "WilliamsSearch_%s_%s" % (si['timestamp'], si['encrypted_rin'][:8])
+        director.settings['filebase'] = filebase
+        writeHistoryFile("%s.history" % filebase, si)
         director.scene.dispatch_event('start_task')
 
     def on_quit(self):
@@ -626,8 +638,9 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
         if isinstance(director.scene, TransitionScene): return
         super(Task, self).on_enter()
         header = ["system_time", "mode", "trial", "event_source", "event_type",
-              "event_id", "mouse_x", "mouse_y", "study_time", "search_time",
-              "probe_id", "probe_color", "probe_shape", "probe_size"]
+              "event_id", "screen_width", "screen_height", "mouse_x", "mouse_y", 
+              "study_time", "search_time", "probe_id", "probe_color", 
+              "probe_shape", "probe_size"]
         
         if director.settings['eyetracker'] and self.client:
             self.smi_spl_header = ["smi_time", "smi_type",
@@ -645,7 +658,7 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
             header.append("shape%02d_y" % i)
             
         self.logger = Logger(header)
-        self.tarfile = tarfile.open('alldata.tar.gz', mode='w:gz')
+        self.tarfile = tarfile.open('%s.tar.gz' % director.settings['filebase'], mode='w:gz')
               
         self.position = ((self.screen[0] - self.screen[1]) / 2, 0)
         self.cm = CollisionManagerBruteForce()
@@ -726,13 +739,13 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
                           event_source="TASK", event_type=self.states[self.state], study_time=self.study_time, search_time=self.search_time, **self.log_extra)
         
         tmp = self.logger.file.getvalue()
-        data = tarfile.TarInfo("trial-%02d.txt" % self.current_trial)
+        data = tarfile.TarInfo("%s/trial-%02d.txt" % (director.settings['filebase'], self.current_trial))
         data.size = len(tmp)
         self.tarfile.addfile(data, StringIO(tmp))
         
         tmp = StringIO()
         screenshot().save(tmp,"png")
-        data = tarfile.TarInfo("trial-%02d.png" % self.current_trial)
+        data = tarfile.TarInfo("%s/trial-%02d.png" % (director.settings['filebase'], self.current_trial))
         data.size = len(tmp.getvalue())
         tmp.seek(0)
         self.tarfile.addfile(data, tmp)
