@@ -31,7 +31,7 @@ from primitives import Circle, Line
 
 import platform
 
-import sys
+import sys, os
 sys.path.append("/System/Library/Frameworks/Python.framework/Versions/2.7/Extras/lib/python/PyObjC")
 import pyttsx
 engine = pyttsx.init()
@@ -166,7 +166,7 @@ class MainMenu(BetterMenu):
         self.items = OrderedDict()
         
         self.items['mode'] = MultipleMenuItem('Mode: ', self.on_mode, director.settings['modes'], director.settings['modes'].index(director.settings['mode']))
-        self.items['tutorial'] = MenuItem('Tutorial', self.on_tutorial)
+        #self.items['tutorial'] = MenuItem('Tutorial', self.on_tutorial)
         self.items['start'] = MenuItem('Start', self.on_start)
         self.items['options'] = MenuItem('Options', self.on_options)
         self.items['quit'] = MenuItem('Quit', self.on_quit)
@@ -253,7 +253,7 @@ class ParticipantMenu(BetterMenu):
         director.settings['si'] = si
         filebase = "WilliamsSearch_%s_%s" % (si['timestamp'], si['encrypted_rin'][:8])
         director.settings['filebase'] = filebase
-        writeHistoryFile("%s.history" % filebase, si)
+        writeHistoryFile("data/%s.history" % filebase, si)
         director.scene.dispatch_event('start_task')
 
     def on_quit(self):
@@ -276,6 +276,8 @@ class Shape(Sprite):
             if self.chunk:
                 if self.chunk[0] == 'diamond':
                     rscale = .52
+                elif self.chunk[0] == 'oval':
+                    rscale = .52
         self.radius = max(self.width, self.height) * rscale
         self.set_position(position[0], position[1])
     
@@ -294,7 +296,7 @@ class TutorialLayer(ColorLayer):
         
         self.side = self.screen[1] / 11
         self.ratio = self.side / 128
-        self.scales = [self.ratio * 1.5, self.ratio, self.ratio * .5]
+        self.scales = [self.ratio * 2, self.ratio * 1.25, self.ratio * .5]
         self.sizes = ["large", "medium", "small"]
         
         self.batch = BatchNode()
@@ -632,15 +634,22 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
         super(Task, self).__init__(168, 168, 168, 255, self.screen[1], self.screen[1])
         self.state = self.STATE_INIT
         self.client = client
-        self.calibration_interval = 10
+        self.calibration_interval = 192
+        self.circles = []
         
     def on_enter(self):
         if isinstance(director.scene, TransitionScene): return
         super(Task, self).on_enter()
-        header = ["system_time", "mode", "trial", "event_source", "event_type",
-              "event_id", "screen_width", "screen_height", "mouse_x", "mouse_y", 
-              "study_time", "search_time", "probe_id", "probe_color", 
-              "probe_shape", "probe_size"]
+        
+        header = []
+        
+        if director.settings['mode'] == 'Experiment':
+            header += ["datestamp", "encrypted_rin"]
+            
+        header += ["system_time", "mode", "trial", "event_source", "event_type",
+                   "event_id", "screen_width", "screen_height", "mouse_x", "mouse_y",
+                   "study_time", "search_time", "probe_id", "probe_color",
+                   "probe_shape", "probe_size"]
         
         if director.settings['eyetracker'] and self.client:
             self.smi_spl_header = ["smi_time", "smi_type",
@@ -658,16 +667,27 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
             header.append("shape%02d_y" % i)
             
         self.logger = Logger(header)
-        self.tarfile = tarfile.open('%s.tar.gz' % director.settings['filebase'], mode='w:gz')
+        self.tarfile = tarfile.open('data/%s.tar.gz' % director.settings['filebase'], mode='w:gz')
               
         self.position = ((self.screen[0] - self.screen[1]) / 2, 0)
         self.cm = CollisionManagerBruteForce()
         self.mono = font.load("Mono", 32)
         self.shapes = {"oval":"F",
-                       "diamond":"T",
+                       #"diamond":"T",
                        "crescent":"Q",
                        "cross":"Y",
                        "star":"C"}
+        # star 83x79       1.05     2581/6557  .39
+        # oval 55x83        .66     3427/4565  .75
+        # crescent 51x77    .66     1580/3927  .40
+        # cross 61x62       .98     1783/3782  .47
+        # rect 46x73.       .63     3358/3358  1
+        # cross2 57x84      .67     1532/4788  .31
+        self.shape_mod = {"oval":[1.0, 1.0, 1.0],
+                          #"diamond":"T",
+                          "crescent":[1.07, 1.07, 1.07],
+                          "cross":[1.15, 1.15, 1.15],
+                          "star":[1.0, 1.0, 1.0]} 
         self.font = font.load('Cut Outs for 3D FX', 128)
         for shape in self.shapes:
             self.shapes[shape] = self.font.get_glyphs(self.shapes[shape])[0].get_texture(True)
@@ -676,11 +696,11 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
         self.colors = {"red": hsv_to_rgb(0, s, v),
                        "yellow": hsv_to_rgb(72, s, v),
                        "green": hsv_to_rgb(144, s, v),
-                       "blue": hsv_to_rgb(216, s, v),
-                       "purple": hsv_to_rgb(288, s, v)}
+                       #"purple": hsv_to_rgb(288, s, v),
+                       "blue": hsv_to_rgb(216, s, v)}
         self.side = self.screen[1] / 11
         self.ratio = self.side / 128
-        self.scales = [self.ratio * 1.5, self.ratio, self.ratio * .5]
+        self.scales = [self.ratio * 2, self.ratio * 1.25, self.ratio * .5]
         self.sizes = ["large", "medium", "small"]
         self.current_trial = 0
         self.ready_label = Label("Click mouse when ready!",
@@ -717,14 +737,18 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
         self.study_time = -1
         director.window.set_mouse_visible(False)
         self.clear_shapes()
-        self.log_extra = {}
+        self.log_extra = {'screen_widht':self.screen[0],
+                          'screen_height': self.screen[1]}
+        if director.settings['mode'] == 'Experiment':
+            self.log_extra['datestamp'] = director.settings['si']['timestamp']
+            self.log_extra['encrypted_rin'] = director.settings['si']['encrypted_rin']
         self.state = self.STATE_WAIT
         self.current_trial += 1
         self.gen_combos()
         self.add(self.ready_label)
         self.logger.open(StringIO())
         self.logger.write(system_time=get_time(), mode=director.settings['mode'], trial=self.current_trial,
-                          event_source="TASK", event_type=self.states[self.state], event_id="START")
+                          event_source="TASK", event_type=self.states[self.state], event_id="START", **self.log_extra)
         self.dispatch_event("new_trial", self.current_trial, self.total_trials)
         if self.client:
             self.dispatch_event("show_headposition")
@@ -744,7 +768,7 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
         self.tarfile.addfile(data, StringIO(tmp))
         
         tmp = StringIO()
-        screenshot().save(tmp,"png")
+        screenshot().save(tmp, "png")
         data = tarfile.TarInfo("%s/trial-%02d.png" % (director.settings['filebase'], self.current_trial))
         data.size = len(tmp.getvalue())
         tmp.seek(0)
@@ -771,7 +795,7 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
         shuffle(self.trials)
         
     def gen_combos(self):
-        ids = range(1, 76)
+        ids = range(1, len(self.sizes) * len(self.colors) * len(self.shapes) + 1)
         shuffle(ids)
         self.combos = []
         for scale in self.sizes:
@@ -800,10 +824,10 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
             chunk = choice(self.combos)
         self.probe = Probe(chunk, s, self.side, (self.screen[1] / 2, self.screen[1] / 2), 14 * self.ratio)
         self.add(self.probe)
-        self.log_extra = {"probe_id": self.probe.chunk[3],
-                     "probe_color": self.probe.color_visible,
-                     "probe_shape": self.probe.shape_visible,
-                     "probe_size": self.probe.size_visible}
+        self.log_extra.update({"probe_id": self.probe.chunk[3],
+                               "probe_color": self.probe.color_visible,
+                               "probe_shape": self.probe.shape_visible,
+                               "probe_size": self.probe.size_visible})
         
     def clear_shapes(self):
         self.circles = []
@@ -822,7 +846,8 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
             img = self.shapes[c[0]]
             img.anchor_x = 'center'
             img.anchor_y = 'center'
-            sprite = Shape(img, chunk=c, rotation=randrange(0, 365), color=self.colors[c[1]], scale=self.scales[self.sizes.index(c[2])])
+            # XXX
+            sprite = Shape(img, chunk=c, rotation=randrange(0, 365), color=self.colors[c[1]], scale=self.shape_mod[c[0]][self.sizes.index(c[2])] * self.scales[self.sizes.index(c[2])])
             pad = sprite.radius
             sprite.set_position(uniform(pad, self.screen[1] - pad), uniform(pad, self.screen[1] - pad))
             while self.cm.objs_colliding(sprite):
@@ -863,8 +888,7 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
                 eyedata[self.smi_spl_header[i]] = inResponse[i]
             self.logger.write(system_time=get_time(), mode=director.settings['mode'], trial=self.current_trial,
                               event_source="SMI", event_type="ET_SPL", **eyedata)
-        
-    # def draw(self):
+    #def draw(self):
     #    super(Task, self).draw()
     #    for c in self.circles: c.render()
         
@@ -872,7 +896,7 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
         if self.state == self.STATE_CALIBRATE: return
         if self.state == self.STATE_WAIT:
             self.logger.write(system_time=get_time(), mode=director.settings['mode'], trial=self.current_trial,
-                              event_source="TASK", event_type=self.states[self.state], event_id="END")
+                              event_source="TASK", event_type=self.states[self.state], event_id="END", **self.log_extra)
             self.gen_probe()
             self.state = self.STATE_STUDY
             t = get_time()
@@ -935,6 +959,8 @@ class WilliamsEnvironment(object):
         
     def __init__(self):
         
+        if not os.path.exists("data"): os.mkdir("data")
+        
         pyglet.resource.path.append('resources')
         pyglet.resource.reindex()
         pyglet.resource.add_font('Pipe_Dream.ttf')
@@ -953,6 +979,7 @@ class WilliamsEnvironment(object):
         
         director.fps_display = clock.ClockDisplay(font=font.load('', 18, bold=True))
         director.set_show_FPS(True)
+        director.window.set_fullscreen(True)
         
         if platform.system() != 'Windows':
             director.window.set_icon(pyglet.resource.image('logo.png'))
