@@ -39,7 +39,7 @@ engine.startLoop(False)
 def pyttsx_iterate(dt):
     engine.iterate()
 
-from util import hsv_to_rgb
+from util import hsv_to_rgb, screenshot
 from handler import DefaultHandler
 from menu import BetterMenu, GhostMenuItem, BetterEntryMenuItem
 from scene import Scene
@@ -228,7 +228,7 @@ class ParticipantMenu(BetterMenu):
         print "on_name", name
         
     def on_rin(self, rin):
-        print "on_rin", rin
+        print "on_rin"
         
     def on_start(self):
         self.parent.switch_to(0)
@@ -849,6 +849,7 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
             x, y = director.get_virtual_coordinates(x, y)
             for obj in self.cm.objs_touching_point(x - (self.screen[0] - self.screen[1]) / 2, y):
                 if obj.chunk == self.probe.chunk:
+                    screenshot().save('trial-%d.png' % (int(self.current_trial)))
                     self.trial_done()
         else:
             t = get_time()
