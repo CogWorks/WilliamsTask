@@ -221,19 +221,27 @@ class ParticipantMenu(BetterMenu):
         self.items['rin'] = BetterEntryMenuItem('RIN:', self.on_rin, "", max_length=9, validator=lambda x: unicode(x).isnumeric())
         self.items['start'] = MenuItem('Start', self.on_start)
         self.create_menu(self.items.values(), zoom_in(), zoom_out())
+        self.items['start'].visible = False
         
     def on_exit(self):
         super(ParticipantMenu, self).on_exit()
         for c in self.get_children(): self.remove(c)
                 
+    def check_info(self):
+        name = ''.join(self.items['name']._value).strip()
+        rin = ''.join(self.items['rin']._value)
+        if len(name) > 0 and len(rin) == 9:
+            self.items['start'].visible = True
+        else:
+            self.items['start'].visible = False
+                
     def on_name(self, name):
-        print "on_name", name
+        self.check_info()
         
     def on_rin(self, rin):
-        print "on_rin"
+        self.check_info()
         
     def on_start(self):
-        self.parent.switch_to(0)
         director.scene.dispatch_event('start_task')
 
     def on_quit(self):
@@ -961,7 +969,8 @@ class WilliamsEnvironment(object):
         self.eyetrackerScrim = EyetrackerScrim()
         
         self.introScene.add(self.introBackground)
-        self.introScene.add(MultiplexLayer(self.mainMenu, self.optionsMenu, self.participantMenu), 1)
+        self.mplxLayer = MultiplexLayer(self.mainMenu, self.optionsMenu, self.participantMenu)
+        self.introScene.add(self.mplxLayer, 1)
         
         self.introScene.register_event_type('start_task')
         self.introScene.register_event_type('eyetracker_info_changed')
@@ -1027,6 +1036,7 @@ class WilliamsEnvironment(object):
         
     def show_intro_scene(self):
         director.window.set_mouse_visible(True)
+        self.mplxLayer.switch_to(0)
         director.replace(self.introScene)
         
     def start_task(self):
