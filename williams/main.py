@@ -54,6 +54,8 @@ except ImportError:
     eyetracking = False
     
 from pycogworks.logging import get_time, Logger
+from cStringIO import StringIO
+import tarfile
 
 class OptionsMenu(BetterMenu):
 
@@ -635,6 +637,7 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
             header.append("shape%02d_y" % i)
             
         self.logger = Logger(header)
+        self.tarfile = tarfile.open('alldata.tar.gz', mode='w:gz')
               
         self.position = ((self.screen[0] - self.screen[1]) / 2, 0)
         self.cm = CollisionManagerBruteForce()
@@ -685,7 +688,6 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
     def on_exit(self):
         if isinstance(director.scene, TransitionScene): return
         super(Task, self).on_exit()
-        self.logger.close()
         for c in self.get_children():
             self.remove(c)
     
@@ -699,7 +701,7 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
         self.current_trial += 1
         self.gen_combos()
         self.add(self.ready_label)
-        self.logger.open("trial-%02d.txt" % self.current_trial)
+        self.logger.open(StringIO())
         self.logger.write(system_time=get_time(), mode=director.settings['mode'], trial=self.current_trial,
                           event_source="TASK", event_type=self.states[self.state], event_id="START")
         self.dispatch_event("new_trial", self.current_trial, self.total_trials)
@@ -712,9 +714,21 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
         self.logger.write(system_time=t, mode=director.settings['mode'], trial=self.current_trial,
                           event_source="TASK", event_type=self.states[self.state], event_id="END", **self.log_extra)
         self.state = self.STATE_RESULTS
-        screenshot().save('trial-%02d.png' % (int(self.current_trial)))
         self.logger.write(system_time=t, mode=director.settings['mode'], trial=self.current_trial,
                           event_source="TASK", event_type=self.states[self.state], study_time=self.study_time, search_time=self.search_time, **self.log_extra)
+        
+        tmp = self.logger.file.getvalue()
+        data = tarfile.TarInfo("trial-%02d.txt" % self.current_trial)
+        data.size = len(tmp)
+        self.tarfile.addfile(data, StringIO(tmp))
+        
+        tmp = StringIO()
+        screenshot().save(tmp,"png")
+        data = tarfile.TarInfo("trial-%02d.png" % self.current_trial)
+        data.size = len(tmp.getvalue())
+        tmp.seek(0)
+        self.tarfile.addfile(data, tmp)
+        
         self.logger.close()
         if director.settings['eyetracker'] and self.client:
             self.client.removeDispatcher(self.d)
@@ -882,6 +896,7 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
         if self.state == self.STATE_CALIBRATE: return
         if symbol == key.ESCAPE:
             self.logger.close(True)
+            self.tarfile.close()
             director.scene.dispatch_event("show_intro_scene")
             True
             
