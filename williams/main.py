@@ -724,6 +724,8 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
         
     def calibration_bad(self):
         self.dispatch_event("stop_calibration")
+        self.logger.close(True)
+        self.tarfile.close()
         director.scene.dispatch_event("show_intro_scene")
         
     def on_exit(self):
@@ -781,6 +783,8 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
             if self.calibration_interval and self.current_trial % self.calibration_interval == 0:
                 self.state = self.STATE_CALIBRATE
                 self.dispatch_event("start_calibration", self.calibration_ok, self.calibration_bad)
+            else:
+                self.next_trial()
         else:
             self.next_trial()
         
