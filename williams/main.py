@@ -57,6 +57,7 @@ from pycogworks.logging import get_time, Logger, writeHistoryFile, getDateTimeSt
 from pycogworks.crypto import rin2id
 from cStringIO import StringIO
 import tarfile
+import json
 
 class OptionsMenu(BetterMenu):
 
@@ -166,7 +167,7 @@ class MainMenu(BetterMenu):
         self.items = OrderedDict()
         
         self.items['mode'] = MultipleMenuItem('Mode: ', self.on_mode, director.settings['modes'], director.settings['modes'].index(director.settings['mode']))
-        #self.items['tutorial'] = MenuItem('Tutorial', self.on_tutorial)
+        # self.items['tutorial'] = MenuItem('Tutorial', self.on_tutorial)
         self.items['start'] = MenuItem('Start', self.on_start)
         self.items['options'] = MenuItem('Options', self.on_options)
         self.items['quit'] = MenuItem('Quit', self.on_quit)
@@ -646,10 +647,9 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
         if director.settings['mode'] == 'Experiment':
             header += ["datestamp", "encrypted_rin"]
             
-        header += ["system_time", "mode", "trial", "event_source", "event_type",
+        header += ["system_time", "mode", "trial", "state", "event_source", "event_type",
                    "event_id", "screen_width", "screen_height", "mouse_x", "mouse_y",
-                   "study_time", "search_time", "probe_id", "probe_color",
-                   "probe_shape", "probe_size"]
+                   "study_time", "search_time"]
         
         if director.settings['eyetracker'] and self.client:
             self.smi_spl_header = ["smi_time", "smi_type",
@@ -657,14 +657,6 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
                                    "smi_dxl", "smi_dxr", "smi_dyl", "smi_dyr",
                                    "smi_exl", "smi_exr", "smi_eyl", "smi_eyr", "smi_ezl", "smi_ezr"]
             header += self.smi_spl_header + ["smi_fx", "smi_fy"]
-        
-        for i in range(1, 76):
-            header.append("shape%02d_color" % i)
-            header.append("shape%02d_shape" % i)
-            header.append("shape%02d_size" % i)
-            header.append("shape%02d_radius" % i)
-            header.append("shape%02d_x" % i)
-            header.append("shape%02d_y" % i)
             
         self.logger = Logger(header)
         self.tarfile = tarfile.open('data/%s.tar.gz' % director.settings['filebase'], mode='w:gz')
@@ -673,7 +665,7 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
         self.cm = CollisionManagerBruteForce()
         self.mono = font.load("Mono", 32)
         self.shapes = {"oval":"F",
-                       #"diamond":"T",
+                       # "diamond":"T",
                        "crescent":"Q",
                        "cross":"Y",
                        "star":"C"}
@@ -684,7 +676,7 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
         # rect 46x73.       .63     3358/3358  1
         # cross2 57x84      .67     1532/4788  .31
         self.shape_mod = {"oval":[1.0, 1.0, 1.0],
-                          #"diamond":"T",
+                          # "diamond":"T",
                           "crescent":[1.07, 1.07, 1.07],
                           "cross":[1.15, 1.15, 1.15],
                           "star":[1.0, 1.0, 1.0]} 
@@ -696,7 +688,7 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
         self.colors = {"red": hsv_to_rgb(0, s, v),
                        "yellow": hsv_to_rgb(72, s, v),
                        "green": hsv_to_rgb(144, s, v),
-                       #"purple": hsv_to_rgb(288, s, v),
+                       # "purple": hsv_to_rgb(288, s, v),
                        "blue": hsv_to_rgb(216, s, v)}
         self.side = self.screen[1] / 11
         self.ratio = self.side / 128
@@ -750,7 +742,8 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
         self.add(self.ready_label)
         self.logger.open(StringIO())
         self.logger.write(system_time=get_time(), mode=director.settings['mode'], trial=self.current_trial,
-                          event_source="TASK", event_type=self.states[self.state], event_id="START", **self.log_extra)
+                          event_source="TASK", event_type=self.states[self.state], state=self.states[self.state],
+                          event_id="START", **self.log_extra)
         self.dispatch_event("new_trial", self.current_trial, self.total_trials)
         if self.client:
             self.dispatch_event("show_headposition")
@@ -759,10 +752,12 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
         t = get_time()
         self.search_time = t - self.start_time
         self.logger.write(system_time=t, mode=director.settings['mode'], trial=self.current_trial,
-                          event_source="TASK", event_type=self.states[self.state], event_id="END", **self.log_extra)
+                          event_source="TASK", event_type=self.states[self.state], state=self.states[self.state],
+                          event_id="END", **self.log_extra)
         self.state = self.STATE_RESULTS
         self.logger.write(system_time=t, mode=director.settings['mode'], trial=self.current_trial,
-                          event_source="TASK", event_type=self.states[self.state], study_time=self.study_time, search_time=self.search_time, **self.log_extra)
+                          event_source="TASK", event_type=self.states[self.state], state=self.states[self.state],
+                          study_time=self.study_time, search_time=self.search_time, **self.log_extra)
         
         tmp = self.logger.file.getvalue()
         data = tarfile.TarInfo("%s/trial-%02d.txt" % (director.settings['filebase'], self.current_trial))
@@ -828,10 +823,6 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
             chunk = choice(self.combos)
         self.probe = Probe(chunk, s, self.side, (self.screen[1] / 2, self.screen[1] / 2), 14 * self.ratio)
         self.add(self.probe)
-        self.log_extra.update({"probe_id": self.probe.chunk[3],
-                               "probe_color": self.probe.color_visible,
-                               "probe_shape": self.probe.shape_visible,
-                               "probe_size": self.probe.size_visible})
         
     def clear_shapes(self):
         self.circles = []
@@ -845,12 +836,15 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
         self.cm.add(self.probe)
         ratio = self.side / 128
         self.circles = []
-        self.shape_log = {}
+        shapeinfo = {}
+        shapeinfo['probe'] = {"id": self.probe.chunk[3],
+                              "color": self.probe.color_visible,
+                              "shape": self.probe.shape_visible,
+                              "size": self.probe.size_visible}
         for c in self.combos:
             img = self.shapes[c[0]]
             img.anchor_x = 'center'
             img.anchor_y = 'center'
-            # XXX
             sprite = Shape(img, chunk=c, rotation=randrange(0, 365), color=self.colors[c[1]], scale=self.shape_mod[c[0]][self.sizes.index(c[2])] * self.scales[self.sizes.index(c[2])])
             pad = sprite.radius
             sprite.set_position(uniform(pad, self.screen[1] - pad), uniform(pad, self.screen[1] - pad))
@@ -860,39 +854,41 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
                        x=sprite.position[0], y=sprite.position[1],
                        font_name="Monospace", color=(32, 32, 32, 255),
                        anchor_x='center', anchor_y='center', batch=self.id_batch.batch)
-            self.shape_log["shape%02d_color" % c[3]] = c[1]
-            self.shape_log["shape%02d_shape" % c[3]] = c[0]
-            self.shape_log["shape%02d_size" % c[3]] = c[2]
-            self.shape_log["shape%02d_radius" % c[3]] = sprite.cshape.r
-            self.shape_log["shape%02d_x" % c[3]] = sprite.position[0]
-            self.shape_log["shape%02d_y" % c[3]] = sprite.position[1]
+            shapeinfo[c[3]] = {'shape':c[0], 'color':c[1], 'size':c[2], 'id': c[3],
+                               'radius':sprite.cshape.r, 'x':sprite.position[0], 'y':sprite.position[1]}
             self.circles.append(Circle(sprite.position[0] + (self.screen[0] - self.screen[1]) / 2, sprite.position[1], width=2 * sprite.cshape.r))
             self.cm.add(sprite)
             self.batch.add(sprite)
         self.circles.append(Circle(self.probe.position[0] + (self.screen[0] - self.screen[1]) / 2, self.probe.position[1], width=2 * self.probe.cshape.r))
         self.add(self.batch, z=1)
         self.add(self.id_batch, z=2)
-        self.log_extra.update(self.shape_log)
+        s = StringIO(json.dumps(shapeinfo, sort_keys=True, indent=4))
+        data = tarfile.TarInfo("%s/trial-%02d.json" % (director.settings['filebase'], self.current_trial))
+        data.size = len(s.getvalue())
+        s.seek(0)
+        self.tarfile.addfile(data, s)
     
     if eyetracking:
         @d.listen('ET_FIX')
         def iViewXEvent(self, inResponse):
             eyedata = {}
+            eyedata.update(self.log_extra)
             eyedata["smi_type"] = inResponse[0]
             eyedata["smi_time"] = inResponse[1]
             eyedata["smi_fx"] = inResponse[2]
             eyedata["smi_fy"] = inResponse[3]
-            self.logger.write(system_time=get_time(), mode=director.settings['mode'], trial=self.current_trial,
-                              event_source="SMI", event_type="ET_FIX", **eyedata)
+            self.logger.write(system_time=get_time(), mode=director.settings['mode'], state=self.states[self.state], 
+                              trial=self.current_trial, event_source="SMI", event_type="ET_FIX", **eyedata)
             
         @d.listen('ET_SPL')
         def iViewXEvent(self, inResponse):
             eyedata = {}
+            eyedata.update(self.log_extra)
             for i, _ in enumerate(self.smi_spl_header):
                 eyedata[self.smi_spl_header[i]] = inResponse[i]
-            self.logger.write(system_time=get_time(), mode=director.settings['mode'], trial=self.current_trial,
-                              event_source="SMI", event_type="ET_SPL", **eyedata)
-    #def draw(self):
+            self.logger.write(system_time=get_time(), mode=director.settings['mode'], state=self.states[self.state], 
+                              trial=self.current_trial, event_source="SMI", event_type="ET_SPL", **eyedata)
+    # def draw(self):
     #    super(Task, self).draw()
     #    for c in self.circles: c.render()
         
@@ -900,13 +896,15 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
         if self.state == self.STATE_CALIBRATE: return
         if self.state == self.STATE_WAIT:
             self.logger.write(system_time=get_time(), mode=director.settings['mode'], trial=self.current_trial,
-                              event_source="TASK", event_type=self.states[self.state], event_id="END", **self.log_extra)
+                              event_source="TASK", event_type=self.states[self.state], state=self.states[self.state],
+                              event_id="END", **self.log_extra)
             self.gen_probe()
             self.state = self.STATE_STUDY
             t = get_time()
             self.start_time = t
             self.logger.write(system_time=t, mode=director.settings['mode'], trial=self.current_trial,
-                              event_source="TASK", event_type=self.states[self.state], event_id="START", **self.log_extra)
+                              event_source="TASK", event_type=self.states[self.state], state=self.states[self.state], 
+                              event_id="START", **self.log_extra)
             if director.settings['eyetracker'] and self.client:
                 self.dispatch_event("hide_headposition")
                 self.client.addDispatcher(self.d)
@@ -920,7 +918,8 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
             t = get_time()
             self.study_time = t - self.start_time
             self.logger.write(system_time=t, mode=director.settings['mode'], trial=self.current_trial,
-                              event_source="TASK", event_type=self.states[self.state], event_id="END", **self.log_extra)
+                              event_source="TASK", event_type=self.states[self.state], state=self.states[self.state], 
+                              event_id="END", **self.log_extra)
             self.show_shapes()
             window = director.window.get_size()
             nx = int(window[0] / 2)
@@ -929,9 +928,11 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
             self.start_time = t
             self.state = self.STATE_SEARCH
             self.logger.write(system_time=t, mode=director.settings['mode'], trial=self.current_trial,
-                              event_source="TASK", event_type=self.states[self.state], event_id="START", **self.log_extra)
+                              event_source="TASK", event_type=self.states[self.state], state=self.states[self.state], 
+                              event_id="START", **self.log_extra)
             self.logger.write(system_time=t, mode=director.settings['mode'], trial=self.current_trial,
-                              event_source="TASK", event_type=self.states[self.state], event_id="MOUSE_RESET", mouse_x=nx, mouse_y=ny, **self.log_extra)
+                              event_source="TASK", event_type=self.states[self.state], state=self.states[self.state], 
+                              event_id="MOUSE_RESET", mouse_x=nx, mouse_y=ny, **self.log_extra)
             director.window.set_mouse_position(nx, ny)
             director.window.set_mouse_visible(True)
 
@@ -939,7 +940,8 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
         if self.state == self.STATE_CALIBRATE: return
         if self.state == self.STATE_SEARCH:
             self.logger.write(system_time=get_time(), mode=director.settings['mode'], trial=self.current_trial,
-                              event_source="USER", event_type=self.states[self.state], event_id="MOUSE_MOTION", mouse_x=x, mouse_y=y, **self.log_extra)
+                              event_source="USER", event_type=self.states[self.state], state=self.states[self.state], 
+                              event_id="MOUSE_MOTION", mouse_x=x, mouse_y=y, **self.log_extra)
         
     def on_key_press(self, symbol, modifiers):
         if self.state == self.STATE_CALIBRATE: return
