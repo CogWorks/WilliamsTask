@@ -8,4 +8,4 @@ data
 .pydevproject
 velocity.*
 *.tar.gz
-.history
+*.history
