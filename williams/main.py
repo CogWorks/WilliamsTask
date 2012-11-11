@@ -41,7 +41,7 @@ def pyttsx_iterate(dt):
 
 from util import hsv_to_rgb
 from handler import DefaultHandler
-from menu import BetterMenu, GhostMenuItem
+from menu import BetterMenu, GhostMenuItem, BetterEntryMenuItem
 from scene import Scene
 
 from odict import OrderedDict
@@ -211,12 +211,12 @@ class ParticipantMenu(BetterMenu):
 
         self.menu_anchor_y = 'center'
         self.menu_anchor_x = 'center'
-        
+
     def on_enter(self):
         super(ParticipantMenu, self).on_enter()
         self.items = OrderedDict()
         self.items['name'] = EntryMenuItem('Full Name:', self.on_name, "")
-        self.items['rin'] = EntryMenuItem('RIN:', self.on_rin, "", max_length=9)
+        self.items['rin'] = BetterEntryMenuItem('RIN:', self.on_rin, "", max_length=9, validator=lambda x: unicode(x).isnumeric())
         self.items['start'] = MenuItem('Start', self.on_start)
         self.create_menu(self.items.values(), zoom_in(), zoom_out())
         
@@ -228,11 +228,7 @@ class ParticipantMenu(BetterMenu):
         print "on_name", name
         
     def on_rin(self, rin):
-        try:
-            int(rin, 10)
-        except ValueError:
-            self.items[1].do(shake() + shake_back())
-            self.items[1].value = rin[:-1]
+        print "on_rin", rin
         
     def on_start(self):
         self.parent.switch_to(0)
@@ -819,7 +815,7 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
             eyedata["smi_time"] = inResponse[1]
             eyedata["smi_fx"] = inResponse[2]
             eyedata["smi_fy"] = inResponse[3]
-            self.logger.write(system_time=get_time(), mode=director.settings['mode'], trial=self.current_trial, 
+            self.logger.write(system_time=get_time(), mode=director.settings['mode'], trial=self.current_trial,
                               event_source="SMI", event_type="ET_FIX", **eyedata)
             
         @d.listen('ET_SPL')

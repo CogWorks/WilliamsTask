@@ -1,6 +1,18 @@
 from pyglet.window import key
 
-from cocos.menu import Menu, MenuItem
+from cocos.menu import Menu, MenuItem, EntryMenuItem
+
+class BetterEntryMenuItem(EntryMenuItem):
+    
+    def __init__(self, label, callback_func, value, max_length=0, validator=lambda x: True):
+        super(BetterEntryMenuItem, self).__init__(label, callback_func, value, max_length=max_length)
+        self.validator = validator
+    
+    def on_text(self, text):
+        if (self.max_length == 0 or len(self._value) < self.max_length) and self.validator(text):
+            self._value.append(text)
+            self._calculate_value()
+        return True
 
 class GhostMenuItem(MenuItem):
     
