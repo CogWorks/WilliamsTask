@@ -724,26 +724,31 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
             self.remove(c)
     
     def next_trial(self):
-        self.search_time = -1
-        self.study_time = -1
-        director.window.set_mouse_visible(False)
-        self.clear_shapes()
-        self.log_extra = {'screen_width':self.screen[0],
-                          'screen_height': self.screen[1]}
-        if director.settings['mode'] == 'Experiment':
-            self.log_extra['datestamp'] = director.settings['si']['timestamp']
-            self.log_extra['encrypted_rin'] = director.settings['si']['encrypted_rin']
-        self.state = self.STATE_WAIT
-        self.current_trial += 1
-        self.gen_combos()
-        self.add(self.ready_label)
-        self.logger.open(StringIO())
-        self.logger.write(system_time=get_time(), mode=director.settings['mode'], trial=self.current_trial,
-                          event_source="TASK", event_type=self.states[self.state], state=self.states[self.state],
-                          event_id="START", **self.log_extra)
-        self.dispatch_event("new_trial", self.current_trial, self.total_trials)
-        if self.client:
-            self.dispatch_event("show_headposition")
+        if self.current_trial == self.total_trials:
+            self.logger.close(True)
+            self.tarfile.close()
+            director.scene.dispatch_event("show_intro_scene")
+        else:
+            self.search_time = -1
+            self.study_time = -1
+            director.window.set_mouse_visible(False)
+            self.clear_shapes()
+            self.log_extra = {'screen_width':self.screen[0],
+                              'screen_height': self.screen[1]}
+            if director.settings['mode'] == 'Experiment':
+                self.log_extra['datestamp'] = director.settings['si']['timestamp']
+                self.log_extra['encrypted_rin'] = director.settings['si']['encrypted_rin']
+            self.state = self.STATE_WAIT
+            self.current_trial += 1
+            self.gen_combos()
+            self.add(self.ready_label)
+            self.logger.open(StringIO())
+            self.logger.write(system_time=get_time(), mode=director.settings['mode'], trial=self.current_trial,
+                              event_source="TASK", event_type=self.states[self.state], state=self.states[self.state],
+                              event_id="START", **self.log_extra)
+            self.dispatch_event("new_trial", self.current_trial, self.total_trials)
+            if self.client:
+                self.dispatch_event("show_headposition")
     
     def trial_done(self):
         t = get_time()
