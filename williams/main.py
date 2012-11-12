@@ -907,6 +907,9 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
                 self.client.addDispatcher(self.d)
                 self.client.startFixationProcessing()
         elif self.state == self.STATE_SEARCH:
+            self.logger.write(system_time=get_time(), mode=director.settings['mode'], trial=self.current_trial,
+                              event_source="USER", event_type=self.states[self.state], state=self.states[self.state], 
+                              event_id="MOUSE_PRESS", mouse_x=x, mouse_y=y, **self.log_extra)
             x, y = director.get_virtual_coordinates(x, y)
             for obj in self.cm.objs_touching_point(x - (self.screen[0] - self.screen[1]) / 2, y):
                 if obj.chunk == self.probe.chunk:
