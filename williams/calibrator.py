@@ -202,7 +202,7 @@ class CalibrationLayer(ColorLayer, event.EventDispatcher):
             self.reset()
             self.start()
             return True
-        elif symbol == key.ESCAPE:
+        elif symbol == key.W and (modifiers & key.MOD_ACCEL):
             #self.reset()
             self.on_failure()
             return True

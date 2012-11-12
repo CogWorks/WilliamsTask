@@ -950,7 +950,7 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
         
     def on_key_press(self, symbol, modifiers):
         if self.state == self.STATE_CALIBRATE: return
-        if symbol == key.ESCAPE:
+        if symbol == key.W and (modifiers & key.MOD_ACCEL):
             self.logger.close(True)
             self.tarfile.close()
             director.scene.dispatch_event("show_intro_scene")
