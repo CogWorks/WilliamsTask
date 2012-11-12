@@ -632,7 +632,6 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
         super(Task, self).__init__(168, 168, 168, 255, self.screen[1], self.screen[1])
         self.state = self.STATE_INIT
         self.client = client
-        self.calibration_interval = 192
         self.circles = []
         
     def on_enter(self):
@@ -777,13 +776,8 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
         if director.settings['eyetracker'] and self.client:
             self.client.removeDispatcher(self.d)
             self.client.stopFixationProcessing()
-            if self.calibration_interval and self.current_trial % self.calibration_interval == 0:
-                self.state = self.STATE_CALIBRATE
-                self.dispatch_event("start_calibration", self.calibration_ok, self.calibration_bad)
-            else:
-                self.next_trial()
-        else:
-            self.next_trial()
+        
+        self.next_trial()
         
     def gen_trials(self):
         self.trials = []
