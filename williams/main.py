@@ -221,8 +221,9 @@ class ParticipantMenu(BetterMenu):
     def on_enter(self):
         super(ParticipantMenu, self).on_enter()
         self.items = OrderedDict()
-        self.items['name'] = EntryMenuItem('Full Name:', self.on_name, "")
-        self.items['rin'] = BetterEntryMenuItem('RIN:', self.on_rin, "", max_length=9, validator=lambda x: unicode(x).isnumeric())
+        self.items['firstname'] = BetterEntryMenuItem('First Name:', self.on_info_change, "", validator=lambda x: x.isalpha())
+        self.items['lastname'] = BetterEntryMenuItem('Last Name:', self.on_info_change, "", validator=lambda x: x.isalpha())
+        self.items['rin'] = BetterEntryMenuItem('RIN:', self.on_info_change, "", max_length=9, validator=lambda x: unicode(x).isnumeric())
         self.items['start'] = MenuItem('Start', self.on_start)
         self.create_menu(self.items.values(), zoom_in(), zoom_out())
         self.items['start'].visible = False
@@ -231,23 +232,19 @@ class ParticipantMenu(BetterMenu):
         super(ParticipantMenu, self).on_exit()
         for c in self.get_children(): self.remove(c)
                 
-    def check_info(self):
-        name = ''.join(self.items['name']._value).strip()
+    def on_info_change(self, *args, **kwargs):
+        firstname = ''.join(self.items['firstname']._value).strip()
+        lastname = ''.join(self.items['lastname']._value).strip()
         rin = ''.join(self.items['rin']._value)
-        if len(name) > 0 and len(rin) == 9:
+        if len(firstname) > 0 and len(lastname) > 0 and len(rin) == 9:
             self.items['start'].visible = True
         else:
             self.items['start'].visible = False
-                
-    def on_name(self, name):
-        self.check_info()
-        
-    def on_rin(self, rin):
-        self.check_info()
         
     def on_start(self):
         si = {}
-        si['name'] = ''.join(self.items['name']._value).strip()
+        si['first_name'] = ''.join(self.items['firstname']._value).strip()
+        si['last_name'] = ''.join(self.items['lastname']._value).strip()
         si['rin'] = ''.join(self.items['rin']._value)
         si['encrypted_rin'], si['cipher'] = rin2id(si['rin'])
         si['timestamp'] = getDateTimeStamp()
@@ -731,7 +728,7 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
         self.study_time = -1
         director.window.set_mouse_visible(False)
         self.clear_shapes()
-        self.log_extra = {'screen_widht':self.screen[0],
+        self.log_extra = {'screen_width':self.screen[0],
                           'screen_height': self.screen[1]}
         if director.settings['mode'] == 'Experiment':
             self.log_extra['datestamp'] = director.settings['si']['timestamp']
