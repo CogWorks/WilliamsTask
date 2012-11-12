@@ -1,6 +1,6 @@
 library(shiny)
 
-shinyUI(bootstrapPage(
+shinyUI(pageWithSidebar(
   headerPanel("Williams Search Task: Trial Visualizer"),
   sidebarPanel(
     fileInput("archive", "Log Archive:", multiple=FALSE),
@@ -12,5 +12,4 @@ shinyUI(bootstrapPage(
   mainPanel(
     plotOutput("fixationplot", width = "900px", height = "900px")
   )
-  #uiOutput("maxtime")
 ))
