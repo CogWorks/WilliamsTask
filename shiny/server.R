@@ -1,7 +1,7 @@
 library(grid)
 library(png)
 library(latticeExtra)
-
+library(rjson)
 library(shiny)
 
 shinyServer(function(input, output) {
@@ -21,7 +21,8 @@ shinyServer(function(input, output) {
     d <- subset(read.delim(datafilename),state=="SEARCH")
     rimg <- as.raster(readPNG(paste(tempdir(),ai$base,sprintf("trial-%02d.png", as.numeric(input$trial)),sep="/"),FALSE))
     rimg <- rimg[,315:1365]
-    list(data=d,rimg=rimg)
+    shapes <- fromJSON(paste(tempdir(),ai$base,sprintf("trial-%02d.json", as.numeric(input$trial)),sep="/"))
+    list(data=d,rimg=rimg,shapes=shapes)
   })
   
   output$trials <- reactiveUI(function() {
@@ -33,10 +34,21 @@ shinyServer(function(input, output) {
   basePlot <- reactive(function() {
     td <- trialData()
     if (is.null(td)) return(NULL)
+    pi <- td$shapes$probe
+    ps <- td$shapes[[td$shapes$probe$id]]
+    target <- c(ps$size,ps$color,ps$shape,ps$id)
+    cues <- NULL
+    if (pi$size) cues <- c(cues, ps$size)
+    if (pi$color) cues <- c(cues, ps$color)
+    if (pi$shape) cues <- c(cues, ps$shape)
+    cues <- c(cues, ps$id)
+    t1 <- paste("The target shape is:",paste(target,collapse=" "), sep=" ")
+    t2 <- paste("The probe is:",paste(cues,collapse=" "), sep=" ")
+    subtext <- paste(t1,t2,sep="\n")
     xyplot(smi_syl~smi_sxl,
       data=subset(td$data, event_type=="ET_SPL" & smi_dyl!=0 & smi_dyr!=0 & smi_dxl!=0 & smi_dxr!=0),
       scales=list(draw=F), col="blue", type="b", aspect=1, ylab="",xlab="",
-      ylim=c(0,1050), xlim=c(315,1365),
+      ylim=c(0,1050), xlim=c(315,1365),sub=subtext,
       panel=function(...) {
         grid.raster(td$rimg)
       }
