@@ -14,6 +14,12 @@ shinyUI(pageWithSidebar(
         checkboxInput("showFixations", "Show Fixations", value=TRUE),
         checkboxInput("showMouse", "Show Mouse", value=TRUE)
       )
+    ),
+    conditionalPanel(
+      condition = "output.fixationplot",
+      wellPanel(
+        uiOutput("time_slider")
+      )
     )
   ),
   mainPanel(
