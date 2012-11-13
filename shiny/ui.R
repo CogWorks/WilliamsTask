@@ -3,14 +3,20 @@ library(shiny)
 shinyUI(pageWithSidebar(
   headerPanel("Williams Search Task: Trial Visualizer"),
   sidebarPanel(
-    fileInput("archive", "Log Archive:", multiple=FALSE),
-    uiOutput("trials")
-  ),
-  mainPanel(
-    plotOutput("fixationplot", width = "900px", height = "900px"),
+    wellPanel(
+      fileInput("archive", "Log Archive:", multiple=FALSE),
+      uiOutput("trials")
+    ),
     conditionalPanel(
       condition = "input.trial",
-      uiOutput("time_range_slider")
+      wellPanel(
+        checkboxInput("showSamples", "Show Eye Samples", value=TRUE),
+        checkboxInput("showFixations", "Show Fixations", value=TRUE),
+        checkboxInput("showMouse", "Show Mouse", value=TRUE)
+      )
     )
+  ),
+  mainPanel(
+    plotOutput("fixationplot", width="750px", height="750px")
   )
 ))
