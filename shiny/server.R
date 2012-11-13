@@ -4,6 +4,11 @@ library(latticeExtra)
 library(rjson)
 library(shiny)
 
+
+colors <- brewer.pal(3, "Set1")
+pch <- 20
+alpha <- 1
+
 shinyServer(function(input, output) {
   
   archiveInfo <- reactive(function() {
@@ -60,24 +65,26 @@ shinyServer(function(input, output) {
     if (is.null(td)) return(NULL)
     xyplot(smi_syl~smi_sxl,
            data=subset(td$data, event_type=="ET_SPL" & smi_dyl!=0 & smi_dyr!=0 & smi_dxl!=0 & smi_dxr!=0),
-           scales=list(draw=F), col="blue", type="b", aspect=1, ylab="",xlab="",
-           ylim=c(0,1050), xlim=c(315,1365), pch=16,
-           panel=function(...) {
-             panel.xyplot(...)
-           }
+           scales=list(draw=F), type="b", aspect=1, ylab="",xlab="",
+           ylim=c(0,1050), xlim=c(315,1365), par.settings=custom.theme(symbol=colors[2],pch=pch,alpha=alpha)
     )
   })
   
   fixationsPlot <- reactive(function() {
     td <- trialData()
     if (is.null(td)) return(NULL)
-    xyplot(smi_fy~smi_fx,data=subset(td$data, smi_type=="r"), col="red", pch=16, aspect=1, ylim=c(0,1050), xlim=c(315,1365),scales=list(draw=F))
+    xyplot(smi_fy~smi_fx,data=subset(td$data, smi_type=="r"), aspect=1,
+           ylim=c(0,1050), xlim=c(315,1365),scales=list(draw=F),
+           par.settings=custom.theme(symbol=colors[1],pch=pch,alpha=alpha))
   })
   
   mousePlot <- reactive(function() {
     td <- trialData()
     if (is.null(td)) return(NULL)
-    xyplot(mouse_y~mouse_x,data=subset(td$data, event_id=="MOUSE_MOTION" | event_id=="MOUSE_RESET"), pch=16, type="b", col="green", aspect=1, ylim=c(0,1050), xlim=c(315,1365), scales=list(draw=F))
+    xyplot(mouse_y~mouse_x,
+           data=subset(td$data, event_id=="MOUSE_MOTION" | event_id=="MOUSE_RESET"),
+           type="b", aspect=1, ylim=c(0,1050), xlim=c(315,1365), scales=list(draw=F),
+           par.settings=custom.theme(symbol=colors[3],pch=pch,alpha=alpha))
   })
   
   output$fixationplot <- reactivePlot(function() {
