@@ -9,22 +9,21 @@ colors <- brewer.pal(3, "Set1")
 pch <- 20
 alpha <- 1
 
-distance2point <- function( x, y, vx, vy, vz, rx, ry, sw, sh ) {
-  dx <- x / rx * sw - rx / 2.0 + vx
-  dy <- y / ry * sh - ry / 2.0 - vy
-  sd <- sqrt( dx ** 2 + dy ** 2 )
-  sqrt( vz ** 2 + sd ** 2 )
+distance2point <- function(x, y, ex, ey, ez, rx, ry, sw, sh) {
+  dx <- x/rx*sw-rx/2+ex
+  dy <- y/ry*sh-ry/2-ey
+  sqrt(ez**2+sqrt(dx**2+dy**2)**2)
 }
 
-subtendedAngle <- function( x1, y1, x2, y2, vx, vy, vz, rx, ry, sw, sh ) {
-  d1 <- distance2point( x1, y1, vx, vy, vz, rx, ry, sw, sh )
-  d2 <- distance2point( x2, y2, vx, vy, vz, rx, ry, sw, sh )
-  dX <- sw * ( ( x2 - x1 ) / rx )
-  dY <- sh * ( ( y2 - y1 ) / ry )
-  dS <- sqrt( dX ** 2 + dY ** 2 )
-  w1 <- d1 ** 2 + d2 ** 2 - dS ** 2
-  w2 <- 2 * d1 * d2
-  ( acos(w1/w2) / ( 2 * pi ) ) * 360
+subtendedAngle <- function(x1, y1, x2, y2, ex, ey, ez, rx, ry, sw, sh) {
+  d1 <- distance2point(x1,y1,ex,ey,ez,rx,ry,sw,sh)
+  d2 <- distance2point(x2,y2,ex,ey,ez,rx,ry,sw,sh)
+  dX <- sw*((x2-x1)/rx)
+  dY <- sh*((y2-y1)/ry)
+  dS <- sqrt(dX**2+dY**2)
+  w1 <- d1**2+d2**2-dS**2
+  w2 <- 2*d1*d2
+  acos(w1/w2)/(2*pi)*360
 }
 
 classify <- function(d, s=5.75, vpt=100) {
@@ -82,7 +81,7 @@ process_trials <- function(folder, p=3, n = p + 3 - p%%2, ts=.002) {
   return(list(data=combined,thresholds=thresholds(combined)))
 }
 
-plot_trial <- function(archive, trial=1, samplerate=1, phi=1, p=3, n = p + 3 - p%%2, ts=1) {
+plot_trial <- function(archive, trial=1, samplerate=500, p=3, n = p + 3 - p%%2) {
   if (length(grep(".tar.gz$", archive))) {
     file <- tail(unlist(strsplit(archive,"/")),1)
     base <- head(unlist(strsplit(file,"\\.")),1)
@@ -105,20 +104,20 @@ plot_trial <- function(archive, trial=1, samplerate=1, phi=1, p=3, n = p + 3 - p
       json <- fromJSON(file=paste(archive,json,sep="/"))
     )
   }
-  d <- subset(d, event_type=="ET_SPL")# & smi_dyl!=0 & smi_dyr!=0 & smi_dxl!=0 & smi_dxr!=0)
-  d$sx <- sgolayfilt(d$smi_sxl,n=n,p=p,m=0,ts=ts)
-  d$sy <- sgolayfilt(d$smi_syl,n=n,p=p,m=0,ts=ts)
+  d <- subset(d, event_type=="ET_SPL" & smi_dyl!=0 & smi_dyr!=0 & smi_dxl!=0 & smi_dxr!=0)
+  d$sx <- sgolayfilt(d$smi_sxl,n=n,p=p,m=0,ts=1/samplerate)
+  d$sy <- sgolayfilt(d$smi_syl,n=n,p=p,m=0,ts=1/samplerate)
   d$ax = subtendedAngle(d$sx, 525, 840, 525, d$smi_exl, d$smi_eyl, d$smi_ezl, 1680, 1050, 473.76, 296.1)
   d$ay = subtendedAngle(840, d$sy, 840, 525, d$smi_exl, d$smi_eyl, d$smi_ezl, 1680, 1050, 473.76, 296.1)
   m <- min(d$smi_time)
   d$smi_time <- (d$smi_time - m) / 1000
-  vx <- sgolayfilt(d$ax,n=n,p=p,m=1,ts=ts)
-  vy <- sgolayfilt(d$ay,n=n,p=p,m=1,ts=ts)
-  d$velocity <- samplerate * phi * sqrt(vx*vx+vy*vy)
-  ax <- sgolayfilt(d$ax,n=n,p=p,m=2,ts=ts)
-  ay <- sgolayfilt(d$ay,n=n,p=p,m=2,ts=ts)
-  d$acceleration <- samplerate * phi * sqrt(ax*ax+ay*ay)
-  thresholds <- list(velocity=30,acceleration=8000)#classify(d, vpt=mean(d$velocity)+sd(d$velocity)*3)
+  vx <- sgolayfilt(d$ax,n=n,p=p,m=1,ts=1/samplerate)
+  vy <- sgolayfilt(d$ay,n=n,p=p,m=1,ts=1/samplerate)
+  d$velocity <- sqrt(vx*vx+vy*vy)
+  ax <- sgolayfilt(d$ax,n=n,p=p,m=2,ts=1/samplerate)
+  ay <- sgolayfilt(d$ay,n=n,p=p,m=2,ts=1/samplerate)
+  d$acceleration <- sqrt(ax*ax+ay*ay)
+  thresholds <- list(velocity=30,acceleration=8000)
   rimg <- rimg[,315:1365]
   ###
   d$colors = "blue"
@@ -197,23 +196,31 @@ find_peak_ranges <- function(x, threshold) {
 }
 
 in_peak_range <- function(x, threshold) {
+  m <- length(x)
   ranges <- find_peak_ranges(x, threshold)
   inpeak <- rep(F,length(x))
   for (i in 1:nrow(ranges)) {
     range <- ranges[i,1]:ranges[i,2]
-    range <- c(min(range)-1,range,max(range)+1)
+    if (min(range)!=1)
+      range <- c(min(range)-1,range)
+    if (max(range)!=m)
+      range <- c(range,max(range)+1)
     inpeak[range] <- T
   }
   return(inpeak)
 }
 
 get_classification <- function(vel, vthresh, acc, athresh) {
-  class <- rep(0,length(vel))
+  m <- length(vel)
+  class <- rep(0,m)
   vranges <- find_peak_ranges(vel, vthresh)
   apeaks <- find_peaks(acc, athresh)
   for (i in 1:nrow(vranges)) {
     range <- vranges[i,1]:vranges[i,2]
-    range <- c(min(range)-1,range,max(range)+1)
+    if (min(range)!=1)
+      range <- c(min(range)-1,range)
+    if (max(range)!=m)
+      range <- c(range,max(range)+1)
     sac <- FALSE
     for (p in apeaks) {
       if (p>=min(range) && p<=max(range)) {
