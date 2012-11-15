@@ -10,3 +10,4 @@ velocity.*
 *.tar.gz
 *.history
 .Rhistory
+.Rproj.user
