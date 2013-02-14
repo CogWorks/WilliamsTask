@@ -6,7 +6,7 @@ import pygletreactor
 pygletreactor.install()
 from twisted.internet import reactor
 
-from pyglet import image, font, text, clock
+from pyglet import image, font, text, clock, resource
 from pyglet.gl import *
 from pyglet.window import key
 
@@ -58,6 +58,13 @@ from pycogworks.crypto import rin2id
 from cStringIO import StringIO
 import tarfile
 import json
+
+ACTR6 = True
+try:
+    from actr6_jni import JNI_Server, VisualChunk
+    from actr6_jni import Dispatcher as JNI_Dispatcher
+except ImportError:
+    ACTR6 = False
 
 class OptionsMenu(BetterMenu):
 
@@ -167,12 +174,16 @@ class MainMenu(BetterMenu):
         self.items = OrderedDict()
         
         self.items['mode'] = MultipleMenuItem('Mode: ', self.on_mode, director.settings['modes'], director.settings['modes'].index(director.settings['mode']))
+        self.items['player'] = MultipleMenuItem('Player: ', self.on_player, director.settings['players'], director.settings['players'].index(director.settings['player']))
         # self.items['tutorial'] = MenuItem('Tutorial', self.on_tutorial)
         self.items['start'] = MenuItem('Start', self.on_start)
         self.items['options'] = MenuItem('Options', self.on_options)
         self.items['quit'] = MenuItem('Quit', self.on_quit)
         
         self.create_menu(self.items.values(), zoom_in(), zoom_out())
+
+    def on_player(self, player):
+        director.settings['player'] = director.settings['players'][player]
 
     def on_mode(self, mode):
         director.settings['mode'] = director.settings['modes'][mode]
@@ -184,7 +195,7 @@ class MainMenu(BetterMenu):
         self.parent.switch_to(1)
         
     def on_start(self):
-        if director.settings['mode'] == 'Experiment':
+        if director.settings['player'] == 'Human' and director.settings['mode'] == 'Experiment':
             self.parent.switch_to(2)
         else:
             filebase = "WilliamsSearch_%s" % (getDateTimeStamp())
@@ -590,6 +601,11 @@ class Probe(Label):
             self.shape_visible = True
             self.size_visible = True
         shuffle(cues)
+        
+        self.actr_chunk = VisualChunk(None, "probe", position[0], position[1], 
+                                      feature1=cues[0],feature2=cues[1],feature3=cues[2],
+                                      id=str(cid))
+        
         cues = tuple(cues + [cid])
         
         template = '\n'.join(["%s"] * len(cues))
@@ -616,22 +632,28 @@ class TaskBackground(Layer):
 class Task(ColorLayer, pyglet.event.EventDispatcher):
     
     d = Dispatcher()
+    actr_d = JNI_Dispatcher()
     
-    states = ["INIT", "CALIBRATE", "WAIT", "STUDY", "SEARCH", "RESULTS"]
+    states = ["INIT", "WAIT_ACTR_CONNECTION", "WAIT_ACTR_MODEL", "CALIBRATE", 
+              "IGNORE_INPUT", "WAIT", "STUDY", "SEARCH", "RESULTS"]
     STATE_INIT = 0
-    STATE_CALIBRATE = 1
-    STATE_WAIT = 2
-    STATE_STUDY = 3
-    STATE_SEARCH = 4
-    STATE_RESULTS = 5
+    STATE_WAIT_ACTR_CONNECTION = 1
+    STATE_WAIT_ACTR_MODEL = 2
+    STATE_CALIBRATE = 3
+    STATE_IGNORE_INPUT = 4
+    STATE_WAIT = 5
+    STATE_STUDY = 6
+    STATE_SEARCH = 7
+    STATE_RESULTS = 8
     
     is_event_handler = True
     
-    def __init__(self, client):
+    def __init__(self, client, actr):
         self.screen = director.get_window_size()
         super(Task, self).__init__(168, 168, 168, 255, self.screen[1], self.screen[1])
         self.state = self.STATE_INIT
         self.client = client
+        self.client_actr = actr
         self.circles = []
         
     def on_enter(self):
@@ -690,21 +712,29 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
         self.ratio = self.side / 128
         self.scales = [self.ratio * 2, self.ratio * 1.25, self.ratio * .5]
         self.sizes = ["large", "medium", "small"]
-        self.current_trial = 0
         self.ready_label = Label("Click mouse when ready!",
                                  position=(self.width / 2, self.height / 2),
                                  font_name='Pipe Dream', font_size=24,
                                  color=(0, 0, 0, 255), anchor_x='center', anchor_y='center')
         
-        self.total_trials = None
-        if director.settings['mode'] == 'Experiment':
-            self.gen_trials()
-            
-        if director.settings['eyetracker']:
+        self.reset_state()
+        
+        if director.settings['player'] == "ACT-R":
+            self.client_actr.addDispatcher(self.actr_d)            
+            self.state = self.STATE_WAIT_ACTR_CONNECTION
+            self.dispatch_event("actr_wait_connection")
+        elif director.settings['eyetracker']:
             self.state = self.STATE_CALIBRATE
             self.dispatch_event("start_calibration", self.calibration_ok, self.calibration_bad)
         else:
             self.next_trial()
+        
+    def reset_state(self):
+        self.current_trial = 0
+        self.total_trials = None
+        if director.settings['mode'] == 'Experiment':
+            self.gen_trials()
+        self.fake_cursor = (self.screen[0] / 2, self.screen[1] / 2)
             
     def calibration_ok(self):
         self.dispatch_event("stop_calibration")
@@ -718,6 +748,8 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
         
     def on_exit(self):
         if isinstance(director.scene, TransitionScene): return
+        if self.client_actr:
+            self.client_actr.removeDispatcher(self.actr_d)
         super(Task, self).on_exit()
         for c in self.get_children():
             self.remove(c)
@@ -734,13 +766,14 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
             self.clear_shapes()
             self.log_extra = {'screen_width':self.screen[0],
                               'screen_height': self.screen[1]}
-            if director.settings['mode'] == 'Experiment':
+            if director.settings['player'] == 'Human' and director.settings['mode'] == 'Experiment':
                 self.log_extra['datestamp'] = director.settings['si']['timestamp']
                 self.log_extra['encrypted_rin'] = director.settings['si']['encrypted_rin']
             self.state = self.STATE_WAIT
             self.current_trial += 1
             self.gen_combos()
             self.add(self.ready_label)
+            
             self.logger.open(StringIO())
             self.logger.write(system_time=get_time(), mode=director.settings['mode'], trial=self.current_trial,
                               event_source="TASK", event_type=self.states[self.state], state=self.states[self.state],
@@ -748,6 +781,11 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
             self.dispatch_event("new_trial", self.current_trial, self.total_trials)
             if self.client:
                 self.dispatch_event("show_headposition")
+                
+            if director.settings['player'] == 'ACT-R':
+                X = VisualChunk(None, "text", self.width / 2, self.height / 2, value='"Click mouse when ready!"')
+                self.client_actr.update_display([X], clear=True)
+                self.client_actr.ready()
     
     def trial_done(self):
         t = get_time()
@@ -863,6 +901,57 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
         data.size = len(s.getvalue())
         s.seek(0)
         self.tarfile.addfile(data, s)
+        
+    if ACTR6:
+        @actr_d.listen('connectionMade')
+        def ACTR6_JNI_Event(self, model, params):
+            self.state = self.STATE_WAIT_ACTR_MODEL
+            self.dispatch_event("actr_wait_model")
+            print "ACT-R Connection Made"
+            
+        @actr_d.listen('connectionLost')
+        def ACTR6_JNI_Event(self, model, params):
+            self.reset_state()
+            self.state = self.STATE_WAIT_ACTR_CONNECTION
+            self.dispatch_event("actr_wait_connection")
+            print "ACT-R Connection Lost"
+            
+        @actr_d.listen('reset')
+        def ACTR6_JNI_Event(self, model, params):
+            self.reset_state()
+            self.state = self.STATE_WAIT_ACTR_MODEL
+            self.dispatch_event("actr_wait_model")
+            self.client_actr.reset()
+            print "ACT-R Reset"
+            
+        @actr_d.listen('model-run')
+        def ACTR6_JNI_Event(self, model, params):
+            self.dispatch_event("actr_running")
+            self.next_trial()
+            self.client_actr.ready()
+            print "ACT-R Model Run"
+            
+        @actr_d.listen('model-stop')
+        def ACTR6_JNI_Event(self, model, params):
+            print "ACT-R Model Stop"
+
+        @actr_d.listen('keypress')
+        def ACTR6_JNI_Event(self, model, params):
+            print "ACT-R Keypress: %s" % chr(params[0])
+            #pygame.event.post(pygame.event.Event(pygame.KEYDOWN, unicode=chr(params[0]), key=params[0], mod=None))
+
+        @actr_d.listen('mousemotion')
+        def ACTR6_JNI_Event(self, model, params):
+            # Store "ACT-R" cursor in variable since we are 
+            # not going to move the real mouse
+            self.fake_cursor = params[0]
+
+        @actr_d.listen('mouseclick')
+        def ACTR6_JNI_Event(self, model, params):
+            # Simulate a button press using the "ACT-R" cursor loc
+            print "ACT-R Mouseclick"
+            #pygame.event.post(pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=1, pos=self.fake_cursor))
+
     
     if eyetracking:
         @d.listen('ET_FIX')
@@ -889,7 +978,7 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
     #    for c in self.circles: c.render()
         
     def on_mouse_press(self, x, y, buttons, modifiers):
-        if self.state == self.STATE_CALIBRATE: return
+        if self.state < self.STATE_IGNORE_INPUT: return
         if self.state == self.STATE_WAIT:
             self.logger.write(system_time=get_time(), mode=director.settings['mode'], trial=self.current_trial,
                               event_source="TASK", event_type=self.states[self.state], state=self.states[self.state],
@@ -936,19 +1025,54 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
             director.window.set_mouse_visible(True)
 
     def on_mouse_motion(self, x, y, dx, dy):
-        if self.state == self.STATE_CALIBRATE: return
+        if self.state < self.STATE_IGNORE_INPUT: return
         if self.state == self.STATE_SEARCH:
             self.logger.write(system_time=get_time(), mode=director.settings['mode'], trial=self.current_trial,
                               event_source="USER", event_type=self.states[self.state], state=self.states[self.state], 
                               event_id="MOUSE_MOTION", mouse_x=x, mouse_y=y, **self.log_extra)
         
     def on_key_press(self, symbol, modifiers):
-        if self.state == self.STATE_CALIBRATE: return
+        if self.state < self.STATE_IGNORE_INPUT: return
         if symbol == key.W and (modifiers & key.MOD_ACCEL):
             self.logger.close(True)
             self.tarfile.close()
             director.scene.dispatch_event("show_intro_scene")
             True
+            
+class ACTRScrim(ColorLayer):
+    
+    def __init__(self):
+        self.screen = director.get_window_size()
+        super(ACTRScrim, self).__init__(255, 0, 0, 255, self.screen[0], self.screen[1])
+        
+        self.wait_connection = Label("Waiting for connection from ACT-R",
+                                     position=(self.width / 2, self.height / 5 * 2),
+                                     font_name='Pipe Dream', font_size=24,
+                                     color=(0, 0, 0, 255), anchor_x='center', anchor_y='center')
+        
+        self.wait_model = Label("Waiting for ACT-R model to run",
+                                     position=(self.width / 2, self.height / 5 * 2),
+                                     font_name='Pipe Dream', font_size=24,
+                                     color=(0, 0, 0, 255), anchor_x='center', anchor_y='center')
+        
+        self.spinner = Sprite(resource.image('spinner.png'), 
+                              position=(self.width / 2, self.height / 5 * 3), 
+                              color=(255, 255, 255))
+        self.spinner.do(Repeat(RotateBy(360, 1)))
+        
+        self.setWaitConnection()
+        
+    def setWaitConnection(self):
+        for c in self.get_children(): self.remove(c)
+        self.add(self.spinner)
+        self.add(self.wait_connection)
+        self.color = (255,0,0)
+        
+    def setWaitModel(self):
+        for c in self.get_children(): self.remove(c)
+        self.add(self.spinner)
+        self.add(self.wait_model)
+        self.color = (0,255,0)
             
 class EyetrackerScrim(ColorLayer):
     
@@ -984,7 +1108,7 @@ class WilliamsEnvironment(object):
         
         director.fps_display = clock.ClockDisplay(font=font.load('', 18, bold=True))
         director.set_show_FPS(True)
-        director.window.set_fullscreen(True)
+        director.window.set_fullscreen(False)
         
         if platform.system() != 'Windows':
             director.window.set_icon(pyglet.resource.image('logo.png'))
@@ -995,14 +1119,23 @@ class WilliamsEnvironment(object):
                              'eyetracker_ip': '127.0.0.1',
                              'eyetracker_out_port': '4444',
                              'eyetracker_in_port': '5555',
+                             'player': 'Human',
+                             'players': ['Human'],
                              'mode': 'Experiment',
                              'modes': ['Easy', 'Moderate', 'Hard', 'Insane', 'Experiment']}
-
-        if eyetracking:
+        
+        self.client = None
+        self.client_actr = None
+        
+        if ACTR6:
+            director.settings['players'].append("ACT-R")
+            director.settings['player'] = "ACT-R"
+            director.settings['eyetracker'] = False
+            self.client_actr = JNI_Server(self)
+            self.listener_actr = reactor.listenTCP(6666, self.client_actr)
+        elif eyetracking:
             self.client = iViewXClient(director.settings['eyetracker_ip'], int(director.settings['eyetracker_out_port']))
-            self.listener = reactor.listenUDP(int(director.settings['eyetracker_in_port']), self.client)
-        else:
-            self.client = None
+            self.listener = reactor.listenUDP(int(director.settings['eyetracker_in_port']), self.client) 
         
         # Intro scene and its layers        
         self.introScene = Scene()
@@ -1025,7 +1158,9 @@ class WilliamsEnvironment(object):
         self.taskScene = Scene()
         
         self.taskBackgroundLayer = TaskBackground()
-        self.taskLayer = Task(self.client)
+        self.taskLayer = Task(self.client, self.client_actr)
+        self.actrScrim = ACTRScrim()
+        
         if self.client:
             self.calibrationLayer = CalibrationLayer(self.client)
             self.calibrationLayer.register_event_type('show_headposition')
@@ -1039,16 +1174,32 @@ class WilliamsEnvironment(object):
         self.taskLayer.register_event_type('stop_calibration')
         self.taskLayer.register_event_type('show_headposition')
         self.taskLayer.register_event_type('hide_headposition')
+        self.taskLayer.register_event_type('actr_wait_connection')
+        self.taskLayer.register_event_type('actr_wait_model')
+        self.taskLayer.register_event_type('actr_running')
         self.taskLayer.push_handlers(self)
         
         self.taskScene.add(self.taskBackgroundLayer)
         self.taskScene.add(self.taskLayer, 1)
+        self.actrScrim.visible = False
+        self.taskScene.add(self.actrScrim, 3)
         
         self.taskScene.register_event_type('show_intro_scene')
         self.taskScene.push_handlers(self)
             
         director.window.set_visible(True)
+    
+    def actr_wait_connection(self):
+        self.actrScrim.setWaitConnection()
+        self.actrScrim.visible = True
         
+    def actr_wait_model(self):
+        self.actrScrim.setWaitModel()
+        self.actrScrim.visible = True
+    
+    def actr_running(self):
+        self.actrScrim.visible = False
+
     def start_calibration(self, on_success, on_failure):
         self.calibrationLayer.on_success = on_success
         self.calibrationLayer.on_failure = on_failure
