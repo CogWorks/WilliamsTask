@@ -62,6 +62,6 @@ class VisualChunk(object):
             chunk.append( "size %d" % self.size )
         if self.value:
             chunk.append( "value %s" % self.value )
-        for s, v in self.slots.iteritems():
-            chunk.append( "%s %s" % ( s, str( v ) ) )
+        #for s, v in self.slots.iteritems():
+        #    chunk.append( "%s %s" % ( s, str( v ) ) )
         return "(%s)" % " ".join( chunk )

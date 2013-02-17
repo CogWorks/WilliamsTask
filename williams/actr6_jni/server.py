@@ -98,3 +98,7 @@ class JNI_Server(Factory):
         
     def reset(self):
         self.p.sendCommand(self.model, "reset")
+
+    def disconnect(self):
+        self.p.sendCommand(self.model, "disconnect")
+        print "disconnecting bitches"

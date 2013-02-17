@@ -602,9 +602,13 @@ class Probe(Label):
             self.size_visible = True
         shuffle(cues)
         
-        self.actr_chunk = VisualChunk(None, "probe", position[0], position[1], 
-                                      feature1=cues[0],feature2=cues[1],feature3=cues[2],
-                                      id=str(cid))
+        self.actr_chunks = [VisualChunk(None, "probe-txt-id", position[0], position[1], value='"%s"' % str(cid))]
+        if self.color_visible:
+            self.actr_chunks.append(VisualChunk(None, "probe-txt-color", position[0], position[1], value='"%s"' % self.chunk[1]))
+        if self.shape_visible:
+            self.actr_chunks.append(VisualChunk(None, "probe-txt-shape", position[0], position[1], value='"%s"' % self.chunk[0]))
+        if self.size_visible:
+            self.actr_chunks.append(VisualChunk(None, "probe-txt-size", position[0], position[1], value='"%s"' % self.chunk[2]))
         
         cues = tuple(cues + [cid])
         
@@ -750,6 +754,7 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
         if isinstance(director.scene, TransitionScene): return
         if self.client_actr:
             self.client_actr.removeDispatcher(self.actr_d)
+            self.client_actr.disconnect()
         super(Task, self).on_exit()
         for c in self.get_children():
             self.remove(c)
@@ -875,6 +880,7 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
                               "color": self.probe.color_visible,
                               "shape": self.probe.shape_visible,
                               "size": self.probe.size_visible}
+        actr_chunks = []
         for c in self.combos:
             img = self.shapes[c[0]]
             img.anchor_x = 'center'
@@ -893,6 +899,15 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
             self.circles.append(Circle(sprite.position[0] + (self.screen[0] - self.screen[1]) / 2, sprite.position[1], width=2 * sprite.cshape.r))
             self.cm.add(sprite)
             self.batch.add(sprite)
+            actr_chunks.append(VisualChunk(None, "object", 
+                                           sprite.position[0] + (self.screen[0] - self.screen[1]) / 2, 
+                                           sprite.position[1], 
+                                           tshape='"%s"' % c[0],
+                                           color='"%s"' % c[1],
+                                           tsize='"%s"' % c[2],
+                                           id='"%s"' % str(c[3])))
+        if director.settings['player'] == 'ACT-R' and actr_chunks:
+            self.client_actr.update_display(actr_chunks, clear=True)
         self.circles.append(Circle(self.probe.position[0] + (self.screen[0] - self.screen[1]) / 2, self.probe.position[1], width=2 * self.probe.cshape.r))
         self.add(self.batch, z=1)
         self.add(self.id_batch, z=2)
@@ -937,20 +952,22 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
 
         @actr_d.listen('keypress')
         def ACTR6_JNI_Event(self, model, params):
+            self.on_key_press(params[0], None)
             print "ACT-R Keypress: %s" % chr(params[0])
-            #pygame.event.post(pygame.event.Event(pygame.KEYDOWN, unicode=chr(params[0]), key=params[0], mod=None))
 
         @actr_d.listen('mousemotion')
         def ACTR6_JNI_Event(self, model, params):
             # Store "ACT-R" cursor in variable since we are 
             # not going to move the real mouse
             self.fake_cursor = params[0]
+            self.on_mouse_motion(self.fake_cursor[0], self.fake_cursor[1], None, None)
+            print "ACT-R Mousemotion"
 
         @actr_d.listen('mouseclick')
         def ACTR6_JNI_Event(self, model, params):
             # Simulate a button press using the "ACT-R" cursor loc
+            self.on_mouse_press(self.fake_cursor[0], self.fake_cursor[1], 1, None)
             print "ACT-R Mouseclick"
-            #pygame.event.post(pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=1, pos=self.fake_cursor))
 
     
     if eyetracking:
@@ -985,6 +1002,8 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
                               event_id="END", **self.log_extra)
             self.gen_probe()
             self.state = self.STATE_STUDY
+            if director.settings['player'] == 'ACT-R':
+                self.client_actr.update_display(self.probe.actr_chunks, clear=True)
             t = get_time()
             self.start_time = t
             self.logger.write(system_time=t, mode=director.settings['mode'], trial=self.current_trial,
@@ -1121,7 +1140,7 @@ class WilliamsEnvironment(object):
                              'eyetracker_in_port': '5555',
                              'player': 'Human',
                              'players': ['Human'],
-                             'mode': 'Experiment',
+                             'mode': 'Easy',
                              'modes': ['Easy', 'Moderate', 'Hard', 'Insane', 'Experiment']}
         
         self.client = None
