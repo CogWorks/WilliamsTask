@@ -4,7 +4,7 @@
 
   (sgp :v t) 
   (sgp :needs-mouse nil :process-cursor t)
-  (sgp :jni-hostname "localhost" :jni-port 6666)
+  (sgp :jni-hostname "localhost" :jni-port 6666 :jni-sync nil)
 
   (chunk-type task subgoal)
   (chunk-type (probe-txt-color (:include text)))
@@ -16,92 +16,116 @@
 
   (start-hand-at-mouse)
 
-  (p start-trial-1a
+  (p start-trial-0
      ?goal>
      buffer empty
+     ==>
+     -visual>
+     -visual-location>
+     -imaginal>
+     +goal>
+     isa task
+     subgoal "start"
+     )
+
+  (p start-trial-1
+     =goal>
+     isa task
+     subgoal "start"
      ?visual-location>
      buffer empty
+     state free
+     ?visual>
+     buffer empty
+     state free
      ==>
+     =goal>
      +visual-location>
      isa visual-location
      kind text
      )
 
-  (p start-trial-1b
-     ?goal>
-     buffer empty
-     =visual-location>
-     isa visual-location
-     - kind text
-     ==>
-     +visual-location>
-     isa visual-location
-     kind text
-     )
 
   (p start-trial-2
-     ?goal>
-     buffer empty
+     =goal>
+     isa task
+     subgoal "start"
      =visual-location>
      isa visual-location
      kind text
      ?visual>
+     buffer empty
      state free
      ==>
+     =goal>
      +visual>
      isa move-attention
      screen-pos =visual-location
-     +goal>
-     isa task
-     subgoal "attend-start"
      )
+
 
   (p start-trial-3
      =goal>
      isa task
-     subgoal "attend-start"
+     subgoal "start"
      =visual>
      isa text
      value "Click mouse when ready!"
      ?manual>
      state free
      ==>
+     -visual>
+     -visual-location>
      +manual>
      isa click-mouse
      =goal>
-     subgoal "start-clicked"
+     subgoal "study-probe"
      )
 
-  (p start-trial-4
+  (p study-probe-0
      =goal>
      isa task
-     subgoal "start-clicked"
+     subgoal "study-probe"
+     ?imaginal>
+     buffer empty
+     state free
      ?manual>
      state free
      ==>
      =goal>
-     subgoal "study-probe"
+     -visual>
+     -visual-location>
      +imaginal>
      isa probe
      )
 
-  (p study-probe-color
+  (p study-probe-1-color
      =goal>
      isa task
      subgoal "study-probe"
+     ?imaginal>
+     state free
      =imaginal>
      isa probe
      color nil
      ?visual-location>
+     buffer empty
+     state free
+     ?visual>
+     buffer empty
      state free
      ==>
      =imaginal>
      =goal>
-     subgoal "study-probe-attend"
      +visual-location>
      isa visual-location
      kind probe-txt-color
      )
+
+  )
+#|
+
+
 
   (p study-probe-attend-color
      =goal>
@@ -145,7 +169,6 @@
 
 )
 
-#|
 
 
   (p study-probe-shape

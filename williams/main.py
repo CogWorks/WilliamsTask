@@ -2,13 +2,24 @@
 
 from __future__ import division
 
-import pygletreactor
-pygletreactor.install()
-from twisted.internet import reactor
+ACTR6 = True
+try:
+    from actr6_jni import JNI_Server, VisualChunk
+    from actr6_jni import Dispatcher as JNI_Dispatcher
+    from actr6_jni import Pyglet_MPClock
+except ImportError:
+    ACTR6 = False
 
 from pyglet import image, font, text, clock, resource
 from pyglet.gl import *
-from pyglet.window import key
+from pyglet.window import key, FPSDisplay
+
+#if ACTR6:
+#    pyglet.clock.set_default(Pyglet_MPClock())
+
+import pygletreactor
+pygletreactor.install()
+from twisted.internet import reactor
 
 from cocos.director import *
 from cocos.layer import *
@@ -58,13 +69,6 @@ from pycogworks.crypto import rin2id
 from cStringIO import StringIO
 import tarfile
 import json
-
-ACTR6 = True
-try:
-    from actr6_jni import JNI_Server, VisualChunk
-    from actr6_jni import Dispatcher as JNI_Dispatcher
-except ImportError:
-    ACTR6 = False
 
 class OptionsMenu(BetterMenu):
 
@@ -662,6 +666,7 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
         
     def on_enter(self):
         if isinstance(director.scene, TransitionScene): return
+        
         super(Task, self).on_enter()
         
         header = []
@@ -788,9 +793,9 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
                 self.dispatch_event("show_headposition")
                 
             if director.settings['player'] == 'ACT-R':
+                print "update_display next trial"
                 X = VisualChunk(None, "text", self.width / 2, self.height / 2, value='"Click mouse when ready!"')
                 self.client_actr.update_display([X], clear=True)
-                self.client_actr.ready()
     
     def trial_done(self):
         t = get_time()
@@ -920,31 +925,36 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
     if ACTR6:
         @actr_d.listen('connectionMade')
         def ACTR6_JNI_Event(self, model, params):
+            print "ACT-R Connection Made"
+            self.model_running = True
             self.state = self.STATE_WAIT_ACTR_MODEL
             self.dispatch_event("actr_wait_model")
-            print "ACT-R Connection Made"
             
         @actr_d.listen('connectionLost')
         def ACTR6_JNI_Event(self, model, params):
-            self.reset_state()
+            print "ACT-R Connection Lost"
+            self.model_running = False
             self.state = self.STATE_WAIT_ACTR_CONNECTION
             self.dispatch_event("actr_wait_connection")
-            print "ACT-R Connection Lost"
             
         @actr_d.listen('reset')
         def ACTR6_JNI_Event(self, model, params):
-            self.reset_state()
+            print "ACT-R Reset"
             self.state = self.STATE_WAIT_ACTR_MODEL
             self.dispatch_event("actr_wait_model")
+            self.reset_state()
+            self.next_trial()
             self.client_actr.reset()
-            print "ACT-R Reset"
             
         @actr_d.listen('model-run')
         def ACTR6_JNI_Event(self, model, params):
-            self.dispatch_event("actr_running")
-            self.next_trial()
-            self.client_actr.ready()
             print "ACT-R Model Run"
+            self.dispatch_event("actr_running")
+            if not self.model_running:
+                self.reset_state()
+                self.next_trial()
+                self.model_running = True
+            self.client_actr.ready()     
             
         @actr_d.listen('model-stop')
         def ACTR6_JNI_Event(self, model, params):
@@ -952,23 +962,22 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
 
         @actr_d.listen('keypress')
         def ACTR6_JNI_Event(self, model, params):
-            self.on_key_press(params[0], None)
             print "ACT-R Keypress: %s" % chr(params[0])
+            self.on_key_press(params[0], None)
 
         @actr_d.listen('mousemotion')
         def ACTR6_JNI_Event(self, model, params):
             # Store "ACT-R" cursor in variable since we are 
             # not going to move the real mouse
+            print "ACT-R Mousemotion"
             self.fake_cursor = params[0]
             self.on_mouse_motion(self.fake_cursor[0], self.fake_cursor[1], None, None)
-            print "ACT-R Mousemotion"
 
         @actr_d.listen('mouseclick')
         def ACTR6_JNI_Event(self, model, params):
             # Simulate a button press using the "ACT-R" cursor loc
-            self.on_mouse_press(self.fake_cursor[0], self.fake_cursor[1], 1, None)
             print "ACT-R Mouseclick"
-
+            self.on_mouse_press(self.fake_cursor[0], self.fake_cursor[1], 1, None)
     
     if eyetracking:
         @d.listen('ET_FIX')
@@ -1124,15 +1133,6 @@ class WilliamsEnvironment(object):
         
         director.window.pop_handlers()
         director.window.push_handlers(DefaultHandler())
-        
-        director.fps_display = clock.ClockDisplay(font=font.load('', 18, bold=True))
-        director.set_show_FPS(True)
-        director.window.set_fullscreen(False)
-        
-        if platform.system() != 'Windows':
-            director.window.set_icon(pyglet.resource.image('logo.png'))
-            cursor = director.window.get_system_mouse_cursor(director.window.CURSOR_HAND)
-            director.window.set_mouse_cursor(cursor)
             
         director.settings = {'eyetracker': True,
                              'eyetracker_ip': '127.0.0.1',
@@ -1155,6 +1155,19 @@ class WilliamsEnvironment(object):
         elif eyetracking:
             self.client = iViewXClient(director.settings['eyetracker_ip'], int(director.settings['eyetracker_out_port']))
             self.listener = reactor.listenUDP(int(director.settings['eyetracker_in_port']), self.client) 
+        
+        director.fps_display = clock.ClockDisplay(font=font.load('', 18, bold=True))
+        #fps_display = FPSDisplay(director.window)
+        #fps_display.label.font_size = 12
+        #director.fps_display = fps_display
+
+        director.set_show_FPS(True)
+        director.window.set_fullscreen(False)
+        
+        if platform.system() != 'Windows':
+            director.window.set_icon(pyglet.resource.image('logo.png'))
+            cursor = director.window.get_system_mouse_cursor(director.window.CURSOR_HAND)
+            director.window.set_mouse_cursor(cursor)
         
         # Intro scene and its layers        
         self.introScene = Scene()

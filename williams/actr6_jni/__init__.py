@@ -1,7 +1,7 @@
 # -*- coding:    utf-8 -*-
 #===============================================================================
 # This file is part of ACTR6_JNI.
-# Copyright (C) 2012 Ryan Hope <rmh3093@gmail.com>
+# Copyright (C) 2012-2013 Ryan Hope <rmh3093@gmail.com>
 #
 # ACTR6_JNI is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -20,5 +20,7 @@
 from chunks import VisualChunk
 from server import JNI_Server
 from dispatcher import Dispatcher
+from twisted_clock import Twisted_MPClock
+from pyglet_clock import Pyglet_MPClock
 
-__version__ = '1.0.0'
+__version__ = '1.1.0'

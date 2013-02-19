@@ -1,7 +1,7 @@
 # -*- coding:    utf-8 -*-
 #===============================================================================
 # This file is part of ACTR6_JNI.
-# Copyright (C) 2012 Ryan Hope <rmh3093@gmail.com>
+# Copyright (C) 2012-2013 Ryan Hope <rmh3093@gmail.com>
 #
 # ACTR6_JNI is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -21,16 +21,16 @@ from twisted.protocols.basic import LineReceiver
 from twisted.internet.protocol import Factory
 import json
 
-from clock import MPClock
-
 class ACTR_Protocol(LineReceiver):
 
     def connectionMade(self):
+        print self.factory.clock
         for d in self.factory.dispatchers:
             d.trigger(e="connectionMade", model=None, params=None)
 
     def connectionLost(self, reason):
-        self.factory.clock.setTime(0.0)
+        if self.factory.clock:
+            self.factory.clock.setTime(0.0)
         self.clearLineBuffer()
         for d in self.factory.dispatchers:
             d.trigger(e="connectionLost", model=None, params=None)
@@ -38,8 +38,11 @@ class ACTR_Protocol(LineReceiver):
     def lineReceived(self, string):
         model, method, params = json.loads(string)
         if method == 'set-mp-time':
-            self.factory.clock.setTime(float(params[0]))
-            self.sendCommand(self.factory.model, "time-set")
+            if self.factory.clock:
+                self.factory.clock.setTime(float(params[0]))
+                self.sendCommand(self.factory.model, "time-set")
+        elif method == 'sync':
+            self.sendCommand(self.factory.model, "sync")
         else:
             for d in self.factory.dispatchers:
                 d.trigger(e=method, model=model, params=params)
@@ -49,14 +52,11 @@ class ACTR_Protocol(LineReceiver):
 
 class JNI_Server(Factory):
 
-    ready = False
-    running = True
     model = None
-    
-    clock = MPClock()
 
-    def __init__(self, env):
+    def __init__(self, env, clock=None):
         self.env = env
+        self.clock = clock
         self.dispatchers = []
 
     def addDispatcher(self, dispatcher):
@@ -101,4 +101,3 @@ class JNI_Server(Factory):
 
     def disconnect(self):
         self.p.sendCommand(self.model, "disconnect")
-        print "disconnecting bitches"

@@ -60,12 +60,14 @@ except ImportError:
 
 class EventLoop(pyglet_event_loop):
 
-    def __init__(self, twisted_queue=None, call_interval=1/100.):
+    def __init__(self, twisted_queue=None, call_interval=1/100., clock=None):
         """Set up extra cruft to integrate Twisted calls."""
 
         pyglet_event_loop.__init__(self)
         
-        if not hasattr(self, "clock"):
+        if clock:
+            self.clock = clock
+        elif not hasattr(self, "clock"):
             # This is not defined in Pyglet 1.1
             self.clock = pyglet.clock.get_default()
 

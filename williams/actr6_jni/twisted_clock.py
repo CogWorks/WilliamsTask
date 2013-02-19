@@ -17,15 +17,9 @@
 # along with ACTR6_JNI.  If not, see <http://www.gnu.org/licenses/>.
 #===============================================================================
 
-from panglery import Pangler
+from twisted.internet.task import Clock
 
-class Dispatcher(Pangler):
+class Twisted_MPClock(Clock):
 
-    def listen(self, event):
-        def decorator(target):
-            @self.subscribe(e=event, needs=['model', 'params'])
-            def wrapper(*args, **kwargs):
-                newargs = tuple([arg for arg in args if not isinstance(arg, Pangler)])
-                return target(*newargs, **kwargs)
-            return wrapper
-        return decorator
+    def setTime(self, newTime):
+        self.advance(newTime-self.seconds())
