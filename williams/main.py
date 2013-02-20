@@ -662,6 +662,7 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
         self.state = self.STATE_INIT
         self.client = client
         self.client_actr = actr
+        self.model_running = False
         self.circles = []
         
     def on_enter(self):
@@ -793,7 +794,6 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
                 self.dispatch_event("show_headposition")
                 
             if director.settings['player'] == 'ACT-R':
-                print "update_display next trial"
                 X = VisualChunk(None, "text", self.width / 2, self.height / 2, value='"Click mouse when ready!"')
                 self.client_actr.update_display([X], clear=True)
     
@@ -906,11 +906,12 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
             self.batch.add(sprite)
             actr_chunks.append(VisualChunk(None, "object", 
                                            sprite.position[0] + (self.screen[0] - self.screen[1]) / 2, 
-                                           sprite.position[1], 
+                                           sprite.position[1],
+                                           value='"%02d"' % c[3],
                                            tshape='"%s"' % c[0],
                                            color='"%s"' % c[1],
                                            tsize='"%s"' % c[2],
-                                           id='"%s"' % str(c[3])))
+                                           id='"%02d"' % c[3]))
         if director.settings['player'] == 'ACT-R' and actr_chunks:
             self.client_actr.update_display(actr_chunks, clear=True)
         self.circles.append(Circle(self.probe.position[0] + (self.screen[0] - self.screen[1]) / 2, self.probe.position[1], width=2 * self.probe.cshape.r))
@@ -926,7 +927,7 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
         @actr_d.listen('connectionMade')
         def ACTR6_JNI_Event(self, model, params):
             print "ACT-R Connection Made"
-            self.model_running = True
+            self.model_running = False
             self.state = self.STATE_WAIT_ACTR_MODEL
             self.dispatch_event("actr_wait_model")
             
@@ -943,7 +944,7 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
             self.state = self.STATE_WAIT_ACTR_MODEL
             self.dispatch_event("actr_wait_model")
             self.reset_state()
-            self.next_trial()
+            self.model_running = False
             self.client_actr.reset()
             
         @actr_d.listen('model-run')
@@ -954,7 +955,7 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
                 self.reset_state()
                 self.next_trial()
                 self.model_running = True
-            self.client_actr.ready()     
+            self.client_actr.ready()
             
         @actr_d.listen('model-stop')
         def ACTR6_JNI_Event(self, model, params):
@@ -1026,7 +1027,8 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
             self.logger.write(system_time=get_time(), mode=director.settings['mode'], trial=self.current_trial,
                               event_source="USER", event_type=self.states[self.state], state=self.states[self.state], 
                               event_id="MOUSE_PRESS", mouse_x=x, mouse_y=y, **self.log_extra)
-            x, y = director.get_virtual_coordinates(x, y)
+            if director.settings['player'] != "ACT-R":
+                x, y = director.get_virtual_coordinates(x, y)
             for obj in self.cm.objs_touching_point(x - (self.screen[0] - self.screen[1]) / 2, y):
                 if obj != self.probe and obj.chunk == self.probe.chunk:
                     self.trial_done()

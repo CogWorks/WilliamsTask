@@ -41,11 +41,10 @@ class ACTR_Protocol(LineReceiver):
             if self.factory.clock:
                 self.factory.clock.setTime(float(params[0]))
                 self.sendCommand(self.factory.model, "time-set")
-        elif method == 'sync':
-            self.sendCommand(self.factory.model, "sync")
         else:
             for d in self.factory.dispatchers:
                 d.trigger(e=method, model=model, params=params)
+        self.sendLine(json.dumps([model, "sync", None]))
 
     def sendCommand(self, model, method, *params):
         self.sendLine(json.dumps([model, method, params]))
