@@ -40,7 +40,6 @@ class ACTR_Protocol(LineReceiver):
         if method == 'set-mp-time':
             if self.factory.clock:
                 self.factory.clock.setTime(float(params[0]))
-                self.sendCommand(self.factory.model, "time-set")
         else:
             for d in self.factory.dispatchers:
                 d.trigger(e=method, model=model, params=params)
@@ -91,12 +90,6 @@ class JNI_Server(Factory):
 
     def set_visual_center_pint(self, (x, y)):
         self.p.sendCommand(self.model, "set-visual-center-point", x, y)
-
-    def ready(self):
-        self.p.sendCommand(self.model, "ready")
-        
-    def reset(self):
-        self.p.sendCommand(self.model, "reset")
 
     def disconnect(self):
         self.p.sendCommand(self.model, "disconnect")
