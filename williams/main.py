@@ -945,7 +945,6 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
             self.dispatch_event("actr_wait_model")
             self.reset_state()
             self.model_running = False
-            self.client_actr.reset()
             
         @actr_d.listen('model-run')
         def ACTR6_JNI_Event(self, model, params):
@@ -955,7 +954,6 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
                 self.reset_state()
                 self.next_trial()
                 self.model_running = True
-            self.client_actr.ready()
             
         @actr_d.listen('model-stop')
         def ACTR6_JNI_Event(self, model, params):
@@ -970,7 +968,8 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
         def ACTR6_JNI_Event(self, model, params):
             # Store "ACT-R" cursor in variable since we are 
             # not going to move the real mouse
-            print "ACT-R Mousemotion"
+            print "ACT-R Mousemotion: ",
+            print params
             self.fake_cursor = params[0]
             self.on_mouse_motion(self.fake_cursor[0], self.fake_cursor[1], None, None)
 

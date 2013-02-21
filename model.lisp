@@ -443,12 +443,10 @@
      isa visual-location
      kind object
      - color =color
-     value =value
      ?visual>
      buffer empty
      state free
      ==>
-     !output! (ID of visual-location is =value)
      =imaginal>
      =goal>
      +visual-location>
@@ -471,12 +469,10 @@
      isa visual-location
      kind object
      color =color
-     value =value
      ?visual>
      buffer empty
      state free
      ==>
-     !output! (ID of visual-location is =value)
      =imaginal>
      =goal>
      +visual>
@@ -500,7 +496,6 @@
      ?manual>
      state free
      ==>
-     !output! "FOUND TARGET"
      =goal>
      subgoal "click"
      +manual>
@@ -523,7 +518,6 @@
      isa object
      - id =id
      ==>
-     !output! "NOT TARGET"
      =imaginal>
      =goal>
      -visual>
