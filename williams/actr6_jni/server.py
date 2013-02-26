@@ -66,9 +66,9 @@ class JNI_Server(Factory):
         return self.p
 
     def update_display(self, chunks, clear=False):
-        visual_locations = "(define-chunks %s)" % " ".join([chunk.get_visual_location() for chunk in chunks])
-        visual_objects = "(define-chunks %s)" % " ".join([chunk.get_visual_object() for chunk in chunks])
-        self.p.sendCommand(self.model, "update-display", visual_locations, visual_objects, clear)
+        visual_locations = [chunk.get_visual_location() for chunk in chunks]
+        visual_objects = [chunk.get_visual_object() for chunk in chunks]
+        self.p.sendCommand(self.model, "update-display", [visual_locations, visual_objects], clear)
         
     def set_cursor_location(self, loc):
         self.p.sendCommand(self.model, "set-cursor-loc", loc)
