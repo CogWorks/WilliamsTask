@@ -24,13 +24,10 @@ import json
 class ACTR_Protocol(LineReceiver):
 
     def connectionMade(self):
-        print self.factory.clock
         for d in self.factory.dispatchers:
             d.trigger(e="connectionMade", model=None, params=None)
 
     def connectionLost(self, reason):
-        if self.factory.clock:
-            self.factory.clock.setTime(0.0)
         self.clearLineBuffer()
         for d in self.factory.dispatchers:
             d.trigger(e="connectionLost", model=None, params=None)
@@ -41,6 +38,9 @@ class ACTR_Protocol(LineReceiver):
             if self.factory.clock:
                 self.factory.clock.setTime(float(params[0]))
         else:
+            if method == 'reset':
+                if self.factory.clock:
+                    self.factory.clock.setTime(0.0)
             for d in self.factory.dispatchers:
                 d.trigger(e=method, model=model, params=params)
         self.sendLine(json.dumps([model, "sync", None]))
@@ -93,3 +93,6 @@ class JNI_Server(Factory):
 
     def disconnect(self):
         self.p.sendCommand(self.model, "disconnect")
+        
+    def setup(self, width, height):
+        self.p.sendCommand(self.model, "setup", width, height)

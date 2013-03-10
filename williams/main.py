@@ -4,7 +4,7 @@ from __future__ import division
 
 ACTR6 = True
 try:
-    from actr6_jni import JNI_Server, VisualChunk
+    from actr6_jni import JNI_Server, VisualChunk, PAAVChunk
     from actr6_jni import Dispatcher as JNI_Dispatcher
     from actr6_jni import Pyglet_MPClock
 except ImportError:
@@ -606,13 +606,13 @@ class Probe(Label):
             self.size_visible = True
         shuffle(cues)
         
-        self.actr_chunks = [VisualChunk(None, "probe-txt-id", position[0], position[1], value='"%s"' % str(cid))]
+        self.actr_chunks = [VisualChunk(None, "probe-text", position[0], position[1], abstract=False, value="%s" % str(cid), width=width, height=font_size)]
         if self.color_visible:
-            self.actr_chunks.append(VisualChunk(None, "probe-txt-color", position[0], position[1], value='"%s"' % self.chunk[1]))
+            self.actr_chunks.append(VisualChunk(None, "probe-text", position[0], position[1], abstract=True, value="%s" % self.chunk[1], width=width, height=font_size))
         if self.shape_visible:
-            self.actr_chunks.append(VisualChunk(None, "probe-txt-shape", position[0], position[1], value='"%s"' % self.chunk[0]))
+            self.actr_chunks.append(VisualChunk(None, "probe-text", position[0], position[1], abstract=True, value="%s" % self.chunk[0], width=width, height=font_size))
         if self.size_visible:
-            self.actr_chunks.append(VisualChunk(None, "probe-txt-size", position[0], position[1], value='"%s"' % self.chunk[2]))
+            self.actr_chunks.append(VisualChunk(None, "probe-text", position[0], position[1], abstract=True, value="%s" % self.chunk[2], width=width, height=font_size))
         
         cues = tuple(cues + [cid])
         
@@ -662,7 +662,6 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
         self.state = self.STATE_INIT
         self.client = client
         self.client_actr = actr
-        self.model_running = False
         self.circles = []
         
     def on_enter(self):
@@ -794,7 +793,7 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
                 self.dispatch_event("show_headposition")
                 
             if director.settings['player'] == 'ACT-R':
-                X = VisualChunk(None, "text", self.width / 2, self.height / 2, value='"Click mouse when ready!"')
+                X = VisualChunk(None, "text", self.width / 2, self.height / 2, value="Click mouse when ready!", width=self.ready_label.element.content_width, height=self.ready_label.element.content_height)
                 self.client_actr.update_display([X], clear=True)
     
     def trial_done(self):
@@ -904,14 +903,15 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
             self.circles.append(Circle(sprite.position[0] + (self.screen[0] - self.screen[1]) / 2, sprite.position[1], width=2 * sprite.cshape.r))
             self.cm.add(sprite)
             self.batch.add(sprite)
-            actr_chunks.append(VisualChunk(None, "object", 
-                                           sprite.position[0] + (self.screen[0] - self.screen[1]) / 2, 
-                                           sprite.position[1],
-                                           value='"%02d"' % c[3],
-                                           tshape='"%s"' % c[0],
-                                           color='"%s"' % c[1],
-                                           tsize='"%s"' % c[2],
-                                           id='"%02d"' % c[3]))
+            actr_chunks.append(PAAVChunk(None, "visual-object", 
+                                         sprite.position[0] + (self.screen[0] - self.screen[1]) / 2,
+                                         sprite.position[1],
+                                         value = "%02d" % c[3],
+                                         width = 2 * sprite.cshape.r,
+                                         height = 2 * sprite.cshape.r,
+                                         fshape = ":w67-%s" % c[0],
+                                         fcolor = ":w67-%s" % c[1],
+                                         fsize = ":w67-%s" % c[2]))
         if director.settings['player'] == 'ACT-R' and actr_chunks:
             self.client_actr.update_display(actr_chunks, clear=True)
         self.circles.append(Circle(self.probe.position[0] + (self.screen[0] - self.screen[1]) / 2, self.probe.position[1], width=2 * self.probe.cshape.r))
@@ -927,14 +927,12 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
         @actr_d.listen('connectionMade')
         def ACTR6_JNI_Event(self, model, params):
             print "ACT-R Connection Made"
-            self.model_running = False
             self.state = self.STATE_WAIT_ACTR_MODEL
             self.dispatch_event("actr_wait_model")
             
         @actr_d.listen('connectionLost')
         def ACTR6_JNI_Event(self, model, params):
             print "ACT-R Connection Lost"
-            self.model_running = False
             self.state = self.STATE_WAIT_ACTR_CONNECTION
             self.dispatch_event("actr_wait_connection")
             
@@ -944,16 +942,15 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
             self.state = self.STATE_WAIT_ACTR_MODEL
             self.dispatch_event("actr_wait_model")
             self.reset_state()
-            self.model_running = False
             
         @actr_d.listen('model-run')
         def ACTR6_JNI_Event(self, model, params):
             print "ACT-R Model Run"
             self.dispatch_event("actr_running")
-            if not self.model_running:
+            if not params[0]:
+                self.client_actr.setup(self.screen[1], self.screen[1])
                 self.reset_state()
                 self.next_trial()
-                self.model_running = True
             
         @actr_d.listen('model-stop')
         def ACTR6_JNI_Event(self, model, params):
@@ -1141,7 +1138,7 @@ class WilliamsEnvironment(object):
                              'eyetracker_in_port': '5555',
                              'player': 'Human',
                              'players': ['Human'],
-                             'mode': 'Easy',
+                             'mode': 'Insane',
                              'modes': ['Easy', 'Moderate', 'Hard', 'Insane', 'Experiment']}
         
         self.client = None
