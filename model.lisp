@@ -4,539 +4,347 @@
 
   (sgp :v t :needs-mouse nil :process-cursor t)
   (sgp :jni-hostname "localhost" :jni-port 6666 :jni-sync t)
-  (sgp :visual-num-finsts 48 :visual-finst-span 60)
+  ;(sgp :visual-num-finsts 48 :visual-finst-span 60)
 
-  (chunk-type task subgoal)
-  (chunk-type (probe-txt-color (:include text)))
-  (chunk-type (probe-txt-shape (:include text)))
-  (chunk-type (probe-txt-size (:include text)))
-  (chunk-type (probe-txt-id (:include text)))
-  (chunk-type probe color shape size id)
-  (chunk-type (object (:include visual-object)) tshape tsize id)
+  (sgp :er t)
+
+  (sgp :bottom-up-act-w 1.1)
+  (sgp :top-down-act-w 0.45)
+  (sgp :vis-act-s 0.2)
+  
+  (sgp :fcolor-acuity-a 0.104)
+  (sgp :fcolor-acuity-b 0.85)
+  
+  (sgp :fsize-acuity-a 0.14)
+  (sgp :fsize-acuity-b 0.96)
+  
+  (sgp :fshape-acuity-a 0.142)
+  (sgp :fshape-acuity-b 0.96)
+
+  (chunk-type (probe-text (:include text)) abstract)
+  (chunk-type task goal subgoal)
+  (chunk-type probe fcolor fshape fsize id)
+  (chunk-type feature-word word feature feature-kind)
+  
+  (add-dm
+   
+   (w67-red isa color-feature feature-name "w67-red")
+   (w67-yellow isa color-feature feature-name "w67-yellow")
+   (w67-green isa color-feature feature-name "w67-green")
+   (w67-blue isa color-feature feature-name "w67-blue")
+   
+   (w67-oval isa shape-feature feature-name "w67-oval")
+   (w67-star isa shape-feature feature-name "w67-star")
+   (w67-crescent isa shape-feature feature-name "w67-crescent")
+   (w67-cross isa shape-feature feature-name "w67-cross")
+   
+   (w67-small isa size-feature feature-name "w67-small")
+   (w67-medium isa size-feature feature-name "w67-medium")
+   (w67-large isa size-feature feature-name "w67-large")
+
+   (word-red isa feature-word word "red" feature w67-red)
+   (word-yellow isa feature-word word "yellow" feature w67-yellow)
+   (word-green isa feature-word word "green" feature w67-green)
+   (word-blue isa feature-word word "blue" feature w67-blue)
+
+   (word-oval isa feature-word word "oval" feature w67-oval)
+   (word-star isa feature-word word "star" feature w67-star)
+   (word-crescent isa feature-word word "crescent" feature w67-crescent)
+   (word-cross isa feature-word word "cross" feature w67-cross)
+
+   (word-small isa feature-word word "small" feature w67-small)
+   (word-medium isa feature-word word "medium" feature w67-medium)
+   (word-large isa feature-word word "large" feature w67-large)
+
+   )
 
   (start-hand-at-mouse)
 
-  (p start-trial-0
+  (p start-experiment
      ?goal>
      buffer empty
      ==>
-     -visual>
-     -visual-location>
-     -imaginal>
      +goal>
      isa task
-     subgoal "start"
+     goal "start"
      )
 
-  (p start-trial-1
+  (p start-trial?
      =goal>
      isa task
-     subgoal "start"
-     ?visual-location>
-     buffer empty
-     state free
-     ?visual>
-     buffer empty
-     state free
-     ==>
-     =goal>
-     +visual-location>
-     isa visual-location
-     kind text
-     )
-
-
-  (p start-trial-2
-     =goal>
-     isa task
-     subgoal "start"
+     goal "start"
      =visual-location>
      isa visual-location
-     kind text
-     ?visual>
-     buffer empty
-     state free
      ==>
-     =goal>
      +visual>
      isa move-attention
      screen-pos =visual-location
      )
 
-
-  (p start-trial-3
+  (p starting-trial
      =goal>
      isa task
-     subgoal "start"
+     goal "start"
      =visual>
      isa text
      value "Click mouse when ready!"
      ?manual>
      state free
      ==>
-     -visual>
-     -visual-location>
      +manual>
      isa click-mouse
      =goal>
-     subgoal "study-probe"
-     )
-
-  (p study-probe-0
-     =goal>
-     isa task
-     subgoal "study-probe"
-     ?imaginal>
-     buffer empty
-     state free
-     ?manual>
-     state free
-     ==>
-     =goal>
-     -visual>
-     -visual-location>
+     goal "study-probe"
      +imaginal>
      isa probe
      )
 
-  (p study-probe-1-color
+  (p attend-probe
      =goal>
      isa task
-     subgoal "study-probe"
+     goal "study-probe"
      ?imaginal>
      state free
      =imaginal>
      isa probe
-     color nil
-     ?visual-location>
-     buffer empty
-     state free
      ?visual>
      buffer empty
-     state free
-     ==>
-     =imaginal>
-     =goal>
-     +visual-location>
-     isa visual-location
-     kind probe-txt-color
-     )
-
-  (p study-probe-2-color
-     =goal>
-     isa task
-     subgoal "study-probe"
-     ?imaginal>
-     state free
-     =imaginal>
-     isa probe
-     color nil
-     ?visual-location>
-     state free
      =visual-location>
      isa visual-location
-     kind probe-txt-color
-     ?visual>
-     state free
-     buffer empty
+     kind probe-text
      ==>
      =imaginal>
-     =goal>
      +visual>
      isa move-attention
      screen-pos =visual-location
      )
 
-  (p study-probe-3-color
+  (p imagine-id
      =goal>
      isa task
-     subgoal "study-probe"
+     goal "study-probe"
      ?imaginal>
      state free
      =imaginal>
      isa probe
-     color nil
+     =visual>
+     isa probe-text
+     value =value
+     abstract nil
      ?visual-location>
      state free
-     ?visual>
-     state free
-     =visual>
-     isa probe-txt-color
-     value =color
      ==>
      =imaginal>
-     color =color
+     id =value
+     +visual-location>
+     isa visual-location
+     kind probe-text
+     :attended nil
+     )
+
+  (p retrieve-probe-component
      =goal>
+     isa task
+     goal "study-probe"
+     ?imaginal>
+     state free
+     =imaginal>
+     isa probe
+     =visual>
+     isa probe-text
+     value =value
+     abstract t
+     ==>
+     =imaginal>
+     +retrieval>
+     isa feature-word
+     word =value
+     )
+
+  (p retrieve-probe-feature
+     =goal>
+     isa task
+     goal "study-probe"
+     ?imaginal>
+     state free
+     =imaginal>
+     isa probe
+     =retrieval>
+     isa feature-word
+     feature =feature
+     ==>
+     =imaginal>
+     +retrieval> =feature
+     )
+
+  (p* imagine-probe-feature
+      =goal>
+      isa task
+      goal "study-probe"
+      =imaginal>
+      isa probe
+      =retrieval>
+      isa visual-feature
+      slot-name =slot-name
+      ?visual-location>
+      state free
+      ==>
+      =imaginal>
+      =slot-name =retrieval
+      +visual-location>
+      isa visual-location
+      kind probe-text
+      :attended nil
+      )
+
+  (p done-studying-probe
+     =goal>
+     isa task
+     goal "study-probe"
+     =imaginal>
+     isa probe
+     ?visual-location>
+     state error
+     ?manual>
+     state free
+     ==>
      -visual>
      -visual-location>
+     -abstract-location>
+     =imaginal>
+     =goal>
+     goal "search-wait"
+     +manual>
+     isa click-mouse
      )
 
-  (p study-probe-1-shape
+  (p start-search
      =goal>
      isa task
-     subgoal "study-probe"
-     ?imaginal>
-     state free
-     =imaginal>
-     isa probe
-     shape nil
-     ?visual-location>
-     buffer empty
-     state free
-     ?visual>
-     buffer empty
+     goal "search-wait"
+     ?manual>
      state free
      ==>
-     =imaginal>
-     =goal>
-     +visual-location>
-     isa visual-location
-     kind probe-txt-shape
-     )
-
-  (p study-probe-2-shape
-     =goal>
-     isa task
-     subgoal "study-probe"
-     ?imaginal>
-     state free
-     =imaginal>
-     isa probe
-     shape nil
-     ?visual-location>
-     state free
-     =visual-location>
-     isa visual-location
-     kind probe-txt-shape
-     ?visual>
-     state free
-     buffer empty
-     ==>
-     =imaginal>
-     =goal>
-     +visual>
-     isa move-attention
-     screen-pos =visual-location
-     )
-
-  (p study-probe-3-shape
-     =goal>
-     isa task
-     subgoal "study-probe"
-     ?imaginal>
-     state free
-     =imaginal>
-     isa probe
-     shape nil
-     ?visual-location>
-     state free
-     ?visual>
-     state free
-     =visual>
-     isa probe-txt-shape
-     value =shape
-     ==>
-     =imaginal>
-     shape =shape
-     =goal>
      -visual>
      -visual-location>
+     -abstract-location>
+     =goal>
+     goal "search"
      )
 
-  (p study-probe-1-size
+  (p attend-object
      =goal>
      isa task
-     subgoal "study-probe"
-     ?imaginal>
-     state free
+     goal "search"
      =imaginal>
      isa probe
-     size nil
-     ?visual-location>
-     buffer empty
-     state free
-     ?visual>
-     buffer empty
-     state free
-     ==>
-     =imaginal>
-     =goal>
-     +visual-location>
-     isa visual-location
-     kind probe-txt-size
-     )
-
-  (p study-probe-2-size
-     =goal>
-     isa task
-     subgoal "study-probe"
-     ?imaginal>
-     state free
-     =imaginal>
-     isa probe
-     size nil
-     ?visual-location>
-     state free
      =visual-location>
      isa visual-location
-     kind probe-txt-size
+     kind visual-object
      ?visual>
-     state free
      buffer empty
+     state free
      ==>
      =imaginal>
-     =goal>
      +visual>
      isa move-attention
      screen-pos =visual-location
      )
 
-  (p study-probe-3-size
+  (p found-target
      =goal>
      isa task
-     subgoal "study-probe"
-     ?imaginal>
-     state free
+     goal "search"
      =imaginal>
      isa probe
-     size nil
-     ?visual-location>
-     state free
-     ?visual>
-     state free
+     id =id
      =visual>
-     isa probe-txt-size
-     value =size
-     ==>
-     =imaginal>
-     size =size
-     =goal>
-     -visual>
-     -visual-location>
-     )
-
-    (p study-probe-1-id
-     =goal>
-     isa task
-     subgoal "study-probe"
-     ?imaginal>
-     state free
-     =imaginal>
-     isa probe
-     id nil
-     ?visual-location>
-     buffer empty
-     state free
-     ?visual>
-     buffer empty
-     state free
-     ==>
-     =imaginal>
-     =goal>
-     +visual-location>
-     isa visual-location
-     kind probe-txt-id
-     )
-
-  (p study-probe-2-id
-     =goal>
-     isa task
-     subgoal "study-probe"
-     ?imaginal>
-     state free
-     =imaginal>
-     isa probe
-     id nil
-     ?visual-location>
-     state free
-     =visual-location>
-     isa visual-location
-     kind probe-txt-id
-     ?visual>
-     state free
-     buffer empty
-     ==>
-     =imaginal>
-     =goal>
-     +visual>
-     isa move-attention
-     screen-pos =visual-location
-     )
-
-  (p study-probe-3-id
-     =goal>
-     isa task
-     subgoal "study-probe"
-     ?imaginal>
-     state free
-     =imaginal>
-     isa probe
-     id nil
-     ?visual-location>
-     state free
-     ?visual>
-     state free
-     =visual>
-     isa probe-txt-id
+     isa visual-object
      value =id
      ==>
+     !output! (OBJECT IS TARGET)
      =imaginal>
-     id =id
      =goal>
+     goal "click-target"
+     )
+     
+  (p not-target
+     =goal>
+     isa task
+     goal "search"
+     =imaginal>
+     isa probe
+     id =id
+     fcolor =fcolor
+     =visual>
+     isa visual-object
+     - value =id
+     ==>
+     !output! (OBJECT IS NOT TARGET)
+     =imaginal>
      -visual>
      -visual-location>
      )
 
-  (p study-probe-4
+  (p search-by-color
      =goal>
      isa task
-     subgoal "study-probe"
+     goal "search"
      =imaginal>
      isa probe
-     - color nil
-     - shape nil
-     - size nil
-     - id nil
-     ?manual>
-     state free
-     ==>
-     =imaginal>
-     =goal>
-     subgoal "search"
-     +manual>
-     isa click-mouse
-     )
-
-  (p search-1-color
-     =goal>
-     isa task
-     subgoal "search"
-     =imaginal>
-     isa probe
-     color =color
+     id =id
+     fcolor =fcolor
      ?visual-location>
      buffer empty
      state free
-     ?visual>
-     buffer empty
-     state free
      ==>
      =imaginal>
-     =goal>
      +visual-location>
      isa visual-location
-     kind object
-     color =color
+     fcolor =fcolor
+     - kind probe-text
      :attended nil
-     )
-
-  (p search-2-color
-     =goal>
-     isa task
-     subgoal "search"
-     =imaginal>
-     isa probe
-     color =color
-     ?visual-location>
-     state free
-     =visual-location>
-     isa visual-location
-     kind object
-     - color =color
-     ?visual>
-     buffer empty
-     state free
-     ==>
-     =imaginal>
-     =goal>
-     +visual-location>
-     isa visual-location
-     kind object
-     color =color
-     :attended nil
-     )
-
-  (p search-3-color
-     =goal>
-     isa task
-     subgoal "search"
-     =imaginal>
-     isa probe
-     color =color
-     ?visual-location>
-     state free
-     =visual-location>
-     isa visual-location
-     kind object
-     color =color
-     ?visual>
-     buffer empty
-     state free
-     ==>
-     =imaginal>
-     =goal>
-     +visual>
-     isa move-attention
-     screen-pos =visual-location
-     )
-
-  (p search-4-color-found-target
-     =goal>
-     isa task
-     subgoal "search"
-     =imaginal>
-     isa probe
-     id =id
-     ?visual>
-     state free
-     =visual>
-     isa object
-     id =id
-     screen-pos =pos
-     ?manual>
-     state free
-     ==>
-     =goal>
-     subgoal "click"
-     +manual>
-     isa move-cursor
-     loc =pos
-     =imaginal>
-     =goal>
-     )
-
-  (p search-4-color-not-target
-     =goal>
-     isa task
-     subgoal "search"
-     =imaginal>
-     isa probe
-     id =id
-     ?visual>
-     state free
-     =visual>
-     isa object
-     - id =id
-     ==>
-     =imaginal>
-     =goal>
-     -visual>
-     -visual-location>
-     )
-    
-  (p click-1
-     =goal>
-     isa task
-     subgoal "click"
-     ?manual>
-     state free
-     ==>
-     +manual>
-     isa click-mouse
-     -goal>
-     -visual>
-     -visual-location>
-     -imaginal>
      )
   
+    (p search-by-size
+     =goal>
+     isa task
+     goal "search"
+     =imaginal>
+     isa probe
+     id =id
+     fsize =fsize
+     ?visual-location>
+     buffer empty
+     state free
+     ==>
+     =imaginal>
+     +visual-location>
+     isa visual-location
+     fsize =fsize
+     - kind probe-text
+     :attended nil
+     )
+
+  (p search-by-shape
+     =goal>
+     isa task
+     goal "search"
+     =imaginal>
+     isa probe
+     id =id
+     fshape =fshape
+     ?visual-location>
+     buffer empty
+     state free
+     ==>
+     =imaginal>
+     +visual-location>
+     isa visual-location
+     fshape =fshape
+     - kind probe-text
+     :attended nil
+     )
+
+
 )
