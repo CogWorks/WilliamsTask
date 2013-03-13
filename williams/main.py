@@ -726,6 +726,11 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
                                  font_name='Pipe Dream', font_size=24,
                                  color=(0, 0, 0, 255), anchor_x='center', anchor_y='center')
         
+        self.fixation = Label('G',font_name='Cut Outs for 3D FX', font_size=48,
+                              position=(self.width / 2, self.height / 2),
+                              color=(255, 0, 0, 192), anchor_x='center', anchor_y='center')
+        self.add(self.fixation, z=99)
+        
         self.reset_state()
         
         if director.settings['player'] == "ACT-R":
@@ -762,7 +767,7 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
             self.client_actr.disconnect()
         super(Task, self).on_exit()
         for c in self.get_children():
-            self.remove(c)
+            if c != self.fixation: self.remove(c)
     
     def next_trial(self):
         if self.current_trial == self.total_trials:
@@ -847,7 +852,7 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
         
     def gen_probe(self):
         for c in self.get_children():
-            self.remove(c)
+            if c != self.fixation: self.remove(c)
         s = 0
         if director.settings['mode'] == 'Experiment':
             trial = self.trials.pop()
@@ -871,7 +876,7 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
         self.circles = []
         self.cm.clear()
         for c in self.get_children():
-            self.remove(c)
+            if c != self.fixation: self.remove(c)
         self.batch = BatchNode()
         self.id_batch = BatchNode()
     
@@ -884,7 +889,7 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
                               "color": self.probe.color_visible,
                               "shape": self.probe.shape_visible,
                               "size": self.probe.size_visible}
-        actr_chunks = []
+        actr_chunks = self.probe.actr_chunks
         for c in self.combos:
             img = self.shapes[c[0]]
             img.anchor_x = 'center'
@@ -913,7 +918,7 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
                                          fcolor = ":w67-%s" % c[1],
                                          fsize = ":w67-%s" % c[2]))
         if director.settings['player'] == 'ACT-R' and actr_chunks:
-            self.client_actr.update_display(actr_chunks, clear=True)
+            self.client_actr.update_display(actr_chunks, clear=False)
         self.circles.append(Circle(self.probe.position[0] + (self.screen[0] - self.screen[1]) / 2, self.probe.position[1], width=2 * self.probe.cshape.r))
         self.add(self.batch, z=1)
         self.add(self.id_batch, z=2)
@@ -929,6 +934,7 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
             print "ACT-R Connection Made"
             self.state = self.STATE_WAIT_ACTR_MODEL
             self.dispatch_event("actr_wait_model")
+            self.client_actr.setup(self.screen[1], self.screen[1])
             
         @actr_d.listen('connectionLost')
         def ACTR6_JNI_Event(self, model, params):
@@ -948,13 +954,19 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
             print "ACT-R Model Run"
             self.dispatch_event("actr_running")
             if not params[0]:
-                self.client_actr.setup(self.screen[1], self.screen[1])
                 self.reset_state()
                 self.next_trial()
             
         @actr_d.listen('model-stop')
         def ACTR6_JNI_Event(self, model, params):
             print "ACT-R Model Stop"
+
+        @actr_d.listen('fixation')
+        def ACTR6_JNI_Event(self, model, params):
+            params[0][0] -= (self.screen[0] - self.screen[1]) / 2
+            print "ACT-R Fixation: ",
+            print params[0]
+            self.fixation.position = params[0]
 
         @actr_d.listen('keypress')
         def ACTR6_JNI_Event(self, model, params):
@@ -1127,7 +1139,7 @@ class WilliamsEnvironment(object):
         
         director.init(width=s.width, height=s.height,
                   caption=self.title, visible=False, resizable=True)
-        director.window.set_size(int(s.width / 2), int(s.height / 2))
+        director.window.set_size(int(s.width * .75), int(s.height * .75))
         
         director.window.pop_handlers()
         director.window.push_handlers(DefaultHandler())
