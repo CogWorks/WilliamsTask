@@ -66,6 +66,26 @@
  
  )
 
+(set-similarities
+ (w67-small w67-medium .67)
+ (w67-medium w67-large .67)
+ (w67-small w67-large .33)
+ 
+ (w67-oval w67-star .25)
+ (w67-oval w67-crescent .25)
+ (w67-oval w67-cross .25)
+ (w67-star w67-crescent .25)
+ (w67-star w67-cross .25)
+ (w67-crescent w67-cross .25)
+ 
+ (w67-red w67-yellow .8)
+ (w67-red w67-green .6)
+ (w67-red w67-blue .4)
+ (w67-yellow w67-green .8)
+ (w67-yellow w67-blue .6)
+ (w67-green w67-blue .8)
+ )
+                  
 (start-hand-at-mouse)
 (set-gaze-loc-center) ;; PAAV 
 (ready-the-eye) ;; PAAV
