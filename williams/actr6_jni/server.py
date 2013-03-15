@@ -98,3 +98,7 @@ class JNI_Server(Factory):
         
     def setup(self, width, height):
         self.p.sendCommand(self.model, "setup", width, height)
+        
+    def trigger_event(self, event, *args):
+        args = [event] + list(args)
+        self.p.sendCommand(self.model, "trigger-event", *args)
