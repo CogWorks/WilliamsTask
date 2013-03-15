@@ -565,6 +565,8 @@ class Probe(Label):
     
     def __init__(self, chunk, s, width, position, font_size):
         
+        self.screen = director.get_window_size()
+        
         self.chunk = chunk
         
         cid = "%02d" % self.chunk[3]
@@ -606,13 +608,15 @@ class Probe(Label):
             self.size_visible = True
         shuffle(cues)
         
-        self.actr_chunks = [VisualChunk(None, "probe-text", position[0], position[1], abstract=False, value="%s" % str(cid), width=width, height=font_size)]
+        x = position[0] + (self.screen[0] - self.screen[1]) / 2
+        
+        self.actr_chunks = [VisualChunk(None, "probe-text", x, position[1], abstract=False, value="%s" % str(cid), width=width, height=font_size)]
         if self.color_visible:
-            self.actr_chunks.append(VisualChunk(None, "probe-text", position[0], position[1], abstract=True, value="%s" % self.chunk[1], width=width, height=font_size))
+            self.actr_chunks.append(VisualChunk(None, "probe-text", x, position[1], abstract=True, value="%s" % self.chunk[1], width=width, height=font_size))
         if self.shape_visible:
-            self.actr_chunks.append(VisualChunk(None, "probe-text", position[0], position[1], abstract=True, value="%s" % self.chunk[0], width=width, height=font_size))
+            self.actr_chunks.append(VisualChunk(None, "probe-text", x, position[1], abstract=True, value="%s" % self.chunk[0], width=width, height=font_size))
         if self.size_visible:
-            self.actr_chunks.append(VisualChunk(None, "probe-text", position[0], position[1], abstract=True, value="%s" % self.chunk[2], width=width, height=font_size))
+            self.actr_chunks.append(VisualChunk(None, "probe-text", x, position[1], abstract=True, value="%s" % self.chunk[2], width=width, height=font_size))
         
         cues = tuple(cues + [cid])
         
@@ -663,6 +667,7 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
         self.client = client
         self.client_actr = actr
         self.circles = []
+        self.trial_complete = False
         
     def on_enter(self):
         if isinstance(director.scene, TransitionScene): return
@@ -726,10 +731,14 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
                                  font_name='Pipe Dream', font_size=24,
                                  color=(0, 0, 0, 255), anchor_x='center', anchor_y='center')
         
-        self.fixation = Label('G',font_name='Cut Outs for 3D FX', font_size=48,
-                              position=(self.width / 2, self.height / 2),
-                              color=(255, 0, 0, 192), anchor_x='center', anchor_y='center')
-        self.add(self.fixation, z=99)
+        self.gaze = Label('G',font_name='Cut Outs for 3D FX', font_size=48,
+                          position=(self.width / 2, self.height / 2),
+                          color=(255, 0, 0, 192), anchor_x='center', anchor_y='center')
+        self.attention = Label('G',font_name='Cut Outs for 3D FX', font_size=48,
+                               position=(self.width / 2, self.height / 2),
+                               color=(0, 0, 255, 192), anchor_x='center', anchor_y='center')
+        self.add(self.gaze, z=99)
+        self.add(self.attention, z=99)
         
         self.reset_state()
         
@@ -767,9 +776,10 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
             self.client_actr.disconnect()
         super(Task, self).on_exit()
         for c in self.get_children():
-            if c != self.fixation: self.remove(c)
+            if c != self.gaze and c != self.attention: self.remove(c)
     
     def next_trial(self):
+        self.trial_complete = False
         if self.current_trial == self.total_trials:
             self.logger.close(True)
             self.tarfile.close()
@@ -798,10 +808,11 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
                 self.dispatch_event("show_headposition")
                 
             if director.settings['player'] == 'ACT-R':
-                X = VisualChunk(None, "text", self.width / 2, self.height / 2, value="Click mouse when ready!", width=self.ready_label.element.content_width, height=self.ready_label.element.content_height)
+                X = VisualChunk(None, "text", self.screen[0] / 2, self.screen[1] / 2, value="Click mouse when ready!", width=self.ready_label.element.content_width, height=self.ready_label.element.content_height)
                 self.client_actr.update_display([X], clear=True)
     
     def trial_done(self):
+        self.trial_complete = True
         t = get_time()
         self.search_time = t - self.start_time
         self.logger.write(system_time=t, mode=director.settings['mode'], trial=self.current_trial,
@@ -829,7 +840,10 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
             self.client.removeDispatcher(self.d)
             self.client.stopFixationProcessing()
         
-        self.next_trial()
+        if director.settings['player'] == 'ACT-R' and director.settings['mode'] != 'Experiment':
+            self.client_actr.trigger_event(":trial-complete")
+        else:
+            self.next_trial()
         
     def gen_trials(self):
         self.trials = []
@@ -852,7 +866,7 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
         
     def gen_probe(self):
         for c in self.get_children():
-            if c != self.fixation: self.remove(c)
+            if c != self.gaze and c != self.attention: self.remove(c)
         s = 0
         if director.settings['mode'] == 'Experiment':
             trial = self.trials.pop()
@@ -876,7 +890,7 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
         self.circles = []
         self.cm.clear()
         for c in self.get_children():
-            if c != self.fixation: self.remove(c)
+            if c != self.gaze and c != self.attention: self.remove(c)
         self.batch = BatchNode()
         self.id_batch = BatchNode()
     
@@ -953,7 +967,10 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
         def ACTR6_JNI_Event(self, model, params):
             print "ACT-R Model Run"
             self.dispatch_event("actr_running")
-            if not params[0]:
+            if params[0]:
+                if self.trial_complete:
+                    self.next_trial()
+            else:
                 self.reset_state()
                 self.next_trial()
             
@@ -961,12 +978,27 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
         def ACTR6_JNI_Event(self, model, params):
             print "ACT-R Model Stop"
 
-        @actr_d.listen('fixation')
+        @actr_d.listen('gaze-loc')
         def ACTR6_JNI_Event(self, model, params):
-            params[0][0] -= (self.screen[0] - self.screen[1]) / 2
-            print "ACT-R Fixation: ",
-            print params[0]
-            self.fixation.position = params[0]
+            if params[0]:
+                params[0][0] -= (self.screen[0] - self.screen[1]) / 2
+                print "ACT-R Gaze: ",
+                print params[0]
+                self.gaze.position = params[0]
+                self.gaze.visible = True
+            else:
+                self.gaze.visible = False
+            
+        @actr_d.listen('attention-loc')
+        def ACTR6_JNI_Event(self, model, params):
+            if params[0]:
+                params[0][0] -= (self.screen[0] - self.screen[1]) / 2
+                print "ACT-R Attention: ",
+                print params[0]
+                self.attention.position = params[0]
+                self.attention.visible = True
+            else:
+                self.attention.visible = False
 
         @actr_d.listen('keypress')
         def ACTR6_JNI_Event(self, model, params):
