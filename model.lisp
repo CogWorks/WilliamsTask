@@ -4,17 +4,28 @@
 (defmacro defp* (&rest body)
   `(p*-fct ',body))
 
+(defun run-until-break (&key (real-time nil))
+  (run-until-condition (lambda () nil) :real-time real-time))
+
 (clear-all)
 
 (define-model williams-task-model)
 
-(sgp :v t :needs-mouse nil :process-cursor t)
-(sgp :jni-hostname "localhost" :jni-port 6666 :jni-sync t)
-(sgp :show-focus t)
+(jni-register-event-hook :trial-complete (lambda () (schedule-break 0)))
 
-(sgp :er t)
+(sgp :v t :needs-mouse nil :process-cursor t)
+
+(sgp :jni-hostname "localhost" :jni-port 6666 :jni-sync t)
+
+(sgp :show-focus t :show-gaze t)
+
+(sgp :er t);nil :esc t :ul t)
 
 (sgp :eye-tracking t) ;; PAAV
+
+(sgp :activation-offsets vm-dm-sa-offset)
+(sgp :vis-memory-mas 0)
+(sgp :vis-memory-w 0.7)
 
 (sgp :bottom-up-act-w 1.1) ;; PAAV
 (sgp :top-down-act-w 0.45) ;; PAAV
@@ -63,7 +74,6 @@
  (word-small isa feature-word word "small" feature w67-small)
  (word-medium isa feature-word word "medium" feature w67-medium)
  (word-large isa feature-word word "large" feature w67-large)
- 
  )
 
 (set-similarities
@@ -98,16 +108,19 @@
 
 (defp **start-trial?
       =goal> isa task goal "start"
-      ?abstract-location> buffer empty
+      ?abstract-location> buffer empty state free
       ==>
-      +abstract-location> isa abstract-location
+      +abstract-location> isa abstract-location kind text
       )
 
 (defp **start-trial!
       =goal> isa task goal "start"
-      =abstract-location> isa abstract-location
       =visual-location> isa visual-location
+      =abstract-location> isa abstract-location kind text
+      ?visual> state free buffer empty
       ==>
+      =visual-location>
+      =abstract-location>
       +visual> isa move-attention screen-pos =visual-location
       )
 
@@ -115,17 +128,21 @@
       =goal> isa task goal "start"
       =visual> isa text value "Click mouse when ready!"
       ?manual> state free
+      ?visual> state free
       ==>
+      -visual-location>
+      -abstract-location>
+      +visual> isa clear
       +manual> isa click-mouse
       =goal> goal "study-probe"
-      +imaginal> isa probe
+      +imaginal> isa probe fshape t fcolor t fsize t
       )
 
 (defp **attend-probe
       =goal> isa task goal "study-probe"
       ?imaginal> state free
       =imaginal> isa probe
-      ?visual> buffer empty
+      ?visual> buffer empty state free
       =visual-location> isa visual-location kind probe-text
       ==>
       =imaginal>
@@ -169,14 +186,13 @@
        =retrieval> isa visual-feature slot-name =slot-name
        ?visual-location> state free
        ==>
-       =imaginal>
        =imaginal> =slot-name =retrieval
        +visual-location> isa visual-location kind probe-text :attended nil
        )
 
 (defp **done-studying-probe
       =goal> isa task goal "study-probe"
-      =imaginal> isa probe
+      =imaginal> isa probe - id nil
       ?visual-location> state error
       ?manual> state free
       ==>
@@ -191,10 +207,11 @@
 (defp **start-search
       =goal> isa task goal "search-wait"
       ?manual> state free
+      ?visual> state free
       ==>
-      -visual>
       -visual-location>
       -abstract-location>
+      +visual> isa clear
       =goal> goal "search"
       )
 
@@ -238,9 +255,22 @@
       =visual> isa visual-object value =id screen-pos =screen-pos
       ?manual> state free
       ==>
+      =imaginal>
       +manual> isa click-mouse
-      -goal>
+      =goal> goal "clicking-target"
       )
+
+(defp **clicked-target
+      =goal> isa task goal "clicking-target"
+      ?manual> state free
+      ==>
+      -goal>
+      -imaginal>
+      -visual>
+      -visual-location>
+      -abstract-location>
+      )
+   
 
 (defp **not-target
       =goal> isa task goal "search"
@@ -253,29 +283,106 @@
       -visual-location>
       )
 
+(defp **search
+      =goal> isa task goal "search"
+      =imaginal> isa probe fcolor =fcolor fshape =fshape fsize =fsize
+      ?visual-location> buffer empty state free
+      ?abstract-location> - state error state free
+      ==>
+      =imaginal>
+      +abstract-location> isa abstract-location - kind probe-text fcolor =fcolor fshape =fshape fsize =fsize :attended nil :nearest current
+      )
+
+#|
+
+(defp **search-by-random
+      =goal> isa task goal "search"
+      =imaginal> isa probe
+      ?visual-location> buffer empty state free
+      ?abstract-location> state error state free
+      ==>
+      =imaginal>
+      +abstract-location> isa abstract-location - kind probe-text :attended nil
+      )
+
+(defp **search-by-nearest
+      =goal> isa task goal "search"
+      =imaginal> isa probe
+      ?visual-location> buffer empty state free
+      ?abstract-location> - state error state free
+      ==>
+      =imaginal>
+      +abstract-location> isa abstract-location - kind probe-text :attended nil :nearest current
+      )
+
 (defp **search-by-color
       =goal> isa task goal "search"
-      =imaginal> isa probe id =id fcolor =fcolor
+      =imaginal> isa probe fcolor =fcolor
       ?visual-location> buffer empty state free
+      ?abstract-location> - state error state free
       ==>
       =imaginal>
       +abstract-location> isa abstract-location fcolor =fcolor - kind probe-text :attended nil :nearest current
       )
 
+(defp **search-by-color-size
+      =goal> isa task goal "search"
+      =imaginal> isa probe fcolor =fcolor fsize =fsize
+      ?visual-location> buffer empty state free
+      ?abstract-location> - state error state free
+      ==>
+      =imaginal>
+      +abstract-location> isa abstract-location fcolor =fcolor fsize =fsize - kind probe-text :attended nil :nearest current
+      )
+
+(defp **search-by-color-shape
+      =goal> isa task goal "search"
+      =imaginal> isa probe fcolor =fcolor fshape =fshape
+      ?visual-location> buffer empty state free
+      ?abstract-location> - state error state free
+      ==>
+      =imaginal>
+      +abstract-location> isa abstract-location fcolor =fcolor fshape =fshape - kind probe-text :attended nil :nearest current
+      )
+
+(defp **search-by-color-shape-size
+      =goal> isa task goal "search"
+      =imaginal> isa probe fcolor =fcolor fshape =fshape fsize =fsize
+      ?visual-location> buffer empty state free
+      ?abstract-location> - state error state free
+      ==>
+      =imaginal>
+      +abstract-location> isa abstract-location fcolor =fcolor fshape =fshape fsize =fsize - kind probe-text :attended nil :nearest current
+      )
+
 (defp **search-by-size
       =goal> isa task goal "search"
-      =imaginal> isa probe id =id fsize =fsize
+      =imaginal> isa probe fsize =fsize
       ?visual-location> buffer empty state free
+      ?abstract-location> - state error state free
       ==>
       =imaginal>
       +abstract-location> isa abstract-location fsize =fsize - kind probe-text :attended nil :nearest current
       )
 
+(defp **search-by-size-shape
+      =goal> isa task goal "search"
+      =imaginal> isa probe fsize =fsize fshape =fshape
+      ?visual-location> buffer empty state free
+      ?abstract-location> - state error state free
+      ==>
+      =imaginal>
+      +abstract-location> isa abstract-location fsize =fsize fshape =fshape - kind probe-text :attended nil :nearest current
+      )
+
 (defp **search-by-shape
       =goal> isa task goal "search"
-      =imaginal> isa probe id =id fshape =fshape
+      =imaginal> isa probe fshape =fshape
       ?visual-location> buffer empty state free
+      ?abstract-location> - state error state free
       ==>
       =imaginal>
       +abstract-location> isa abstract-location fshape =fshape - kind probe-text :attended nil :nearest current
       )
+
+|#
