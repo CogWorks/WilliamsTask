@@ -913,7 +913,8 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
             sprite.set_position(uniform(pad, self.screen[1] - pad), uniform(pad, self.screen[1] - pad))
             while self.cm.objs_colliding(sprite):
                 sprite.set_position(uniform(pad, self.screen[1] - pad), uniform(pad, self.screen[1] - pad))
-            text.Label("%02d" % c[3], font_size=14 * ratio,
+            fs = 14 * ratio
+            text.Label("%02d" % c[3], font_size=fs,
                        x=sprite.position[0], y=sprite.position[1],
                        font_name="Monospace", color=(32, 32, 32, 255),
                        anchor_x='center', anchor_y='center', batch=self.id_batch.batch)
@@ -925,12 +926,17 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
             actr_chunks.append(PAAVChunk(None, "visual-object", 
                                          sprite.position[0] + (self.screen[0] - self.screen[1]) / 2,
                                          sprite.position[1],
-                                         value = "%02d" % c[3],
                                          width = 2 * sprite.cshape.r,
                                          height = 2 * sprite.cshape.r,
                                          fshape = ":w67-%s" % c[0],
                                          fcolor = ":w67-%s" % c[1],
                                          fsize = ":w67-%s" % c[2]))
+            actr_chunks.append(VisualChunk(None, "text", 
+                                           sprite.position[0] + (self.screen[0] - self.screen[1]) / 2,
+                                           sprite.position[1],
+                                           width = 2 * fs,
+                                           height = fs,
+                                           value = "%02d" % c[3]))
         if director.settings['player'] == 'ACT-R' and actr_chunks:
             self.client_actr.update_display(actr_chunks, clear=False)
         self.circles.append(Circle(self.probe.position[0] + (self.screen[0] - self.screen[1]) / 2, self.probe.position[1], width=2 * self.probe.cshape.r))
@@ -967,7 +973,7 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
         def ACTR6_JNI_Event(self, model, params):
             print "ACT-R Model Run"
             self.dispatch_event("actr_running")
-            if params[0]:
+            if params['resume']:
                 if self.trial_complete:
                     self.next_trial()
             else:
@@ -980,30 +986,30 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
 
         @actr_d.listen('gaze-loc')
         def ACTR6_JNI_Event(self, model, params):
-            if params[0]:
-                params[0][0] -= (self.screen[0] - self.screen[1]) / 2
+            if params['loc']:
+                params['loc'][0] -= (self.screen[0] - self.screen[1]) / 2
                 print "ACT-R Gaze: ",
-                print params[0]
-                self.gaze.position = params[0]
+                print params['loc']
+                self.gaze.position = params['loc']
                 self.gaze.visible = True
             else:
                 self.gaze.visible = False
             
         @actr_d.listen('attention-loc')
         def ACTR6_JNI_Event(self, model, params):
-            if params[0]:
-                params[0][0] -= (self.screen[0] - self.screen[1]) / 2
+            if params['loc']:
+                params['loc'][0] -= (self.screen[0] - self.screen[1]) / 2
                 print "ACT-R Attention: ",
-                print params[0]
-                self.attention.position = params[0]
+                print params['loc']
+                self.attention.position = params['loc']
                 self.attention.visible = True
             else:
                 self.attention.visible = False
 
         @actr_d.listen('keypress')
         def ACTR6_JNI_Event(self, model, params):
-            print "ACT-R Keypress: %s" % chr(params[0])
-            self.on_key_press(params[0], None)
+            print "ACT-R Keypress: %s" % chr(params['keycode'])
+            self.on_key_press(params['keycode'], None)
 
         @actr_d.listen('mousemotion')
         def ACTR6_JNI_Event(self, model, params):
@@ -1011,7 +1017,7 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
             # not going to move the real mouse
             print "ACT-R Mousemotion: ",
             print params
-            self.fake_cursor = params[0]
+            self.fake_cursor = params['loc']
             self.on_mouse_motion(self.fake_cursor[0], self.fake_cursor[1], None, None)
 
         @actr_d.listen('mouseclick')
@@ -1091,7 +1097,10 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
             self.logger.write(system_time=t, mode=director.settings['mode'], trial=self.current_trial,
                               event_source="TASK", event_type=self.states[self.state], state=self.states[self.state], 
                               event_id="MOUSE_RESET", mouse_x=nx, mouse_y=ny, **self.log_extra)
-            director.window.set_mouse_position(nx, ny)
+            if director.settings['player'] == "ACT-R":
+                self.client_actr.set_cursor_location([nx, ny])
+            else:
+                director.window.set_mouse_position(nx, ny)
             director.window.set_mouse_visible(True)
 
     def on_mouse_motion(self, x, y, dx, dy):
@@ -1107,6 +1116,9 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
             self.logger.close(True)
             self.tarfile.close()
             director.scene.dispatch_event("show_intro_scene")
+            True
+        elif symbol == key.ESCAPE and director.settings['player'] == "ACT-R":
+            self.client_actr.trigger_event(":break")
             True
             
 class ACTRScrim(ColorLayer):
