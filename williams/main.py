@@ -43,12 +43,6 @@ from primitives import Circle, Line
 import platform
 
 import sys, os
-sys.path.append("/System/Library/Frameworks/Python.framework/Versions/2.7/Extras/lib/python/PyObjC")
-import pyttsx
-engine = pyttsx.init()
-engine.startLoop(False)
-def pyttsx_iterate(dt):
-    engine.iterate()
 
 from util import hsv_to_rgb, screenshot
 from handler import DefaultHandler
@@ -179,7 +173,6 @@ class MainMenu(BetterMenu):
         
         self.items['mode'] = MultipleMenuItem('Mode: ', self.on_mode, director.settings['modes'], director.settings['modes'].index(director.settings['mode']))
         self.items['player'] = MultipleMenuItem('Player: ', self.on_player, director.settings['players'], director.settings['players'].index(director.settings['player']))
-        # self.items['tutorial'] = MenuItem('Tutorial', self.on_tutorial)
         self.items['start'] = MenuItem('Start', self.on_start)
         self.items['options'] = MenuItem('Options', self.on_options)
         self.items['quit'] = MenuItem('Quit', self.on_quit)
@@ -191,9 +184,6 @@ class MainMenu(BetterMenu):
 
     def on_mode(self, mode):
         director.settings['mode'] = director.settings['modes'][mode]
-    
-    def on_tutorial(self):
-        director.push(SplitColsTransition(Scene(TutorialLayer())))
         
     def on_options(self):
         self.parent.switch_to(1)
@@ -299,230 +289,6 @@ class Shape(Sprite):
         self.cshape = CircleShape(eu.Vector2(x, y), self.radius)
         super(Shape, self).set_position(self.cshape.center[0], self.cshape.center[1])
 
-class TutorialLayer(ColorLayer):
-    
-    is_event_handler = True
-    
-    def __init__(self):
-        self.screen = director.get_window_size()
-        super(TutorialLayer, self).__init__(168, 168, 168, 255, self.screen[0], self.screen[1])
-        
-        self.side = self.screen[1] / 11
-        self.ratio = self.side / 128
-        self.scales = [self.ratio * 2, self.ratio * 1.25, self.ratio * .5]
-        self.sizes = ["large", "medium", "small"]
-        
-        self.batch = BatchNode()
-        self.text_batch = BatchNode()
-        self.add(self.batch)
-        self.add(self.text_batch, z=1)
-        
-        s = 50
-        v = 100
-        self.colors = {"red": hsv_to_rgb(0, s, v),
-                       "yellow": hsv_to_rgb(72, s, v),
-                       "green": hsv_to_rgb(144, s, v),
-                       "blue": hsv_to_rgb(216, s, v),
-                       "purple": hsv_to_rgb(288, s, v)}
-        
-        self.shapes = {"oval":"F",
-                       "diamond":"T",
-                       "crescent":"Q",
-                       "cross":"Y",
-                       "star":"C"}
-        self.font = font.load('Cut Outs for 3D FX', 128)
-        for shape in self.shapes:
-            self.shapes[shape] = self.font.get_glyphs(self.shapes[shape])[0].get_texture(True)
-        
-        self.lines = []
-        
-    def do_phase1(self):
-        director.window.set_mouse_visible(False)
-        
-        label_color = (32, 32, 32, 255)
-            
-        ids = range(1, 76)
-        shuffle(ids)
-            
-        j = 1
-        for scale in self.scales:
-            i = 0
-            y = self.screen[1] / 2 + self.screen[1] / 5 * j + self.screen[1] / 20 
-            x = self.screen[0] / 2 + self.screen[0] / 7 * (i - 2.75)
-            
-            l = text.Label("%s" % self.sizes[self.scales.index(scale)].upper(), font_size=36 * self.ratio,
-                            x=x, y=y, font_name="Pipe Dream", color=label_color,
-                            anchor_x='center', anchor_y='center', batch=self.text_batch.batch)
-            
-            i += 1
-            for shape in self.shapes:
-                img = self.shapes[shape].get_texture(True)
-                img.anchor_x = 'center'
-                img.anchor_y = 'center'
-                x = self.screen[0] / 2 + self.screen[0] / 7 * (i - 2.75)
-                sprite = Shape(img, scale=scale, position=(x, y), color=self.colors.values()[i - 1], rotation=randrange(0, 365))
-                l = text.Label("%02d" % ids.pop(), font_size=14 * self.ratio,
-                            x=x, y=y, font_name="Monospace", color=label_color,
-                            anchor_x='center', anchor_y='center', batch=self.text_batch.batch)
-                self.batch.add(sprite)
-                if self.scales.index(scale) == 0:
-                    yy = self.screen[1] / 2 + self.screen[1] / 5 * (j + .75) + self.screen[1] / 20
-                    l = text.Label("%s" % self.colors.keys()[i - 1].upper(), font_size=36 * self.ratio,
-                                   x=x, y=yy, font_name="Pipe Dream", color=label_color,
-                                   anchor_x='center', anchor_y='center', batch=self.text_batch.batch)
-                i += 1
-                if self.scales.index(scale) == 2:
-                    yy = self.screen[1] / 2 + self.screen[1] / 5 * (j - .75) + self.screen[1] / 20
-                    l = text.Label("%s" % shape.upper(), font_size=36 * self.ratio,
-                                   x=x, y=yy, font_name="Pipe Dream", color=label_color,
-                                   anchor_x='center', anchor_y='center', batch=self.text_batch.batch)
-                    
-            
-            j -= 1
-        
-        engine.say(',,,,In this task, your job will be to search for target objects.')
-        engine.say('Each object in the search display will have a unique combination of shape, color and size.,,')
-        engine.say('The 5 colors used in this task are:')
-        engine.say('blue,,,,', 'blue')
-        engine.say('purple,,,,', 'purple')
-        engine.say('green,,,,', 'green')
-        engine.say('yellow,,,,', 'yellow')
-        engine.say('and red.,,,,', 'red')
-        engine.say('The 5 shapes used in this task are:')
-        engine.say('oval,,,,', 'oval')
-        engine.say('diamond,,,,', 'diamond')
-        engine.say('star,,,,', 'star')
-        engine.say('crescent,,,,', 'crescent')
-        engine.say('and cross.,,,,', 'cross')
-        engine.say('The 3 sizes used in this task are:')
-        engine.say('large,,,,', 'large')
-        engine.say('medium,,,,', 'medium')
-        engine.say('and small.,,,,', 'small')
-        engine.say('The 5 colors, 5 shapes, and 3 sizes result in 75 unique combinations.')
-        engine.say(',,,Note,, not all combinations are shown on this screen.')
-        engine.say(',,,Each object will also have a randomly assigned numeric I D between 1 and 75.,,,', 'id')
-        engine.say('Take a moment and study the shapes, colors and sizes.,,,,,,', 'phase1-done')
-
-    def do_phase2(self):
-        print "doing phase 2"
-
-    def on_enter(self):
-        if director.scene == self:
-            super(TutorialLayer, self).on_enter()
-            self.schedule(pyttsx_iterate)
-            self.token_fu = engine.connect('finished-utterance', self.finished_utterance)
-            self.token_su = engine.connect('started-utterance', self.started_utterance)
-            self.do_phase1()
-        
-    def on_exit(self):
-        if director.scene == self:
-            super(TutorialLayer, self).on_exit()
-            self.unschedule(pyttsx_iterate)
-            engine.disconnect(self.token_fu)
-            engine.disconnect(self.token_su)
-    
-    def draw(self):
-        super(TutorialLayer, self).draw()
-        for line in self.lines:
-            line.render()
-
-    def get_color_box(self, i):
-        x1 = self.screen[0] / 2 + self.screen[0] / 7 * (i - 3.25)
-        x2 = self.screen[0] / 2 + self.screen[0] / 7 * (i - 2.25)
-        y = self.screen[1] / 5 + self.screen[1] / 40
-        return [Line((x1, 1.25 * y), (x1, 4.5 * y - self.screen[1] / 40), stroke=2, color=(1, 1, 1, 1)),
-                Line((x2, 1.25 * y), (x2, 4.5 * y - self.screen[1] / 40), stroke=2, color=(1, 1, 1, 1)),
-                Line((x1, 1.25 * y), (x2, 1.25 * y), stroke=2, color=(1, 1, 1, 1)),
-                Line((x1, 4.5 * y - self.screen[1] / 40), (x2, 4.5 * y - self.screen[1] / 40), stroke=2, color=(1, 1, 1, 1))]
-        
-    def get_shape_box(self, i):
-        x1 = self.screen[0] / 2 + self.screen[0] / 7 * (i - 3.25)
-        x2 = self.screen[0] / 2 + self.screen[0] / 7 * (i - 2.25)
-        y = self.screen[1] / 5 + self.screen[1] / 40
-        return [Line((x1, .5 * y), (x1, 4 * y - self.screen[1] / 40), stroke=2, color=(1, 1, 1, 1)),
-                Line((x2, .5 * y), (x2, 4 * y - self.screen[1] / 40), stroke=2, color=(1, 1, 1, 1)),
-                Line((x1, .5 * y), (x2, .5 * y), stroke=2, color=(1, 1, 1, 1)),
-                Line((x1, 4 * y - self.screen[1] / 40), (x2, 4 * y - self.screen[1] / 40), stroke=2, color=(1, 1, 1, 1))]
-    
-    def get_size_box(self, i):
-        x = self.screen[0] / 7
-        y1 = self.screen[1] / 2 - self.screen[1] / 5 * (i - 1.5) + self.screen[1] / 20
-        y2 = self.screen[1] / 2 - self.screen[1] / 5 * (i - 2.5) + self.screen[1] / 20
-        return [
-                Line((x * .25, y1), (x * 6.25, y1), stroke=2, color=(1, 1, 1, 1)),
-                Line((x * .25, y2), (x * 6.25, y2), stroke=2, color=(1, 1, 1, 1)),
-                Line((x * .25, y1), (x * .25, y2), stroke=2, color=(1, 1, 1, 1)),
-                Line((x * 6.25, y1), (x * 6.25, y2), stroke=2, color=(1, 1, 1, 1))
-                ]
-    
-    def started_utterance(self, name):
-        if name == None:
-            self.lines = []
-            
-        elif name == 'id':
-            y = self.screen[1] / 2 - 5 + self.screen[1] / 20
-            x = self.screen[0] / 2 + self.screen[0] / 7 * (3 - 2.75) + 5
-            self.arrow = Sprite("cursor_arrow.png", position=(x, y))
-            rect = self.arrow.get_rect()
-            self.arrow.position = rect.bottomright
-            self.arrow.do(Repeat(Blink(2, 1.5)))
-            self.add(self.arrow)
-            
-        elif name == 'blue':
-            self.lines = self.get_color_box(1)
-        elif name == 'purple':
-            self.lines = self.get_color_box(2)
-        elif name == 'green':
-            self.lines = self.get_color_box(3)
-        elif name == 'yellow':
-            self.lines = self.get_color_box(4)
-        elif name == 'red':
-            self.lines = self.get_color_box(5)
-            
-        elif name == 'oval':
-            self.lines = self.get_shape_box(1)
-        elif name == 'diamond':
-            self.lines = self.get_shape_box(2)
-        elif name == 'star':
-            self.lines = self.get_shape_box(3)
-        elif name == 'crescent':
-            self.lines = self.get_shape_box(4)
-        elif name == 'cross':
-            self.lines = self.get_shape_box(5)
-            
-        elif name == 'large':
-            self.lines = self.get_size_box(1)
-        elif name == 'medium':
-            self.lines = self.get_size_box(2)
-        elif name == 'small':
-            self.lines = self.get_size_box(3)
-            
-    def blink_continue(self, delta):
-        if self.continue_label_alpha == 255:
-            self.continue_label_alpha = 0
-        else:
-            self.continue_label_alpha = 255
-        self.continue_label.set_style('color', (96, 96, 96, self.continue_label_alpha))
-        
-    def finished_utterance(self, name, completed):
-        self.lines = []
-        if name == 'id':
-            self.remove(self.arrow)
-        elif name == 'phase1-done':
-            self.continue_label_alpha = 255
-            self.continue_label = text.Label("Press the spacebar to continue", font_size=48 * self.ratio,
-                                            x=self.screen[0] / 2, y=24, font_name="Pipe Dream", color=(96, 96, 96, self.continue_label_alpha),
-                                            anchor_x='center', anchor_y='bottom', batch=self.text_batch.batch)
-            self.schedule_interval(self.blink_continue, .75)
-            
-            
-    def on_key_press(self, symbol, modifiers):
-        if symbol == key.ESCAPE:
-            director.pop()
-        elif symbol == key.SPACE:
-            self.do_phase2()
-
-        
 class BackgroundLayer(Layer):
     
     def __init__(self):
