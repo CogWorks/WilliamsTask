@@ -17,7 +17,7 @@
 # along with ACTR6_JNI.  If not, see <http://www.gnu.org/licenses/>.
 #===============================================================================
 
-from chunks import VisualChunk, PAAVChunk
+from chunks import Chunk, VisualChunk, PAAVChunk
 from server import JNI_Server
 from dispatcher import Dispatcher
 from twisted_clock import Twisted_MPClock
@@ -26,4 +26,4 @@ try:
 except ImportError:
     pass
 
-__version__ = '1.2.0'
+__version__ = '1.4.1'

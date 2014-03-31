@@ -30,7 +30,7 @@ from cocos.collision_model import *
 import cocos.euclid as eu
 from pyglet.media import StaticSource
 
-from random import choice, randrange, uniform, shuffle
+from random import choice, randrange, uniform, shuffle, seed
 
 from primitives import Circle
 
@@ -39,6 +39,7 @@ import platform
 import os
 
 from util import hsv_to_rgb, screenshot
+from handler import Handler
 from menu import BetterMenu, BetterEntryMenuItem
 from scene import Scene
 
@@ -80,6 +81,7 @@ class OptionsMenu(BetterMenu):
         
         self.items = OrderedDict()
         
+        self.items['seed'] = EntryMenuItem('Random Seed:', self.on_seed, director.settings['seed'])
         self.items['fps'] = ToggleMenuItem('Show FPS:', self.on_show_fps, director.show_FPS)
         self.items['fullscreen'] = ToggleMenuItem('Fullscreen:', self.on_fullscreen, director.window.fullscreen)
         if eyetracking:
@@ -104,6 +106,10 @@ class OptionsMenu(BetterMenu):
                             director.settings['eyetracker_out_port'])
         if new_values != self.orig_values:
             director.scene.dispatch_event("eyetracker_info_changed")
+
+    def on_seed(self, value):
+        director.settings['seed'] = value
+        seed(int(director.settings['seed']))
         
     def on_show_fps(self, value):
         director.show_FPS = value
@@ -408,10 +414,10 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
     states = ["INIT", "WAIT_ACTR_CONNECTION", "WAIT_ACTR_MODEL", "CALIBRATE", 
               "IGNORE_INPUT", "WAIT", "STUDY", "SEARCH", "RESULTS"]
     STATE_INIT = 0
-    STATE_WAIT_ACTR_CONNECTION = 1
-    STATE_WAIT_ACTR_MODEL = 2
-    STATE_CALIBRATE = 3
-    STATE_IGNORE_INPUT = 4
+    STATE_CALIBRATE = 1
+    STATE_IGNORE_INPUT = 2
+    STATE_WAIT_ACTR_CONNECTION = 3
+    STATE_WAIT_ACTR_MODEL = 4
     STATE_WAIT = 5
     STATE_STUDY = 6
     STATE_SEARCH = 7
@@ -870,15 +876,19 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
                               event_id="MOUSE_MOTION", mouse_x=x, mouse_y=y, **self.log_extra)
         
     def on_key_press(self, symbol, modifiers):
-        if self.state < self.STATE_IGNORE_INPUT: return
+        if self.state <= self.STATE_IGNORE_INPUT: return
         if symbol == key.W and (modifiers & key.MOD_ACCEL):
             self.logger.close(True)
             self.tarfile.close()
             director.scene.dispatch_event("show_intro_scene")
             True
         elif symbol == key.ESCAPE and director.settings['player'] == "ACT-R":
-            self.client_actr.trigger_event(":break")
-            True
+            if self.state == self.STATE_WAIT_ACTR_CONNECTION:
+                director.scene.dispatch_event("show_intro_scene")
+                True
+            elif self.state > self.STATE_WAIT_ACTR_MODEL:
+                self.client_actr.trigger_event(":break")
+                True
             
 class ACTRScrim(ColorLayer):
     
@@ -946,9 +956,10 @@ class WilliamsEnvironment(object):
         director.window.set_size(int(width * .75), int(height * .75))
 
         director.window.pop_handlers()
-        director.window.push_handlers(DefaultHandler())
+        director.window.push_handlers(Handler())
 
-        director.settings = {'eyetracker': True,
+        director.settings = {'seed':'1',
+                             'eyetracker': True,
                              'eyetracker_ip': '127.0.0.1',
                              'eyetracker_out_port': '4444',
                              'eyetracker_in_port': '5555',
@@ -962,7 +973,7 @@ class WilliamsEnvironment(object):
         
         if ACTR6:
             director.settings['players'].append("ACT-R")
-            director.settings['player'] = "ACT-R"
+            #director.settings['player'] = "ACT-R"
             director.settings['eyetracker'] = False
             self.client_actr = JNI_Server(self)
             self.listener_actr = reactor.listenTCP(6666, self.client_actr)

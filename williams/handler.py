@@ -6,9 +6,9 @@ from pyglet.window import key
 
 from cocos.director import director
 
-class DefaultHandler(object):
+class Handler(object):
     def __init__(self):
-        super(DefaultHandler, self).__init__()
+        super(Handler, self).__init__()
 
     def on_key_press(self, symbol, modifiers):
         if symbol == key.F and (modifiers & key.MOD_ACCEL):
