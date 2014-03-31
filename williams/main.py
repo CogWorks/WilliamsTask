@@ -936,17 +936,18 @@ class WilliamsEnvironment(object):
         pyglet.resource.add_font('Pipe_Dream.ttf')
         pyglet.resource.add_font('cutouts.ttf')
         
-        p = pyglet.window.get_platform()
-        d = p.get_default_display()
-        s = d.get_default_screen()
-        
-        director.init(width=s.width, height=s.height,
-                  caption=self.title, visible=False, resizable=True)
-        director.window.set_size(int(s.width * .75), int(s.height * .75))
-        
+        director.set_show_FPS(False)
+        director.init(fullscreen=True, caption=self.title, visible=True, resizable=True)
+
+        width = director.window.width
+        height = director.window.height
+
+        director.window.set_fullscreen(False)
+        director.window.set_size(int(width * .75), int(height * .75))
+
         director.window.pop_handlers()
         director.window.push_handlers(DefaultHandler())
-            
+
         director.settings = {'eyetracker': True,
                              'eyetracker_ip': '127.0.0.1',
                              'eyetracker_out_port': '4444',
@@ -968,14 +969,6 @@ class WilliamsEnvironment(object):
         elif eyetracking:
             self.client = iViewXClient(director.settings['eyetracker_ip'], int(director.settings['eyetracker_out_port']))
             self.listener = reactor.listenUDP(int(director.settings['eyetracker_in_port']), self.client) 
-        
-        director.fps_display = clock.ClockDisplay(font=font.load('', 18, bold=True))
-        #fps_display = FPSDisplay(director.window)
-        #fps_display.label.font_size = 12
-        #director.fps_display = fps_display
-
-        director.set_show_FPS(True)
-        director.window.set_fullscreen(False)
         
         if platform.system() != 'Windows':
             director.window.set_icon(pyglet.resource.image('logo.png'))
