@@ -6,16 +6,11 @@ ACTR6 = True
 try:
     from actr6_jni import JNI_Server, VisualChunk, PAAVChunk
     from actr6_jni import Dispatcher as JNI_Dispatcher
-    from actr6_jni import Pyglet_MPClock
 except ImportError:
     ACTR6 = False
 
-from pyglet import image, font, text, clock, resource
-from pyglet.gl import *
-from pyglet.window import key, FPSDisplay
-
-#if ACTR6:
-#    pyglet.clock.set_default(Pyglet_MPClock())
+from pyglet import font, text, clock, resource
+from pyglet.window import key
 
 import pygletreactor
 pygletreactor.install()
@@ -35,18 +30,16 @@ from cocos.collision_model import *
 import cocos.euclid as eu
 from pyglet.media import StaticSource
 
-from random import choice, randrange, uniform, sample, shuffle
-import string
+from random import choice, randrange, uniform, shuffle
 
-from primitives import Circle, Line
+from primitives import Circle
 
 import platform
 
-import sys, os
+import os
 
 from util import hsv_to_rgb, screenshot
-from handler import DefaultHandler
-from menu import BetterMenu, GhostMenuItem, BetterEntryMenuItem
+from menu import BetterMenu, BetterEntryMenuItem
 from scene import Scene
 
 from odict import OrderedDict
