@@ -109,7 +109,6 @@ class OptionsMenu(BetterMenu):
 
     def on_seed(self, value):
         director.settings['seed'] = value
-        seed(int(director.settings['seed']))
         
     def on_show_fps(self, value):
         director.show_FPS = value
@@ -502,12 +501,12 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
         self.attention = Label('G',font_name='Cut Outs for 3D FX', font_size=48,
                                position=(self.width / 2, self.height / 2),
                                color=(0, 0, 255, 192), anchor_x='center', anchor_y='center')
-        self.add(self.gaze, z=99)
-        self.add(self.attention, z=99)
-        
+                
         self.reset_state()
         
         if director.settings['player'] == "ACT-R":
+            self.add(self.gaze, z=99)
+            self.add(self.attention, z=99)
             self.client_actr.addDispatcher(self.actr_d)            
             self.state = self.STATE_WAIT_ACTR_CONNECTION
             self.dispatch_event("actr_wait_connection")
@@ -516,8 +515,11 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
             self.dispatch_event("start_calibration", self.calibration_ok, self.calibration_bad)
         else:
             self.next_trial()
-        
+
     def reset_state(self):
+        s = int(director.settings['seed'])
+        if s > 0:
+            seed(s)
         self.current_trial = 0
         self.total_trials = None
         if director.settings['mode'] == 'Experiment':
