@@ -146,7 +146,7 @@ class OptionsMenu(BetterMenu):
 class MainMenu(BetterMenu):
 
     def __init__(self):
-        super(MainMenu, self).__init__("The Williams' Search Task")
+        super(MainMenu, self).__init__("The Social Search Task")
         self.screen = director.get_window_size()
         
         ratio = self.screen[1] / self.screen[0]
@@ -169,7 +169,7 @@ class MainMenu(BetterMenu):
 
         self.items = OrderedDict()
         
-        self.items['mode'] = MultipleMenuItem('Mode: ', self.on_mode, director.settings['modes'], director.settings['modes'].index(director.settings['mode']))
+        #self.items['mode'] = MultipleMenuItem('Mode: ', self.on_mode, director.settings['modes'], director.settings['modes'].index(director.settings['mode']))
         self.items['player'] = MultipleMenuItem('Player: ', self.on_player, director.settings['players'], director.settings['players'].index(director.settings['player']))
         self.items['start'] = MenuItem('Start', self.on_start)
         self.items['options'] = MenuItem('Options', self.on_options)
@@ -190,7 +190,7 @@ class MainMenu(BetterMenu):
         if director.settings['player'] == 'Human' and director.settings['mode'] == 'Experiment':
             self.parent.switch_to(2)
         else:
-            filebase = "WilliamsSearch_%s" % (getDateTimeStamp())
+            filebase = "SocialSearch_%s" % (getDateTimeStamp())
             director.settings['filebase'] = filebase
             director.scene.dispatch_event('start_task')
 
@@ -252,7 +252,7 @@ class ParticipantMenu(BetterMenu):
         si['encrypted_rin'], si['cipher'] = rin2id(si['rin'])
         si['timestamp'] = getDateTimeStamp()
         director.settings['si'] = si
-        filebase = "WilliamsSearch_%s_%s" % (si['timestamp'], si['encrypted_rin'][:8])
+        filebase = "SocialSearch_%s_%s" % (si['timestamp'], si['encrypted_rin'][:8])
         director.settings['filebase'] = filebase
         writeHistoryFile("data/%s.history" % filebase, si)
         director.scene.dispatch_event('start_task')
@@ -260,12 +260,12 @@ class ParticipantMenu(BetterMenu):
     def on_quit(self):
         self.parent.switch_to(0)
         
-class Shape(Sprite):
+class Icon(Sprite):
 
     def __init__(self, image, chunk=None, position=(0, 0), rotation=0, scale=1, opacity=255, color=(255, 255, 255)):
-        super(Shape, self).__init__(image, rotation=rotation, scale=scale, opacity=opacity, color=color)
+        super(Icon, self).__init__(image, rotation=rotation, scale=scale, opacity=opacity, color=color)
         self.chunk = chunk
-        if platform.system() == 'Windows':
+        """if platform.system() == 'Windows':
             rscale = .34
             if self.chunk:
                 if self.chunk[0] == 'cross':
@@ -278,15 +278,15 @@ class Shape(Sprite):
                 if self.chunk[0] == 'diamond':
                     rscale = .52
                 elif self.chunk[0] == 'oval':
-                    rscale = .52
-        self.radius = max(self.width, self.height) * rscale
+                    rscale = .52"""
+        self.radius = max(abs(self.width), abs(self.height)) * .475
         self.set_position(position[0], position[1])
     
     def set_position(self, x, y):
 
         self.cshape = CircleShape(eu.Vector2(x, y), self.radius)
-        super(Shape, self).set_position(self.cshape.center[0], self.cshape.center[1])
-
+        super(Icon, self).set_position(self.cshape.center[0], self.cshape.center[1])
+        
 class BackgroundLayer(Layer):
     
     def __init__(self):
@@ -295,28 +295,16 @@ class BackgroundLayer(Layer):
         self.batch = BatchNode()
         self.add(self.batch)
         
-        self.shapes = {"circle":"E",
-                       "square":"K",
-                       "oval":"F",
-                       "diamond":"T",
-                       "crescent":"Q",
-                       "cross":"Y",
-                       "star":"C",
-                       "triangle":"A"}
-        
-        self.font = font.load('Cut Outs for 3D FX', 128)
-        self.glyphs = self.font.get_glyphs("".join(self.shapes.values()))
-        
-        ratio = 1 - self.screen[1] / self.screen[0]
+        self.icons = ["amazon","apple","facebook","google-plus","linkedin",
+                      "paypal","skype","twitter","yahoo"]
+
+        ratio = (1 - self.screen[1] / self.screen[0]) / 3
         n = int(750 * ratio)
         for _ in range(0, n):
-            img = choice(self.glyphs).get_texture(True)
-            img.anchor_x = 'center'
-            img.anchor_y = 'center'
             max_o = 96
             o = choice([0, max_o])
             speed = uniform(1, 10)
-            sprite = Shape(img, rotation=randrange(0, 365), scale=uniform(ratio, 3 * ratio),
+            sprite = Sprite(resource.image("social/%s.png" % choice(self.icons)), rotation=randrange(0, 365), scale=uniform(ratio, 3 * ratio),
                             position=(randrange(0, self.screen[0]), randrange(0, self.screen[1])),
                             opacity=o, color=(randrange(0, 256), randrange(0, 256), randrange(0, 256)))
             if o == max_o:
@@ -327,53 +315,22 @@ class BackgroundLayer(Layer):
 
 class Probe(Label):
     
-    def __init__(self, chunk, s, width, position, font_size):
+    def __init__(self, chunk, width, position, font_size):
         
         self.screen = director.get_window_size()
         
         self.chunk = chunk
         
-        cid = "%02d" % self.chunk[3]
+        icon = self.chunk[0].upper()
         color = self.chunk[1].upper()
-        shape = self.chunk[0].upper()
-        size = self.chunk[2].upper()        
+        size = self.chunk[2].upper()
+        view = self.chunk[3].upper()
 
-        self.color_visible = False
-        self.shape_visible = False
-        self.size_visible = False
+        cues = (size, color, icon, view)
         
-        if s == 7:
-            cues = []
-        elif s == 6:
-            cues = [color]
-            self.color_visible = True
-        elif s == 5:
-            cues = [shape]
-            self.shape_visible = True
-        elif s == 4:
-            cues = [size]
-            self.size_visible = True
-        elif s == 3:
-            cues = [color, shape]
-            self.color_visible = True
-            self.shape_visible = True
-        elif s == 2:
-            cues = [color, size]
-            self.color_visible = True
-            self.size_visible = True
-        elif s == 1:
-            cues = [shape, size]
-            self.shape_visible = True
-            self.size_visible = True
-        elif s == 0:
-            cues = [color, shape, size]
-            self.color_visible = True
-            self.shape_visible = True
-            self.size_visible = True
-        shuffle(cues)
+        #x = position[0] + (self.screen[0] - self.screen[1]) / 2
         
-        x = position[0] + (self.screen[0] - self.screen[1]) / 2
-        
+        """
         self.actr_chunks = [VisualChunk(None, "probe-text", x, position[1], abstract=False, value="%s" % str(cid), width=width, height=font_size)]
         if self.color_visible:
             self.actr_chunks.append(VisualChunk(None, "probe-text", x, position[1], abstract=True, value="%s" % self.chunk[1], width=width, height=font_size))
@@ -381,8 +338,7 @@ class Probe(Label):
             self.actr_chunks.append(VisualChunk(None, "probe-text", x, position[1], abstract=True, value="%s" % self.chunk[0], width=width, height=font_size))
         if self.size_visible:
             self.actr_chunks.append(VisualChunk(None, "probe-text", x, position[1], abstract=True, value="%s" % self.chunk[2], width=width, height=font_size))
-        
-        cues = tuple(cues + [cid])
+        """
         
         template = '\n'.join(["%s"] * len(cues))
         html = template % (cues)
@@ -432,6 +388,8 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
         self.client_actr = actr
         self.circles = []
         self.trial_complete = False
+        self.icons = ["amazon","apple","facebook","google-plus","linkedin",
+                      "paypal","skype","twitter","yahoo"]
         
     def on_enter(self):
         if isinstance(director.scene, TransitionScene): return
@@ -460,36 +418,18 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
         self.position = ((self.screen[0] - self.screen[1]) / 2, 0)
         self.cm = CollisionManagerBruteForce()
         self.mono = font.load("Mono", 32)
-        self.shapes = {"oval":"F",
-                       # "diamond":"T",
-                       "crescent":"Q",
-                       "cross":"Y",
-                       "star":"C"}
-        # star 83x79       1.05     2581/6557  .39
-        # oval 55x83        .66     3427/4565  .75
-        # crescent 51x77    .66     1580/3927  .40
-        # cross 61x62       .98     1783/3782  .47
-        # rect 46x73.       .63     3358/3358  1
-        # cross2 57x84      .67     1532/4788  .31
-        self.shape_mod = {"oval":[1.0, 1.0, 1.0],
-                          # "diamond":"T",
-                          "crescent":[1.07, 1.07, 1.07],
-                          "cross":[1.15, 1.15, 1.15],
-                          "star":[1.0, 1.0, 1.0]} 
-        self.font = font.load('Cut Outs for 3D FX', 128)
-        for shape in self.shapes:
-            self.shapes[shape] = self.font.get_glyphs(self.shapes[shape])[0].get_texture(True)
-        s = 50
+        
+        s = 100
         v = 100
         self.colors = {"red": hsv_to_rgb(0, s, v),
-                       "yellow": hsv_to_rgb(72, s, v),
                        "green": hsv_to_rgb(144, s, v),
-                       # "purple": hsv_to_rgb(288, s, v),
                        "blue": hsv_to_rgb(216, s, v)}
         self.side = self.screen[1] / 11
-        self.ratio = self.side / 128
-        self.scales = [self.ratio * 2, self.ratio * 1.25, self.ratio * .5]
-        self.sizes = ["large", "medium", "small"]
+        self.ratio = self.side / 512
+        self.scales = [self.ratio * 1, self.ratio * 0.5]
+        self.sizes = ["large", "small"]
+        self.view = ["normal","mirrored"]
+        self.view_vals = [1,-1]
         self.ready_label = Label("Click mouse when ready!",
                                  position=(self.width / 2, self.height / 2),
                                  font_name='Pipe Dream', font_size=24,
@@ -522,8 +462,7 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
             seed(s)
         self.current_trial = 0
         self.total_trials = None
-        if director.settings['mode'] == 'Experiment':
-            self.gen_trials()
+        self.gen_trials()
         self.fake_cursor = (self.screen[0] / 2, self.screen[1] / 2)
             
     def calibration_ok(self):
@@ -616,42 +555,29 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
         self.trials = []
         for scale in self.sizes:
             for color in self.colors:
-                for shape in self.shapes:
-                    for c in range(0, 8):
-                        self.trials.append([shape, color, scale, c])
+                for icon in self.icons:
+                    for view in self.view:
+                        self.trials.append([icon, color, scale, view])
         self.total_trials = len(self.trials)
         shuffle(self.trials)
         
     def gen_combos(self):
-        ids = range(1, len(self.sizes) * len(self.colors) * len(self.shapes) + 1)
-        shuffle(ids)
         self.combos = []
-        for scale in self.sizes:
+        for size in self.sizes:
             for color in self.colors:
-                for shape in self.shapes:
-                    self.combos.append([shape, color, scale, ids.pop()])
+                for icon in self.icons:
+                    for view in self.view:
+                        self.combos.append([icon, color, size, view])
         
     def gen_probe(self):
         for c in self.get_children():
             if c != self.gaze and c != self.attention: self.remove(c)
-        s = 0
-        if director.settings['mode'] == 'Experiment':
-            trial = self.trials.pop()
-            for c in self.combos:
-                if c[0] == trial[0] and c[1] == trial[1] and c[2] == trial[2]:
-                    chunk = c
-                    s = trial[3]
-                    break
-        else:
-            if director.settings['mode'] == 'Moderate':
-                s = choice(range(0, 4))
-            elif director.settings['mode'] == 'Hard':
-                s = choice(range(0, 7))
-            elif director.settings['mode'] == 'Insane':
-                s = choice(range(0, 8))
-            chunk = choice(self.combos)
-        self.probe = Probe(chunk, s, self.side, (self.screen[1] / 2, self.screen[1] / 2), 14 * self.ratio)
-        self.add(self.probe)
+        trial = self.trials.pop()
+        for c in self.combos:
+            if c[0] == trial[0] and c[1] == trial[1] and c[2] == trial[2] and c[3] == trial[3]:
+                self.probe = Probe(c, self.side, (self.screen[1] / 2, self.screen[1] / 2), 48 * self.ratio)
+                self.add(self.probe)
+                return
         
     def clear_shapes(self):
         self.circles = []
@@ -663,34 +589,36 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
     
     def show_shapes(self):
         self.cm.add(self.probe)
-        ratio = self.side / 128
+        #ratio = self.side / 512
         self.circles = []
-        shapeinfo = {}
-        shapeinfo['probe'] = {"id": self.probe.chunk[3],
-                              "color": self.probe.color_visible,
-                              "shape": self.probe.shape_visible,
-                              "size": self.probe.size_visible}
-        actr_chunks = self.probe.actr_chunks
+        shapeinfo = []
+        #shapeinfo['probe'] = {"id": self.probe.chunk[3],
+        #                      "color": self.probe.color_visible,
+        #                      "shape": self.probe.shape_visible,
+        #                      "size": self.probe.size_visible}
+        #actr_chunks = self.probe.actr_chunks
         for c in self.combos:
-            img = self.shapes[c[0]]
-            img.anchor_x = 'center'
-            img.anchor_y = 'center'
-            sprite = Shape(img, chunk=c, rotation=randrange(0, 365), color=self.colors[c[1]], scale=self.shape_mod[c[0]][self.sizes.index(c[2])] * self.scales[self.sizes.index(c[2])])
+            sprite = Icon(resource.image("social/%s.png" %c[0]),
+                          chunk=c,
+                          rotation=randrange(0, 365),
+                          color=self.colors[c[1]],
+                          scale=self.scales[self.sizes.index(c[2])])
+            sprite.scale_x = sprite.scale_x * self.view_vals[self.view.index(c[3])]
             pad = sprite.radius
             sprite.set_position(uniform(pad, self.screen[1] - pad), uniform(pad, self.screen[1] - pad))
             while self.cm.objs_colliding(sprite):
                 sprite.set_position(uniform(pad, self.screen[1] - pad), uniform(pad, self.screen[1] - pad))
-            fs = 14 * ratio
-            text.Label("%02d" % c[3], font_size=fs,
-                       x=sprite.position[0], y=sprite.position[1],
-                       font_name="Monospace", color=(32, 32, 32, 255),
-                       anchor_x='center', anchor_y='center', batch=self.id_batch.batch)
-            shapeinfo[c[3]] = {'shape':c[0], 'color':c[1], 'size':c[2], 'id': c[3],
-                               'radius':sprite.cshape.r, 'x':sprite.position[0], 'y':sprite.position[1]}
+            #fs = 14 * ratio
+            #text.Label("%02d" % c[3], font_size=fs,
+            #           x=sprite.position[0], y=sprite.position[1],
+            #           font_name="Monospace", color=(32, 32, 32, 255),
+            #           anchor_x='center', anchor_y='center', batch=self.id_batch.batch)
+            shapeinfo.append({'shape':c[0], 'color':c[1], 'size':c[2], 'id': c[3],
+                              'radius':sprite.cshape.r, 'x':sprite.position[0], 'y':sprite.position[1]})
             self.circles.append(Circle(sprite.position[0] + (self.screen[0] - self.screen[1]) / 2, sprite.position[1], width=2 * sprite.cshape.r))
             self.cm.add(sprite)
             self.batch.add(sprite)
-            actr_chunks.append(PAAVChunk(None, "visual-object", 
+            """actr_chunks.append(PAAVChunk(None, "visual-object", 
                                          sprite.position[0] + (self.screen[0] - self.screen[1]) / 2,
                                          sprite.position[1],
                                          width = 2 * sprite.cshape.r,
@@ -703,10 +631,10 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
                                            sprite.position[1],
                                            width = 2 * fs,
                                            height = fs,
-                                           value = "%02d" % c[3]))
-        if director.settings['player'] == 'ACT-R' and actr_chunks:
-            self.client_actr.update_display(actr_chunks, clear=False)
-        self.circles.append(Circle(self.probe.position[0] + (self.screen[0] - self.screen[1]) / 2, self.probe.position[1], width=2 * self.probe.cshape.r))
+                                           value = "%02d" % c[3]))"""
+        #if director.settings['player'] == 'ACT-R' and actr_chunks:
+        #    self.client_actr.update_display(actr_chunks, clear=False)
+        #self.circles.append(Circle(self.probe.position[0] + (self.screen[0] - self.screen[1]) / 2, self.probe.position[1], width=2 * self.probe.cshape.r))
         self.add(self.batch, z=1)
         self.add(self.id_batch, z=2)
         s = StringIO(json.dumps(shapeinfo, sort_keys=True, indent=4))
@@ -813,9 +741,10 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
                 eyedata[self.smi_spl_header[i]] = inResponse[i]
             self.logger.write(system_time=get_time(), mode=director.settings['mode'], state=self.states[self.state], 
                               trial=self.current_trial, event_source="SMI", event_type="ET_SPL", **eyedata)
-    # def draw(self):
-    #    super(Task, self).draw()
-    #    for c in self.circles: c.render()
+
+    def draw(self):
+        super(Task, self).draw()
+        #for c in self.circles: c.render()
         
     def on_mouse_press(self, x, y, buttons, modifiers):
         if self.state < self.STATE_IGNORE_INPUT: return
@@ -842,7 +771,9 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
                               event_id="MOUSE_PRESS", mouse_x=x, mouse_y=y, **self.log_extra)
             if director.settings['player'] != "ACT-R":
                 x, y = director.get_virtual_coordinates(x, y)
+            print self.probe.chunk
             for obj in self.cm.objs_touching_point(x - (self.screen[0] - self.screen[1]) / 2, y):
+                print obj.chunk
                 if obj != self.probe and obj.chunk == self.probe.chunk:
                     self.trial_done()
         else:
@@ -935,9 +866,9 @@ class EyetrackerScrim(ColorLayer):
         l = Label("Reconnecting to eyetracker...", position=(self.screen[0] / 2, self.screen[1] / 2), font_name='', font_size=32, bold=True, color=(255, 255, 255, 255), anchor_x='center', anchor_y='center')
         self.add(l)
 
-class WilliamsEnvironment(object):
+class SocialEnvironment(object):
     
-    title = "The Williams' Search Task"
+    title = "The Social Search Task"
         
     def __init__(self):
         
@@ -1091,6 +1022,6 @@ class WilliamsEnvironment(object):
         director.replace(SplitRowsTransition(self.taskScene))
                  
 def main():
-    williams = WilliamsEnvironment()
-    williams.show_intro_scene()
+    social = SocialEnvironment()
+    social.show_intro_scene()
     reactor.run()
