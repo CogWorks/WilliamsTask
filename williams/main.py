@@ -771,9 +771,7 @@ class Task(ColorLayer, pyglet.event.EventDispatcher):
                               event_id="MOUSE_PRESS", mouse_x=x, mouse_y=y, **self.log_extra)
             if director.settings['player'] != "ACT-R":
                 x, y = director.get_virtual_coordinates(x, y)
-            print self.probe.chunk
             for obj in self.cm.objs_touching_point(x - (self.screen[0] - self.screen[1]) / 2, y):
-                print obj.chunk
                 if obj != self.probe and obj.chunk == self.probe.chunk:
                     self.trial_done()
         else:
